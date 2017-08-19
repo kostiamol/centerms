@@ -1,0 +1,144 @@
+package db
+
+import (
+	"time"
+	"errors"
+	"encoding/json"
+	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"menteslibres.net/gosexy/redis"
+
+	"github.com/giperboloid/centerms/entities"
+	. 	"github.com/giperboloid/centerms/sys"
+)
+
+const (
+	partKeyToConfig = ":config"
+)
+
+type RedisClient struct {
+	Client   *redis.Client
+	DbServer entities.Server
+}
+
+func (rc *RedisClient) SetDBServer(server entities.Server){
+	rc.DbServer = server
+}
+
+func (rc *RedisClient) FlushAll() error {
+	_, err := rc.Client.FlushAll()
+	return err
+}
+
+func (rc *RedisClient) GetClient() DbRedisDriver {
+	return rc.Client
+}
+
+func (rc *RedisClient) Publish(channel string, message interface{}) (int64, error) {
+	return rc.Client.Publish(channel, message)
+}
+
+func (rc *RedisClient) Connect() (error) {
+	if rc.DbServer.Host == "" || rc.DbServer.Port == 0 {
+		return errors.New("Empty value. Check Host or Port.")
+	}
+	rc.Client = redis.New()
+	err := rc.Client.Connect(rc.DbServer.Host, rc.DbServer.Port)
+	return err
+}
+
+func (rc *RedisClient)Subscribe(cn chan []string, channel ...string) error{
+	return rc.Client.Subscribe(cn, channel...)
+}
+
+func (rc *RedisClient) Close() error {
+	return rc.Client.Close()
+}
+
+func (rc RedisClient) NewDBConnection() (Client) {
+	err := rc.Connect()
+	CheckError("NewDBConnection error: ", err)
+	for err != nil {
+		log.Errorln("Database: connection has failed:", err)
+		time.Sleep(time.Second)
+		err = rc.Connect()
+	}
+	var dbClient Client = &rc
+	return dbClient
+}
+
+func PublishWS(req entities.Request, roomID string, worker Client) {
+	pubReq, err := json.Marshal(req)
+	CheckError("Marshal for publish.", err)
+
+	worker.Connect()
+	defer worker.Close()
+
+	_, err = worker.Publish(roomID, pubReq)
+	CheckError("Publish", err)
+}
+
+func (rc *RedisClient) GetAllDevices() []entities.DevData {
+	rc.NewDBConnection()
+
+	var device entities.DevData
+	var devices []entities.DevData
+
+	devParamsKeys, err := rc.Client.SMembers("devParamsKeys")
+	if CheckError("Can't read members from devParamsKeys", err) != nil {
+		return nil
+	}
+
+	var devParamsKeysTokens = make([][]string, len(devParamsKeys))
+	for i, k := range devParamsKeys {
+		devParamsKeysTokens[i] = strings.Split(k, ":")
+	}
+
+	for index, key := range devParamsKeysTokens {
+		params, err := rc.Client.SMembers(devParamsKeys[index])
+		CheckError("Can't read members from "+devParamsKeys[index], err)
+
+		device.Meta.Type = key[1]
+		device.Meta.Name = key[2]
+		device.Meta.MAC = key[3]
+		device.Data = make(map[string][]string)
+
+		values := make([][]string, len(params))
+		for i, p := range params {
+			values[i], _ = rc.Client.ZRangeByScore(devParamsKeys[index]+":"+p, "-inf", "inf")
+			CheckError("Can't use ZRangeByScore for "+devParamsKeys[index], err)
+			device.Data[p] = values[i]
+		}
+
+		devices = append(devices, device)
+	}
+	return devices
+}
+
+func (rc *RedisClient) GetKeyForConfig(mac string) string {
+	return mac + partKeyToConfig
+}
+
+
+func (rc *RedisClient) Multi() (string, error)   {
+	return rc.Client.Multi()
+}
+func (rc *RedisClient) Discard()  (string, error)  {
+	return rc.Client.Discard()
+}
+func (rc *RedisClient) Exec()  ([]interface{}, error) {
+	return rc.Client.Exec()
+}
+
+func (rc *RedisClient)  ZRem(key string, arguments ...interface{}) (int64, error) {
+	return rc.Client.ZRem(key, arguments)
+}
+
+func (rc *RedisClient)  ZRange(key string, values ...interface{}) ([]string, error) {
+	return rc.Client.ZRange(key, values)
+}
+
+func (rc *RedisClient)  ZScore(key string, member interface{}) (int64, error)  {
+	return rc.Client.ZScore(key, member)
+}

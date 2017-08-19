@@ -1,5 +1,5 @@
 FROM alpine
-MAINTAINER Kharkiv Gophers (kostyamol@gmail.com)
+MAINTAINER giperboloid (kostyamol@gmail.com)
 
 EXPOSE 6379 3030 3000 8100 2540
 
