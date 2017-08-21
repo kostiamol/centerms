@@ -12,8 +12,8 @@ import (
 
 	"github.com/giperboloid/centerms/entities"
 	"github.com/giperboloid/centerms/devices"
-	. "github.com/giperboloid/centerms/sys"
 	"github.com/giperboloid/centerms/db"
+	"github.com/pkg/errors"
 )
 
 type HTTPServer struct {
@@ -68,9 +68,11 @@ func (server *HTTPServer) getDevicesHandler(w http.ResponseWriter, r *http.Reque
 	dbClient := server.DbClient.NewDBConnection()
 	defer dbClient.Close()
 
-	devices := dbClient.GetAllDevices()
-	err := json.NewEncoder(w).Encode(devices)
-	CheckError("getDevicesHandler JSON enc", err)
+	devs := dbClient.GetAllDevices()
+	err := json.NewEncoder(w).Encode(devs)
+	if err != nil {
+		errors.Wrap(err, "[]DevData marshalling has failed")
+	}
 }
 
 func (server *HTTPServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
@@ -89,16 +91,13 @@ func (server *HTTPServer) getDevDataHandler(w http.ResponseWriter, r *http.Reque
 	deviceData := device.GetDevData(devParamsKey, devMeta, dbClient)
 
 	err := json.NewEncoder(w).Encode(deviceData)
-	CheckError("getDevDataHandler JSON enc", err)
+	if err != nil {
+		errors.Wrap(err, "DevData marshalling has failed")
+	}
 }
 
 func (server *HTTPServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
 	devMeta := entities.DevMeta{r.FormValue("type"), r.FormValue("name"), r.FormValue("mac"), ""}
-	flag, err := entities.ValidateDevMeta(devMeta)
-	if !flag {
-		log.Errorf("getDevConfigHandler. %v. Exit the method %v", err, devMeta.MAC)
-		return
-	}
 
 	dbClient := server.DbClient.NewDBConnection()
 	defer dbClient.Close()
@@ -118,11 +117,6 @@ func (server *HTTPServer) getDevConfigHandler(w http.ResponseWriter, r *http.Req
 func (server *HTTPServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
 
 	devMeta := entities.DevMeta{r.FormValue("type"), r.FormValue("name"), r.FormValue("mac"), ""}
-	_, err := entities.ValidateDevMeta(devMeta)
-	if err != nil {
-		log.Error(err)
-		return
-	}
 
 	dbClient := server.DbClient.NewDBConnection()
 	defer dbClient.Close()

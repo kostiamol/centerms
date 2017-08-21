@@ -1,13 +1,13 @@
 package devices
 
 import (
-	"testing"
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/giperboloid/centerms/db"
 	"github.com/giperboloid/centerms/entities"
+	"github.com/smartystreets/goconvey/convey"
+	"testing"
 
-	"reflect"
 	"encoding/json"
+	"reflect"
 )
 
 func TestSetDevConfigWithRedis(t *testing.T) {
@@ -17,14 +17,14 @@ func TestSetDevConfigWithRedis(t *testing.T) {
 	fridge := Fridge{}
 
 	fridge.Config = FridgeConfig{true, true, int64(200), int64(200)}
-	b,_ := json.Marshal(fridge.Config)
+	b, _ := json.Marshal(fridge.Config)
 	devConfig := entities.DevConfig{"00-00-00-11-11-11", b}
 
-	Convey("Should be all ok", t, func() {
+	convey.Convey("Should be all ok", t, func() {
 		fridge.SetDevConfig("00-00-00-11-11-11:config", &devConfig, &dbWorker)
 		isConfig := fridge.GetDevConfig("00-00-00-11-11-11:config", "00-00-00-11-11-11", &dbWorker)
 		dbWorker.FlushAll()
-		So(reflect.DeepEqual(*isConfig, devConfig), ShouldBeTrue)
+		convey.So(reflect.DeepEqual(*isConfig, devConfig), convey.ShouldBeTrue)
 	})
 }
 
@@ -35,36 +35,36 @@ func TestValidateDevData(t *testing.T) {
 	defer dbWorker.Close()
 	fridge := Fridge{}
 	var devConfig entities.DevConfig
-	Convey("Invalid MAC. Should be false", t, func() {
+	convey.Convey("Invalid MAC. Should be false", t, func() {
 		fridge.Config = FridgeConfig{true, true, int64(0), int64(0)}
-		b,_ := json.Marshal(fridge.Config)
+		b, _ := json.Marshal(fridge.Config)
 		devConfig = entities.DevConfig{"Invalid mac", b}
 		valid, _ := fridge.ValidateDevData(devConfig)
-		So(valid, ShouldBeFalse)
+		convey.So(valid, convey.ShouldBeFalse)
 	})
-	Convey("Valid DevConfig. Should be false", t, func() {
+	convey.Convey("Valid DevConfig. Should be false", t, func() {
 
 		fridge.Config = FridgeConfig{true, true, int64(200), int64(200)}
-		b,_ := json.Marshal(fridge.Config)
+		b, _ := json.Marshal(fridge.Config)
 		devConfig = entities.DevConfig{"00-00-00-11-11-11", b}
 
 		valid, _ := fridge.ValidateDevData(devConfig)
-		So(valid, ShouldBeTrue)
+		convey.So(valid, convey.ShouldBeTrue)
 	})
-	Convey("Collect Frequency should be more than 150!", t, func() {
+	convey.Convey("Collect Frequency should be more than 150!", t, func() {
 
 		fridge.Config = FridgeConfig{true, true, int64(100), int64(200)}
-		b,_ := json.Marshal(fridge.Config)
+		b, _ := json.Marshal(fridge.Config)
 		devConfig = entities.DevConfig{"00-00-00-11-11-11", b}
 		valid, _ := fridge.ValidateDevData(devConfig)
-		So(valid, ShouldBeFalse)
+		convey.So(valid, convey.ShouldBeFalse)
 	})
-	Convey("Send Frequency should be more than 150!", t, func() {
+	convey.Convey("Send Frequency should be more than 150!", t, func() {
 		fridge.Config = FridgeConfig{true, true, int64(200), int64(100)}
-		b,_ := json.Marshal(fridge.Config)
+		b, _ := json.Marshal(fridge.Config)
 		devConfig = entities.DevConfig{"00-00-00-11-11-11", b}
 		valid, _ := fridge.ValidateDevData(devConfig)
-		So(valid, ShouldBeFalse)
+		convey.So(valid, convey.ShouldBeFalse)
 	})
 	dbWorker.FlushAll()
 }
@@ -80,11 +80,11 @@ func TestSmallSetDevData(t *testing.T) {
 
 	key := "test"
 
-	Convey("", t, func() {
-		expected := []string{"1:1","2:2"}
+	convey.Convey("", t, func() {
+		expected := []string{"1:1", "2:2"}
 		setCameraData(tempCam, key, &dbWorker)
 		actual, _ := dbWorker.Client.ZRangeByScore(key, "-inf", "inf")
-		So(actual, ShouldResemble, expected)
+		convey.So(actual, convey.ShouldResemble, expected)
 	})
 	dbWorker.FlushAll()
 }
@@ -109,13 +109,12 @@ func TestGetDefaultConfig(t *testing.T) {
 		Data: data,
 	}
 
-	Convey("", t, func() {
-		actual:= fridge.GetDefaultConfig()
-		So(actual, ShouldResemble, expected)
+	convey.Convey("", t, func() {
+		actual := fridge.GetDefaultConfig()
+		convey.So(actual, convey.ShouldResemble, expected)
 	})
 	dbWorker.FlushAll()
 }
-
 
 func TestSetDevData(t *testing.T) {
 	dbWorker := db.RedisClient{DbServer: entities.Server{Host: "0.0.0.0", Port: uint(6379)}}
@@ -127,26 +126,26 @@ func TestSetDevData(t *testing.T) {
 	tempCam[2] = 2.0
 
 	dataMap := make(map[string][]string)
-	dataMap["TempCam1"]= []string{"1:1","2:2"}
-	dataMap["TempCam2"]= []string{"1:1","2:2"}
+	dataMap["TempCam1"] = []string{"1:1", "2:2"}
+	dataMap["TempCam2"] = []string{"1:1", "2:2"}
 
-	meta := entities.DevMeta{MAC:"00-00-00-11-11-11", Name:"name",Type:"fridge"}
-	data :=FridgeData{tempCam,tempCam}
+	meta := entities.DevMeta{MAC: "00-00-00-11-11-11", Name: "name", Type: "fridge"}
+	data := FridgeData{tempCam, tempCam}
 	fridge := Fridge{}
 
-	b,_:=json.Marshal(data)
+	b, _ := json.Marshal(data)
 
-	req := entities.Request{Meta:meta, Data:b}
+	req := entities.Request{Meta: meta, Data: b}
 
-	Convey("Must bu all ok", t, func() {
+	convey.Convey("Must bu all ok", t, func() {
 
-		fridge.SetDevData(&req, &	dbWorker)
+		fridge.SetDevData(&req, &dbWorker)
 		dbWorker.Connect()
-		devParamsKey:="device:" +meta.Type +":"+meta.Name+":"+meta.MAC+":params"
+		devParamsKey := "device:" + meta.Type + ":" + meta.Name + ":" + meta.MAC + ":params"
 
-		actual := fridge.GetDevData(devParamsKey,meta,&dbWorker)
-		expected := entities.DevData{Meta:meta,Data:dataMap}
+		actual := fridge.GetDevData(devParamsKey, meta, &dbWorker)
+		expected := entities.DevData{Meta: meta, Data: dataMap}
 		dbWorker.FlushAll()
-		So(actual, ShouldResemble, expected)
+		convey.So(actual, convey.ShouldResemble, expected)
 	})
 }

@@ -9,11 +9,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/giperboloid/centerms/entities"
-	. "github.com/giperboloid/centerms/sys"
 
 	"github.com/giperboloid/centerms/db"
 	"github.com/giperboloid/centerms/devices"
 	"reflect"
+	"github.com/pkg/errors"
 )
 
 type TCPDevConfigServer struct {
@@ -72,7 +72,9 @@ func (server *TCPDevConfigServer) Run() {
 
 	for {
 		conn, err := ln.Accept()
-		CheckError("TCP config conn Accept", err)
+		if err != nil {
+			errors.Wrap(err, "tcp connection acceptance has failed")
+		}
 		go server.sendDefaultConfiguration(conn, &server.Pool)
 	}
 }
@@ -85,11 +87,10 @@ func (server *TCPDevConfigServer) sendNewConfiguration(config entities.DevConfig
 	}
 
 	_, err := connection.Write(config.Data)
-
 	if err != nil {
+		errors.Wrap(err, "Data writing has failed")
 		pool.RemoveConn(config.MAC)
 	}
-	CheckError("sendNewConfig", err)
 }
 
 func (server *TCPDevConfigServer) sendDefaultConfiguration(conn net.Conn, pool *entities.ConnectionPool) {
@@ -99,7 +100,9 @@ func (server *TCPDevConfigServer) sendDefaultConfiguration(conn net.Conn, pool *
 		device devices.DevServerHandler
 	)
 	err := json.NewDecoder(conn).Decode(&req)
-	CheckError("sendDefaultConfiguration JSON Decod", err)
+	if err != nil {
+		errors.Wrap(err, "Request marshalling has failed")
+	}
 	pool.AddConn(conn, req.Meta.MAC)
 	dbClient := server.DbClient.NewDBConnection()
 	defer dbClient.Close()
@@ -109,7 +112,9 @@ func (server *TCPDevConfigServer) sendDefaultConfiguration(conn net.Conn, pool *
 	config.Data = device.SendDefaultConfigurationTCP(conn, dbClient, &req)
 
 	_, err = conn.Write(config.Data)
-	CheckError("sendDefaultConfiguration JSON enc", err)
+	if err != nil {
+		errors.Wrap(err, "data writing has failed")
+	}
 
 	log.Warningln("Configuration has been successfully sent ", err)
 
@@ -126,7 +131,9 @@ func (server *TCPDevConfigServer) configSubscribe(roomID string, message chan []
 		case msg := <-message:
 			if msg[0] == "message" {
 				err := json.Unmarshal([]byte(msg[2]), &config)
-				CheckError("configSubscribe: unmarshal", err)
+				if err != nil {
+					errors.Wrap(err, "DevConfig marshalling has failed")
+				}
 				go server.sendNewConfiguration(config, pool)
 			}
 		case <-server.StopConfigSubscribe:

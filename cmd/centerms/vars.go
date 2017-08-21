@@ -13,10 +13,10 @@ var (
 	}
 
 	localhost     = "0.0.0.0"
-	tcpDataPort   = uint(3030)
-	httpPort      = uint(8100)
-	tcpConfigPort = uint(3000)
 	wsPort        = uint(2540)
+	tcpDataPort   = uint(3030)
+	tcpConfigPort = uint(3000)
+	httpPort      = uint(8100)
 )
 
 func getEnvDbPort(key string) uint {

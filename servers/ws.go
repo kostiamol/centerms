@@ -11,9 +11,10 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/giperboloid/centerms/entities"
-	. "github.com/giperboloid/centerms/sys"
 	"fmt"
 	"github.com/giperboloid/centerms/db"
+	"sync"
+	"github.com/pkg/errors"
 )
 
 type WSServer struct {
@@ -23,6 +24,26 @@ type WSServer struct {
 	Upgrader    websocket.Upgrader
 	Controller  entities.RoutinesController
 	DbClient	db.Client
+}
+
+type WSConnectionsMap struct {
+	ConnChanCloseWS   chan *websocket.Conn
+	StopCloseWS       chan string
+	MacChan           chan string
+	CloseMapCollector chan string
+	MapConn           map[string]*ListConnection
+	sync.Mutex
+}
+
+type PubSub struct {
+	RoomIDForWSPubSub string
+	StopSub           chan bool
+	SubWSChannel      chan []string
+}
+
+type ListConnection struct {
+	sync.Mutex
+	Connections []*websocket.Conn
 }
 
 func NewWSConnections() *WSConnectionsMap {
@@ -188,17 +209,18 @@ func (server *WSServer) Subscribe(dbWorker db.Client) {
 //We are check mac in our mapConnections.
 // If we have mac in the map we will send message to all connections.
 // Else we do nothing
-func (server *WSServer) checkAndSendInfoToWSClient(msg []string) {
+func (server *WSServer) checkAndSendInfoToWSClient(msg []string) error {
 	r := new(entities.Request)
 	err := json.Unmarshal([]byte(msg[2]), &r)
-	if CheckError("checkAndSendInfoToWSClient", err) != nil {
-		return
+	if err != nil {
+		errors.Wrap(err, "Request unmarshalling has failed")
+		return err
 	}
 	if _, ok := server.Connections.MapConn[r.Meta.MAC]; ok {
 		server.sendInfoToWSClient(r.Meta.MAC, msg[2])
-		return
+		return nil
 	}
-	log.Infof("mapConn dont have this MAC: %v. Len map is %v", r.Meta.MAC, len(server.Connections.MapConn))
+	return nil
 }
 
 //Send message to all connections which we have in map, and which pertain to mac
@@ -216,4 +238,50 @@ func (server *WSServer) sendInfoToWSClient(mac, message string) {
 
 func getToChannel(conn *websocket.Conn, connChanCloseWS chan *websocket.Conn) {
 	connChanCloseWS <- conn
+}
+
+func (list *ListConnection) Add(conn *websocket.Conn) {
+	list.Lock()
+	list.Connections = append(list.Connections, conn)
+	list.Unlock()
+
+}
+
+func (list *ListConnection) Remove(conn *websocket.Conn) bool {
+	list.Lock()
+	defer list.Unlock()
+	position := 0
+	for _, v := range list.Connections {
+		if v == conn {
+			list.Connections = append(list.Connections[:position], list.Connections[position+1:]...)
+			log.Info("Web sockets connection deleted: ", conn.RemoteAddr())
+			return true
+		}
+		position++
+	}
+	return false
+}
+
+func (connMap *WSConnectionsMap) Remove(mac string) {
+	connMap.Lock()
+	delete(connMap.MapConn, mac)
+	connMap.Unlock()
+}
+
+func (connMap *WSConnectionsMap) MapCollector() {
+	for {
+		select {
+		case mac := <-connMap.MacChan:
+			connMap.Lock()
+			if len(connMap.MapConn[mac].Connections) == 0 {
+				delete(connMap.MapConn, mac)
+				log.Info("REMOVE Connections --------------> ", len(connMap.MapConn),"  ", mac)
+
+			}
+			connMap.Unlock()
+
+		case <-connMap.CloseMapCollector:
+			return
+		}
+	}
 }

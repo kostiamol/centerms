@@ -1,23 +1,23 @@
 package devices
 
 import (
+	"encoding/json"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
-	"encoding/json"
-	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/giperboloid/centerms/entities"
-	. "github.com/giperboloid/centerms/sys"
 	"github.com/giperboloid/centerms/db"
+	"github.com/giperboloid/centerms/entities"
+	"github.com/pkg/errors"
 )
 
 type Fridge struct {
-	Data   FridgeData `json:"data"`
-	Config FridgeConfig `json:"config"`
-	Meta   entities.DevMeta    `json:"meta"`
+	Data   FridgeData       `json:"data"`
+	Config FridgeConfig     `json:"config"`
+	Meta   entities.DevMeta `json:"meta"`
 }
 type FridgeData struct {
 	TempCam1 map[int64]float32 `json:"tempCam1"`
@@ -25,24 +25,30 @@ type FridgeData struct {
 }
 
 type FridgeConfig struct {
-	TurnedOn    bool   `json:"turnedOn"`
-	StreamOn    bool   `json:"streamOn"`
-	CollectFreq int64  `json:"collectFreq"`
-	SendFreq    int64  `json:"sendFreq"`
+	TurnedOn    bool  `json:"turnedOn"`
+	StreamOn    bool  `json:"streamOn"`
+	CollectFreq int64 `json:"collectFreq"`
+	SendFreq    int64 `json:"sendFreq"`
 }
 
 func (fridge *Fridge) GetDevData(devParamsKey string, devMeta entities.DevMeta, client db.Client) entities.DevData {
 	var device entities.DevData
 
 	params, err := client.GetClient().SMembers(devParamsKey)
-	CheckError("Cant read members from devParamsKeys", err)
+	if err != nil {
+		errors.Wrap(err, "can't read members from devParamsKeys")
+	}
+
 	device.Meta = devMeta
 	device.Data = make(map[string][]string)
 
 	values := make([][]string, len(params))
 	for i, p := range params {
 		values[i], err = client.GetClient().ZRangeByScore(devParamsKey+":"+p, "-inf", "inf")
-		CheckError("Cant use ZRangeByScore", err)
+		if err != nil {
+			errors.Wrap(err, "func ZRangeByScore has failed")
+		}
+
 		device.Data[p] = values[i]
 	}
 	return device
@@ -68,11 +74,12 @@ func (fridge *Fridge) SetDevData(req *entities.Request, client db.Client) *entit
 	setCameraData(devData.TempCam1, devParamsKey+":"+"TempCam1", client)
 	setCameraData(devData.TempCam2, devParamsKey+":"+"TempCam2", client)
 	_, err = client.GetClient().Exec()
-
-	if CheckError("Error  SetDevData Fridge", err) != nil {
+	if err != nil {
+		errors.Wrap(err, "trash")
 		client.GetClient().Discard()
 		return &entities.ServerError{Error: err}
 	}
+
 	return nil
 }
 
@@ -83,12 +90,14 @@ func setCameraData(TempCam map[int64]float32, key string, client db.Client) erro
 	return nil
 }
 
-func (fridge *Fridge) GetDevConfig(configInfo, mac string, client db.Client) (*entities.DevConfig) {
+func (fridge *Fridge) GetDevConfig(configInfo, mac string, client db.Client) *entities.DevConfig {
 	var fridgeConfig FridgeConfig = *fridge.getFridgeConfig(configInfo, mac, client)
 	var devConfig entities.DevConfig
 
 	arrByte, err := json.Marshal(&fridgeConfig)
-	CheckError("GetDevConfig. Exception in the marshal() ", err)
+	if err != nil {
+		errors.Wrap(err, "fridgeConfig marshalling has failed")
+	}
 
 	devConfig = entities.DevConfig{
 		MAC:  mac,
@@ -99,16 +108,27 @@ func (fridge *Fridge) GetDevConfig(configInfo, mac string, client db.Client) (*e
 	return &devConfig
 }
 
-func (fridge *Fridge) getFridgeConfig(configInfo, mac string, client db.Client) (*FridgeConfig) {
+func (fridge *Fridge) getFridgeConfig(configInfo, mac string, client db.Client) *FridgeConfig {
 
 	state, err := client.GetClient().HMGet(configInfo, "TurnedOn")
-	CheckError("Get from DB error1: TurnedOn ", err)
+	if err != nil {
+		errors.Wrap(err, "TurnedOn field extraction has failed")
+	}
+
 	sendFreq, err := client.GetClient().HMGet(configInfo, "SendFreq")
-	CheckError("Get from DB error2: SendFreq ", err)
+	if err != nil {
+		errors.Wrap(err, "SendFreq field extraction has failed")
+	}
+
 	collectFreq, err := client.GetClient().HMGet(configInfo, "CollectFreq")
-	CheckError("Get from DB error3: CollectFreq ", err)
+	if err != nil {
+		errors.Wrap(err, "CollectFreq field extraction has failed")
+	}
+
 	streamOn, err := client.GetClient().HMGet(configInfo, "StreamOn")
-	CheckError("Get from DB error4: StreamOn ", err)
+	if err != nil {
+		errors.Wrap(err, "StreamOn field extraction has failed")
+	}
 
 	stateBool, _ := strconv.ParseBool(strings.Join(state, " "))
 	sendFreqInt, _ := strconv.Atoi(strings.Join(sendFreq, " "))
@@ -133,8 +153,8 @@ func (fridge *Fridge) SetDevConfig(configInfo string, config *entities.DevConfig
 	client.GetClient().HMSet(configInfo, "SendFreq", fridgeConfig.SendFreq)
 	client.GetClient().HMSet(configInfo, "StreamOn", fridgeConfig.StreamOn)
 	_, err := client.GetClient().Exec()
-
-	if CheckError("SetDevConfig DBError", err) != nil {
+	if err != nil {
+		errors.Wrap(err, "trash")
 		client.GetClient().Discard()
 	}
 }
@@ -143,26 +163,20 @@ func (fridge *Fridge) ValidateDevData(config entities.DevConfig) (bool, string) 
 	var fridgeConfig FridgeConfig
 	json.Unmarshal(config.Data, &fridgeConfig)
 
-	if !ValidateMAC(config.MAC) {
+	if !entities.ValidateMAC(config.MAC) {
 		log.Error("Invalid MAC")
 		return false, "Invalid MAC"
-	} else if !ValidateStreamOn(fridgeConfig.StreamOn) {
-		log.Error("Invalid Stream Value")
-		return false, "Invalid Stream Value"
-	} else if !ValidateTurnedOn(fridgeConfig.TurnedOn) {
-		log.Error("Invalid Turned Value")
-		return false, "Invalid Turned Value"
-	} else if !ValidateCollectFreq(fridgeConfig.CollectFreq) {
+	} else if !entities.ValidateCollectFreq(fridgeConfig.CollectFreq) {
 		log.Error("Invalid Collect Frequency Value")
 		return false, "Collect Frequency should be more than 150!"
-	} else if !ValidateSendFreq(fridgeConfig.SendFreq) {
+	} else if !entities.ValidateSendFreq(fridgeConfig.SendFreq) {
 		log.Error("Invalid Send Frequency Value")
 		return false, "Send Frequency should be more than 150!"
 	}
 	return true, ""
 }
 
-func (fridge *Fridge) GetDefaultConfig() (*entities.DevConfig) {
+func (fridge *Fridge) GetDefaultConfig() *entities.DevConfig {
 	config := FridgeConfig{
 		TurnedOn:    true,
 		StreamOn:    true,
@@ -171,7 +185,9 @@ func (fridge *Fridge) GetDefaultConfig() (*entities.DevConfig) {
 	}
 
 	arrByte, err := json.Marshal(config)
-	CheckError("GetDevConfig. Exception in the marshal() ", err)
+	if err != nil {
+		errors.Wrap(err, "FridgeConfig marshalling has failed")
+	}
 
 	return &entities.DevConfig{
 		MAC:  fridge.Meta.MAC,
@@ -179,14 +195,14 @@ func (fridge *Fridge) GetDefaultConfig() (*entities.DevConfig) {
 	}
 }
 
-func (fridge *Fridge) CheckDevConfigAndMarshal(arr []byte, configInfo, mac string, client db.Client) ([]byte) {
+func (fridge *Fridge) CheckDevConfigAndMarshal(arr []byte, configInfo, mac string, client db.Client) []byte {
 	fridgeConfig := fridge.getFridgeConfig(configInfo, mac, client)
 	json.Unmarshal(arr, &fridgeConfig)
 	arr, _ = json.Marshal(fridgeConfig)
 	return arr
 }
 
-func (fridge *Fridge) SendDefaultConfigurationTCP(conn net.Conn, dbClient db.Client, req *entities.Request) ([]byte) {
+func (fridge *Fridge) SendDefaultConfigurationTCP(conn net.Conn, dbClient db.Client, req *entities.Request) []byte {
 	var config *entities.DevConfig
 	configInfo := req.Meta.MAC + ":" + "config" // key
 	if ok, _ := dbClient.GetClient().Exists(configInfo); ok {
@@ -225,7 +241,7 @@ func (fridge *Fridge) PatchDevConfigHandlerHTTP(w http.ResponseWriter, r *http.R
 		// Save New Configuration to DB
 		fridge.SetDevConfig(configInfo, config, dbClient)
 		log.Println("New Config was added to DB: ", config.MAC)
-		JSONСonfig, _ := json.Marshal(config)
-		dbClient.Publish("configChan", JSONСonfig)
+		JSONConfig, _ := json.Marshal(config)
+		dbClient.Publish("configChan", JSONConfig)
 	}
 }

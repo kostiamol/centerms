@@ -2,26 +2,13 @@ package entities
 
 import (
 	"encoding/json"
-	"time"
-	"sync"
 	"net"
+	"sync"
+	"time"
 )
 
 type RoutinesController struct {
 	StopChan chan struct{}
-}
-
-func (c *RoutinesController) Close() {
-	select {
-	case <- c.StopChan:
-	default:
-		close(c.StopChan)
-	}
-}
-
-func (c *RoutinesController) Wait() {
-	<- c.StopChan
-	<-time.NewTimer(5).C
 }
 
 type Server struct {
@@ -40,9 +27,9 @@ type Response struct {
 	Descr  string `json:"descr"`
 }
 
-type DevConfig struct{
-	MAC         string `json:"mac"`
-	Data   json.RawMessage `json:"data"`
+type DevConfig struct {
+	MAC  string          `json:"mac"`
+	Data json.RawMessage `json:"data"`
 }
 
 type DevMeta struct {
@@ -70,6 +57,19 @@ type ConnectionPool struct {
 	conn map[string]net.Conn
 }
 
+func (c *RoutinesController) Close() {
+	select {
+	case <-c.StopChan:
+	default:
+		close(c.StopChan)
+	}
+}
+
+func (c *RoutinesController) Wait() {
+	<-c.StopChan
+	<-time.NewTimer(5).C
+}
+
 func (pool *ConnectionPool) AddConn(conn net.Conn, key string) {
 	pool.Lock()
 	pool.conn[key] = conn
@@ -82,7 +82,7 @@ func (pool *ConnectionPool) GetConn(key string) net.Conn {
 	return pool.conn[key]
 }
 
-func (pool *ConnectionPool) RemoveConn(key string)  {
+func (pool *ConnectionPool) RemoveConn(key string) {
 	pool.Lock()
 	defer pool.Unlock()
 	delete(pool.conn, key)
@@ -93,4 +93,3 @@ func (pool *ConnectionPool) Init() {
 	defer pool.Unlock()
 	pool.conn = make(map[string]net.Conn)
 }
-

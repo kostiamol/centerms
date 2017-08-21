@@ -1,21 +1,21 @@
 package db
+
 import (
 	"github.com/giperboloid/centerms/entities"
 )
 
 type Client interface {
-	FlushAll() (error)
+	FlushAll() error
 	Publish(channel string, message interface{}) (int64, error)
-	Connect()(error)
+	Connect() error
 	Subscribe(cn chan []string, channel ...string) error
-	Close() (error)
-	NewDBConnection()(Client)
-	GetAllDevices() ([]entities.DevData)
+	Close() error
+	NewDBConnection() Client
+	GetAllDevices() []entities.DevData
 	GetClient() DbRedisDriver
 
-	GetKeyForConfig(mac string)string
+	GetKeyForConfig(mac string) string
 	SetDBServer(server entities.Server)
-
 }
 
 type DbRedisDriver interface {
@@ -37,6 +37,6 @@ type DbRedisDriver interface {
 	Exists(key string) (bool, error)
 
 	Multi() (string, error)
-	Discard()  (string, error)
-	Exec()  ([]interface{}, error)
+	Discard() (string, error)
+	Exec() ([]interface{}, error)
 }

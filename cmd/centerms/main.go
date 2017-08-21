@@ -1,11 +1,9 @@
 package main
 
 import (
-	"time"
-
 	"github.com/giperboloid/centerms/db"
-	"github.com/giperboloid/centerms/servers"
 	"github.com/giperboloid/centerms/entities"
+	"github.com/giperboloid/centerms/servers"
 )
 
 func main() {
@@ -18,16 +16,15 @@ func main() {
 	httpServer := servers.NewHTTPServer(entities.Server{Host: localhost, Port: httpPort}, controller, dbClient)
 	go httpServer.Run()
 
-	webSocketServer := servers.NewWebSocketServer(entities.Server{Host: localhost, Port: wsPort}, controller,dbClient)
-	go webSocketServer.Run()
+	wsServer := servers.NewWebSocketServer(entities.Server{Host: localhost, Port: wsPort}, controller, dbClient)
+	go wsServer.Run()
 
 	tcpDevConfigServer := servers.NewTCPDevConfigServerDefault(entities.Server{Host: localhost, Port: tcpConfigPort},
-		 controller, dbClient)
+		controller, dbClient)
 	go tcpDevConfigServer.Run()
 
-	reconnect := time.NewTicker(time.Second * 1)
-	tcpDevDataServer := servers.NewTCPDevDataServer(entities.Server{Host: localhost, Port: tcpDataPort},
-		 reconnect, controller,dbClient)
+	tcpDevDataServer := servers.NewTCPDevDataServerDefault(entities.Server{Host: localhost, Port: tcpDataPort},
+		controller, dbClient)
 	go tcpDevDataServer.Run()
 
 	controller.Wait()
