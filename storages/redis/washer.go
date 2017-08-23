@@ -1,92 +1,17 @@
-package devices
+package storages
 
 import (
 	"bytes"
 	"encoding/json"
-	log "github.com/Sirupsen/logrus"
-	"github.com/giperboloid/centerms/db"
-	"github.com/giperboloid/centerms/entities"
-	"github.com/pkg/errors"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/giperboloid/centerms/entities"
+	"github.com/pkg/errors"
 )
-
-type Washer struct {
-	Data          WasherData
-	Config        WasherConfig
-	Meta          entities.DevMeta
-	timeStartWash int64
-}
-
-type WasherData struct {
-	Turnovers map[int64]int64   `json:"turnovers"`
-	WaterTemp map[int64]float32 `json:"waterTemp"`
-}
-
-type WasherConfig struct {
-	Name           string  `json:"name"`
-	MAC            string  `json:"mac"`
-	Temperature    float32 `json:"temperature"`
-	WashTime       int64   `json:"washTime"`
-	WashTurnovers  int64   `json:"washTurnovers"`
-	RinseTime      int64   `json:"rinseTime"`
-	RinseTurnovers int64   `json:"rinseTurnovers"`
-	SpinTime       int64   `json:"spinTime"`
-	SpinTurnovers  int64   `json:"spinTurnovers"`
-}
-type TimerMode struct {
-	Name      string `json:"name"`
-	StartTime int64  `json:"time"`
-}
-
-var (
-	LightMode WasherConfig = WasherConfig{
-		Name:           "LightMode",
-		Temperature:    60,
-		WashTime:       90,
-		WashTurnovers:  240,
-		RinseTime:      30,
-		RinseTurnovers: 120,
-		SpinTime:       30,
-		SpinTurnovers:  60,
-	}
-	FastMode WasherConfig = WasherConfig{
-		Name:           "FastMode",
-		Temperature:    180,
-		WashTime:       30,
-		WashTurnovers:  300,
-		RinseTime:      15,
-		RinseTurnovers: 240,
-		SpinTime:       15,
-		SpinTurnovers:  60,
-	}
-	StandartMode WasherConfig = WasherConfig{
-		Name:           "StandartMode",
-		Temperature:    240,
-		WashTime:       120,
-		WashTurnovers:  240,
-		RinseTime:      60,
-		RinseTurnovers: 180,
-		SpinTime:       60,
-		SpinTurnovers:  60,
-	}
-)
-
-func (washer *Washer) selectMode(mode string) WasherConfig {
-	switch mode {
-	case "LightMode":
-		washer.Config = LightMode
-		return LightMode
-	case "FastMode":
-		washer.Config = FastMode
-		return FastMode
-	case "StandartMode":
-		washer.Config = StandartMode
-		return StandartMode
-	}
-	return WasherConfig{}
-}
 
 func (washer *Washer) GetDevData(devParamsKey string, devMeta entities.DevMeta, client db.Client) entities.DevData {
 	var device entities.DevData
@@ -137,7 +62,9 @@ func (washer *Washer) SetDevData(req *entities.Request, client db.Client) *entit
 
 func setWaterTempData(TempCam map[int64]float32, key string, client db.Client) error {
 	for t, v := range TempCam {
-		client.GetClient().ZAdd(key, Int64ToString(t), Int64ToString(t)+":"+Float64ToString(v))
+		client.GetClient().ZAdd(key, strconv.FormatInt(int64(t), 10),
+			strconv.FormatInt(int64(t), 10)+":"+
+				strconv.FormatFloat(float64(v), 'f', -1, 32))
 
 	}
 	return nil
@@ -145,7 +72,8 @@ func setWaterTempData(TempCam map[int64]float32, key string, client db.Client) e
 
 func setTurnoversData(TempCam map[int64]int64, key string, client db.Client) error {
 	for t, v := range TempCam {
-		client.GetClient().ZAdd(key, Int64ToString(t), Int64ToString(t)+":"+Int64ToString(v))
+		client.GetClient().ZAdd(key, strconv.FormatInt(int64(t), 10),
+			strconv.FormatInt(int64(t), 10)+":"+strconv.FormatInt(int64(v), 10))
 	}
 	return nil
 }

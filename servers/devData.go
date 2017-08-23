@@ -8,60 +8,60 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/giperboloid/centerms/db"
 	"github.com/giperboloid/centerms/entities"
+	storages "github.com/giperboloid/centerms/storages/redis"
 	"github.com/pkg/errors"
 )
 
-type TCPDevDataServer struct {
+type DevDataServer struct {
 	LocalServer entities.Server
 	Reconnect   *time.Ticker
 	Controller  entities.RoutinesController
-	DbClient    db.Client
+	Storage     entities.Storage
 }
 
-func NewTCPDevDataServer(local entities.Server, reconnect *time.Ticker, controller entities.RoutinesController, dbClient db.Client) *TCPDevDataServer {
-	return &TCPDevDataServer{
-		LocalServer: local,
+func NewDevDataServer(serv entities.Server, reconnect *time.Ticker, c entities.RoutinesController, s entities.Storage) *DevDataServer {
+	return &DevDataServer{
+		LocalServer: serv,
 		Reconnect:   reconnect,
-		Controller:  controller,
-		DbClient:    dbClient,
+		Controller:  c,
+		Storage:     s,
 	}
 }
 
-func NewTCPDevDataServerDefault(local entities.Server, controller entities.RoutinesController, dbClient db.Client) *TCPDevDataServer {
+func NewDevDataServerDefault(serv entities.Server, c entities.RoutinesController, s entities.Storage) *DevDataServer {
 	reconnect := time.NewTicker(time.Second * 1)
-	return NewTCPDevDataServer(local, reconnect, controller, dbClient)
+	return NewDevDataServer(serv, reconnect, c, s)
 }
 
-func (server *TCPDevDataServer) Run() {
+func (s *DevDataServer) Run() {
 	defer func() {
 		if r := recover(); r != nil {
-			server.Controller.Close()
-			errors.New("TCPDevDataServer has failed")
-			log.Error("TCPDevDataServer has failed")
+			s.Controller.Close()
+			errors.New("DevDataServer has failed")
+			log.Error("DevDataServer has failed")
 		}
 	}()
 
-	ln, err := net.Listen("tcp", server.LocalServer.Host+":"+fmt.Sprint(server.LocalServer.Port))
+	ln, err := net.Listen("tcp", s.LocalServer.Host+":"+fmt.Sprint(s.LocalServer.Port))
 
 	for err != nil {
 
-		for range server.Reconnect.C {
-			ln, _ = net.Listen("tcp", server.LocalServer.Host+":"+fmt.Sprint(server.LocalServer.Port))
+		for range s.Reconnect.C {
+			ln, _ = net.Listen("tcp", s.LocalServer.Host+":"+fmt.Sprint(s.LocalServer.Port))
 		}
-		server.Reconnect.Stop()
+		s.Reconnect.Stop()
 	}
 
 	for {
 		conn, err := ln.Accept()
 		if err == nil {
-			go server.tcpDataHandler(conn)
+			go s.tcpDataHandler(conn)
 		}
 	}
 }
 
-func (server *TCPDevDataServer) tcpDataHandler(conn net.Conn) {
+func (s *DevDataServer) tcpDataHandler(conn net.Conn) {
 	var req entities.Request
 	var res entities.Response
 	for {
@@ -71,7 +71,7 @@ func (server *TCPDevDataServer) tcpDataHandler(conn net.Conn) {
 			return
 		}
 		//sends resp struct from  devTypeHandler by channel;
-		go server.devTypeHandler(req)
+		go s.devTypeHandler(&req)
 
 		res = entities.Response{
 			Status: 200,
@@ -84,9 +84,12 @@ func (server *TCPDevDataServer) tcpDataHandler(conn net.Conn) {
 	}
 }
 
-func (server TCPDevDataServer) devTypeHandler(req entities.Request) string {
-	dbClient := server.DbClient.NewDBConnection()
-	defer dbClient.Close()
+func (s *DevDataServer) devTypeHandler(req *entities.Request) string {
+	conn, err := s.Storage.CreateConnection()
+	if err != nil {
+		log.Errorln("db connection hasn't been established")
+	}
+	defer conn.CloseConnection()
 
 	switch req.Action {
 	case "update":
@@ -96,8 +99,8 @@ func (server TCPDevDataServer) devTypeHandler(req entities.Request) string {
 		}
 		log.Println("Data has been received")
 
-		data.SetDevData(&req, dbClient)
-		go db.PublishWS(req, "devWS", server.DbClient)
+		s.Storage.SetDevData(&req, )
+		go storages.PublishWS(req, "devWS", s.Storage)
 
 	default:
 		log.Println("Device request: unknown action")

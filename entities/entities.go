@@ -16,10 +16,11 @@ type Server struct {
 	Port uint
 }
 
-type ServerError struct {
-	Error   error
-	Message string
-	Code    int
+type Request struct {
+	Action string          `json:"action"`
+	Time   int64           `json:"time"`
+	Meta   DevMeta         `json:"meta"`
+	Data   json.RawMessage `json:"data"`
 }
 
 type Response struct {
@@ -39,13 +40,6 @@ type DevMeta struct {
 	IP   string `json:"ip"`
 }
 
-type Request struct {
-	Action string          `json:"action"`
-	Time   int64           `json:"time"`
-	Meta   DevMeta         `json:"meta"`
-	Data   json.RawMessage `json:"data"`
-}
-
 type DevData struct {
 	Site string              `json:"site"`
 	Meta DevMeta             `json:"meta"`
@@ -55,6 +49,25 @@ type DevData struct {
 type ConnectionPool struct {
 	sync.Mutex
 	conn map[string]net.Conn
+}
+
+type Storage interface {
+	FlushAll() error
+	CloseConnection() error
+	CreateConnection() (Storage, error)
+	GetAllDevices() ([]DevData, error)
+	GetKeyForConfig(mac string) (string, error)
+	SetServer(s Server) error
+
+	GetDevData(devParamsKey string, m DevMeta) (DevData, error)
+	SetDevData(m DevMeta, r *Request) error
+	GetDevConfig(t, configInfo, mac string) (*DevConfig, error)
+	SetDevConfig(t, configInfo string, c *DevConfig) error
+
+	GetDevDefaultConfig(t string, f *Fridge) (*DevConfig, error)
+
+	Publish(channel string, message interface{}) (int64, error)
+	Subscribe(c chan []string, channel ...string) error
 }
 
 func (c *RoutinesController) Close() {

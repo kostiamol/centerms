@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	dbServer = entities.Server{
+	StorageServer = entities.Server{
 		Host: getEnvDbHost("REDIS_PORT_6379_TCP_ADDR"),
 		Port: getEnvDbPort("REDIS_PORT_6379_TCP_PORT"),
 	}

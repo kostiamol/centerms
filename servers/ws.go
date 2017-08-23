@@ -12,7 +12,7 @@ import (
 
 	"github.com/giperboloid/centerms/entities"
 	"fmt"
-	"github.com/giperboloid/centerms/db"
+	"github.com/giperboloid/centerms/storages/redis"
 	"sync"
 	"github.com/pkg/errors"
 )
@@ -23,7 +23,7 @@ type WSServer struct {
 	PubSub      PubSub
 	Upgrader    websocket.Upgrader
 	Controller  entities.RoutinesController
-	DbClient	db.Client
+	DbClient    storages.RedisStorage
 }
 
 type WSConnectionsMap struct {
@@ -71,7 +71,7 @@ func NewPubSub(roomIDForWSPubSub string, stopSub chan bool, subWSChannel chan []
 	}
 }
 
-func NewWebSocketServer(ws entities.Server, controller entities.RoutinesController, dbClient db.Client) *WSServer {
+func NewWebSocketServer(ws entities.Server, controller entities.RoutinesController, dbClient storages.Client) *WSServer {
 	var (
 		roomIDForDevWSPublish = "devWS"
 		stopSub               = make(chan bool)
@@ -88,7 +88,7 @@ func NewWebSocketServer(ws entities.Server, controller entities.RoutinesControll
 // 	CheckOrigin: func(r *http.Request) bool {
 //			return true
 //	}
-func NewWSServer(ws entities.Server, pubSub PubSub, wsConnections WSConnectionsMap, controller entities.RoutinesController, dbClient db.Client) *WSServer {
+func NewWSServer(ws entities.Server, pubSub PubSub, wsConnections WSConnectionsMap, controller entities.RoutinesController, dbClient storages.Client) *WSServer {
 	var (
 		upgrader = websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -123,21 +123,25 @@ func (server *WSServer) wsRecover(){
 }
 
 //http web socket connection
-func (server *WSServer) Run() {
-	defer  server.wsRecover()
+func (s *WSServer) Run() {
+	defer  s.wsRecover()
 
-	dbClient := server.DbClient.NewDBConnection()
+	conn, err := s.DbClient.CreateConnection()
+	if err != nil {
+		log.Errorln("db connection hasn't been established")
+	}
+	defer conn.CloseConnection()
 
-	go server.Close()
-	go server.Subscribe(dbClient)
-	go server.Connections.MapCollector()
+	go s.Close()
+	go s.Subscribe(conn)
+	go s.Connections.MapCollector()
 
 	r := mux.NewRouter()
-	r.HandleFunc("/devices/{id}", server.WSHandler)
+	r.HandleFunc("/devices/{id}", s.WSHandler)
 
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         server.LocalServer.Host + ":" + fmt.Sprint(server.LocalServer.Port),
+		Addr:         s.LocalServer.Host + ":" + fmt.Sprint(s.LocalServer.Port),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
@@ -181,7 +185,7 @@ func (server *WSServer) Close() {
 				}
 			}
 		case <-server.Connections.StopCloseWS:
-			log.Info("Close closed")
+			log.Info("CloseConnection closed")
 			return
 		}
 	}
@@ -190,7 +194,7 @@ func (server *WSServer) Close() {
 /*
 Listens changes in database. If they have, we will send to all websocket which working with them.
 */
-func (server *WSServer) Subscribe(dbWorker db.Client) {
+func (server *WSServer) Subscribe(dbWorker storages.Client) {
 	defer  server.wsRecover()
 	dbWorker.Subscribe(server.PubSub.SubWSChannel, server.PubSub.RoomIDForWSPubSub)
 	for {
