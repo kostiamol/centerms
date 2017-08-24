@@ -1,26 +1,25 @@
 package entities
 
 import (
-	"github.com/giperboloid/centerms/entities"
 
 	"net"
 	"net/http"
 )
 
 type DevConfigDriver interface {
-	GetDevConfig(configInfo, mac string, client entities.Storage) *entities.DevConfig
-	SetDevConfig(configInfo string, config *entities.DevConfig, client entities.Storage)
-	GetDefaultConfig() *entities.DevConfig
+	GetDevConfig(configInfo, mac string, client Storage) *DevConfig
+	SetDevConfig(configInfo string, config *DevConfig, client Storage)
+	GetDefaultConfig() *DevConfig
 }
 
 type DevDataDriver interface {
-	GetDevData(devParamsKey string, devMeta entities.DevMeta, client entities.Storage) entities.DevData
-	SetDevData(req *entities.Request, worker entities.Storage) error
+	GetDevData(devParamsKey string, devMeta DevMeta, client Storage) DevData
+	SetDevData(req *Request, worker Storage) error
 }
 
 type DevServerHandler interface {
-	SendDefaultConfigurationTCP(conn net.Conn, dbClient entities.Storage, req *entities.Request) []byte
-	PatchDevConfigHandlerHTTP(w http.ResponseWriter, r *http.Request, meta entities.DevMeta, client entities.Storage)
+	SendDefaultConfigurationTCP(conn net.Conn, dbClient Storage, req *Request) []byte
+	PatchDevConfigHandlerHTTP(w http.ResponseWriter, r *http.Request, meta DevMeta, client Storage)
 }
 
 type Driver interface {

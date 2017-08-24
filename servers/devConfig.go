@@ -9,44 +9,28 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/giperboloid/centerms/entities"
-	"reflect"
 	"github.com/pkg/errors"
-	"github.com/giperboloid/centerms/storages/redis"
 )
 
 type DevConfigServer struct {
 	LocalServer         entities.Server
 	Reconnect           *time.Ticker
-	Pool                entities.ConnectionPool
+	Pool                entities.ConnPool
 	Messages            chan []string
 	StopConfigSubscribe chan struct{}
 	Controller          entities.RoutinesController
 	Storage             entities.Storage
 }
 
-func NewDevConfigServer(serv entities.Server, reconnect *time.Ticker, messages chan []string, stopConfigSubscribe chan struct{},
-	c entities.RoutinesController, s entities.Storage) *DevConfigServer {
+func NewDevConfigServer(s entities.Server, r *time.Ticker, c entities.RoutinesController, st entities.Storage,
+	msgs chan []string, stopConfigSubscribe chan struct{}) *DevConfigServer {
 	return &DevConfigServer{
-		LocalServer:         serv,
-		Reconnect:           reconnect,
-		Messages:            messages,
+		LocalServer:         s,
+		Reconnect:           r,
+		Messages:            msgs,
 		Controller:          c,
 		StopConfigSubscribe: stopConfigSubscribe,
-		Storage:             s,
-	}
-}
-
-func NewDevConfigServerDefault(serv entities.Server, c entities.RoutinesController, s entities.Storage) *DevConfigServer {
-	messages := make(chan []string)
-	stopConfigSubscribe := make(chan struct{})
-	reconnect := time.NewTicker(time.Second * 1)
-	return &DevConfigServer{
-		LocalServer:         serv,
-		Reconnect:           reconnect,
-		Messages:            messages,
-		Controller:          c,
-		StopConfigSubscribe: stopConfigSubscribe,
-		Storage:             s,
+		Storage:             st,
 	}
 }
 
@@ -88,7 +72,7 @@ func (s *DevConfigServer) Run() {
 	}
 }
 
-func (s *DevConfigServer) sendNewConfiguration(config entities.DevConfig, pool *entities.ConnectionPool) {
+func (s *DevConfigServer) sendNewConfiguration(config entities.DevConfig, pool *entities.ConnPool) {
 	connection := pool.GetConn(config.MAC)
 	if connection == nil {
 		log.Error("Has not connection with mac:config.MAC  in connectionPool")
@@ -102,11 +86,10 @@ func (s *DevConfigServer) sendNewConfiguration(config entities.DevConfig, pool *
 	}
 }
 
-func (s *DevConfigServer) sendDefaultConfiguration(c net.Conn, pool *entities.ConnectionPool) {
+func (s *DevConfigServer) sendDefaultConfiguration(c net.Conn, pool *entities.ConnPool) {
 	var (
 		req    entities.Request
 		config entities.DevConfig
-		device devices.DevServerHandler
 	)
 	err := json.NewDecoder(c).Decode(&req)
 	if err != nil {
@@ -121,9 +104,10 @@ func (s *DevConfigServer) sendDefaultConfiguration(c net.Conn, pool *entities.Co
 	}
 	defer conn.CloseConnection()
 
-	device = IdentifyDevice(req.Meta.Type)
-	log.Info(reflect.TypeOf(device))
-	config.Data = s.Storage.SendDefaultConfiguration(c, conn, &req)
+	config.Data, err = s.Storage.SendDevDefaultConfig(c, &req)
+	if err != nil {
+		errors.Wrap(err, "config sending has failed")
+	}
 
 	_, err = c.Write(config.Data)
 	if err != nil {
@@ -131,10 +115,9 @@ func (s *DevConfigServer) sendDefaultConfiguration(c net.Conn, pool *entities.Co
 	}
 
 	log.Warningln("Configuration has been successfully sent ", err)
-
 }
 
-func (s *DevConfigServer) configSubscribe(roomID string, message chan []string, pool *entities.ConnectionPool) {
+func (s *DevConfigServer) configSubscribe(roomID string, message chan []string, pool *entities.ConnPool) {
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
 		log.Errorln("db connection hasn't been established")

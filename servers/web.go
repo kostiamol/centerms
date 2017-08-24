@@ -20,11 +20,11 @@ type WebServer struct {
 	Storage     entities.Storage
 }
 
-func NewWebServer(serv entities.Server, c entities.RoutinesController, s entities.Storage) *WebServer {
+func NewWebServer(s entities.Server, c entities.RoutinesController, st entities.Storage) *WebServer {
 	return &WebServer{
-		LocalServer: serv,
+		LocalServer: s,
 		Controller:  c,
-		Storage:     s,
+		Storage:     st,
 	}
 }
 
@@ -96,7 +96,7 @@ func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	devID := "device:" + devMeta.Type + ":" + devMeta.Name + ":" + devMeta.MAC
 	devParamsKey := devID + ":" + "params"
 
-	deviceData, err := s.Storage.GetDevData(devParamsKey, devMeta)
+	deviceData, err := s.Storage.GetDevData(devParamsKey, &devMeta)
 	if err != nil {
 		errors.Wrap(err, "dev data extraction has failed")
 	}

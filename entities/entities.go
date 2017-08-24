@@ -7,6 +7,34 @@ import (
 	"time"
 )
 
+type Storage interface {
+	SetServer(s *Server) error
+
+	CreateConnection() (Storage, error)
+	CloseConnection() error
+
+	GetAllDevices() ([]DevData, error)
+	GetKeyForConfig(mac string) (string, error)
+
+	GetDevData(devParamsKey string, m *DevMeta) (*DevData, error)
+	SetDevData(req *Request) error
+	GetDevConfig(t, configInfo string, mac string) (*DevConfig, error)
+	SetDevConfig(t, configInfo string, c *DevConfig) error
+	GetDevDefaultConfig(t string, m *DevMeta) (*DevConfig, error)
+	SendDevDefaultConfig(conn net.Conn, req *Request) ([]byte, error)
+
+	Publish(channel string, message interface{}) (int64, error)
+	Subscribe(c chan []string, channel ...string) error
+}
+
+type Notifier interface {
+
+}
+
+type Device interface {
+
+}
+
 type RoutinesController struct {
 	StopChan chan struct{}
 }
@@ -46,28 +74,38 @@ type DevData struct {
 	Data map[string][]string `json:"data"`
 }
 
-type ConnectionPool struct {
+type ConnPool struct {
 	sync.Mutex
 	conn map[string]net.Conn
 }
 
-type Storage interface {
-	FlushAll() error
-	CloseConnection() error
-	CreateConnection() (Storage, error)
-	GetAllDevices() ([]DevData, error)
-	GetKeyForConfig(mac string) (string, error)
-	SetServer(s Server) error
+func (pool *ConnPool) Init() {
+	pool.Lock()
+	defer pool.Unlock()
+	pool.conn = make(map[string]net.Conn)
+}
 
-	GetDevData(devParamsKey string, m DevMeta) (DevData, error)
-	SetDevData(m DevMeta, r *Request) error
-	GetDevConfig(t, configInfo, mac string) (*DevConfig, error)
-	SetDevConfig(t, configInfo string, c *DevConfig) error
+func (c *RoutinesController) Wait() {
+	<-c.StopChan
+	<-time.NewTimer(5).C
+}
 
-	GetDevDefaultConfig(t string, f *Fridge) (*DevConfig, error)
+func (pool *ConnPool) AddConn(conn net.Conn, key string) {
+	pool.Lock()
+	pool.conn[key] = conn
+	defer pool.Unlock()
+}
 
-	Publish(channel string, message interface{}) (int64, error)
-	Subscribe(c chan []string, channel ...string) error
+func (pool *ConnPool) GetConn(key string) net.Conn {
+	pool.Lock()
+	defer pool.Unlock()
+	return pool.conn[key]
+}
+
+func (pool *ConnPool) RemoveConn(key string) {
+	pool.Lock()
+	defer pool.Unlock()
+	delete(pool.conn, key)
 }
 
 func (c *RoutinesController) Close() {
@@ -78,31 +116,4 @@ func (c *RoutinesController) Close() {
 	}
 }
 
-func (c *RoutinesController) Wait() {
-	<-c.StopChan
-	<-time.NewTimer(5).C
-}
 
-func (pool *ConnectionPool) AddConn(conn net.Conn, key string) {
-	pool.Lock()
-	pool.conn[key] = conn
-	defer pool.Unlock()
-}
-
-func (pool *ConnectionPool) GetConn(key string) net.Conn {
-	pool.Lock()
-	defer pool.Unlock()
-	return pool.conn[key]
-}
-
-func (pool *ConnectionPool) RemoveConn(key string) {
-	pool.Lock()
-	defer pool.Unlock()
-	delete(pool.conn, key)
-}
-
-func (pool *ConnectionPool) Init() {
-	pool.Lock()
-	defer pool.Unlock()
-	pool.conn = make(map[string]net.Conn)
-}

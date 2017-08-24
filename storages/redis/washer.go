@@ -13,19 +13,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (washer *Washer) GetDevData(devParamsKey string, devMeta entities.DevMeta, client db.Client) entities.DevData {
+func (rc *RedisStorage) getWasherData(devParamsKey string, m *entities.DevMeta) entities.DevData {
 	var device entities.DevData
 
-	params, err := client.GetClient().SMembers(devParamsKey)
+	params, err := rc.Client.SMembers(devParamsKey)
 	if err != nil {
 		errors.Wrap(err, "func SMembers has failed")
 	}
-	device.Meta = devMeta
+	device.Meta = *m
 	device.Data = make(map[string][]string)
 
 	values := make([][]string, len(params))
 	for i, p := range params {
-		values[i], err = client.GetClient().ZRangeByScore(devParamsKey+":"+p, "-inf", "inf")
+		values[i], err = rc.Client.ZRangeByScore(devParamsKey+":"+p, "-inf", "inf")
 		if err != nil {
 			errors.Wrap(err, "func ZRangeByScore has failed")
 		}
@@ -34,43 +34,41 @@ func (washer *Washer) GetDevData(devParamsKey string, devMeta entities.DevMeta, 
 	return device
 }
 
-func (washer *Washer) SetDevData(req *entities.Request, client db.Client) *entities.ServerError {
-
-	var devData WasherData
+func (rc *RedisStorage) setWasherData(req *entities.Request) error {
+	var w entities.WasherData
 
 	devKey := "device" + ":" + req.Meta.Type + ":" + req.Meta.Name + ":" + req.Meta.MAC
 	devParamsKey := devKey + ":" + "params"
 
-	err := json.NewDecoder(bytes.NewBuffer(req.Data)).Decode(&devData)
+	err := json.NewDecoder(bytes.NewBuffer(req.Data)).Decode(&w)
 	if err != nil {
 		errors.Wrap(err, "washer's DevData decoding has failed")
-		return &entities.ServerError{Error: err}
+		return err
 	}
 
-	client.GetClient().Multi()
-	err = setTurnoversData(devData.Turnovers, devParamsKey+":"+"Turnovers", client)
-	err = setWaterTempData(devData.WaterTemp, devParamsKey+":"+"WaterTemp", client)
-	_, err = client.GetClient().Exec()
+	rc.Client.Multi()
+	err = setTurnoversData(w.Turnovers, devParamsKey+":"+"Turnovers")
+	err = setWaterTempData(w.WaterTemp, devParamsKey+":"+"WaterTemp")
+	_, err = rc.Client.Exec()
 	if err != nil {
 		errors.Wrap(err, "trash")
-		client.GetClient().Discard()
-		return &entities.ServerError{Error: err}
+		rc.Client.Discard()
+		return err
 	}
 
 	return nil
 }
 
-func setWaterTempData(TempCam map[int64]float32, key string, client db.Client) error {
+func setWaterTempData(TempCam map[int64]float32, key string) error {
 	for t, v := range TempCam {
 		client.GetClient().ZAdd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+
 				strconv.FormatFloat(float64(v), 'f', -1, 32))
-
 	}
 	return nil
 }
 
-func setTurnoversData(TempCam map[int64]int64, key string, client db.Client) error {
+func setTurnoversData(TempCam map[int64]int64, key string) error {
 	for t, v := range TempCam {
 		client.GetClient().ZAdd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+strconv.FormatInt(int64(v), 10))
@@ -78,22 +76,22 @@ func setTurnoversData(TempCam map[int64]int64, key string, client db.Client) err
 	return nil
 }
 
-func (washer *Washer) GetDevConfig(configInfo, mac string, client db.Client) *entities.DevConfig {
+func (rc *RedisStorage) GetDevConfig(configInfo, mac string) *entities.DevConfig {
 	return &entities.DevConfig{}
 }
 
-func (washer *Washer) SetDevConfig(configInfo string, config *entities.DevConfig, client db.Client) {
+func (rc *RedisStorage) SetDevConfig(configInfo string, config *entities.DevConfig) {
 	var timerMode *TimerMode
 	json.NewDecoder(bytes.NewBuffer(config.Data)).Decode(&timerMode)
 	client.GetClient().ZAdd(configInfo, timerMode.StartTime, timerMode.Name)
 }
 
-func (washer *Washer) GetDefaultConfig() *entities.DevConfig {
+func (rc *RedisStorage) GetDefaultConfig() *entities.DevConfig {
 	b, _ := json.Marshal(WasherConfig{})
 	return &entities.DevConfig{Data: b}
 }
 
-func (washer *Washer) SendDefaultConfigurationTCP(conn net.Conn, dbClient db.Client, req *entities.Request) []byte {
+func (rc *RedisStorage) SendDefaultConfigurationTCP(conn net.Conn, dbClient db.Client, req *entities.Request) []byte {
 	var config *entities.DevConfig
 	var err error
 	configInfo := req.Meta.MAC + ":" + "config" // key
@@ -114,11 +112,11 @@ func (washer *Washer) SendDefaultConfigurationTCP(conn net.Conn, dbClient db.Cli
 	return config.Data
 }
 
-func (washer *Washer) PatchDevConfigHandlerHTTP(w http.ResponseWriter, r *http.Request, meta entities.DevMeta, client db.Client) {
+func (rc *RedisStorage) PatchDevConfigHandlerHTTP(w http.ResponseWriter, r *http.Request, meta entities.DevMeta, client db.Client) {
 
 }
 
-func (washer *Washer) getActualConfig(configInfo, mac string, client db.Client, unixTime int64) (*entities.DevConfig, error) {
+func (rc *RedisStorage) getActualConfig(configInfo, mac string, client db.Client, unixTime int64) (*entities.DevConfig, error) {
 	config := washer.GetDefaultConfig()
 	config.MAC = mac
 
@@ -139,7 +137,7 @@ func (washer *Washer) getActualConfig(configInfo, mac string, client db.Client, 
 	return config, err
 }
 
-func (washer *Washer) saveDeviceToBD(configInfo string, config *entities.DevConfig, client db.Client, req *entities.Request) {
+func (rc *RedisStorage) saveDeviceToBD(configInfo string, config *entities.DevConfig, client db.Client, req *entities.Request) {
 	var timerMode TimerMode
 	json.NewDecoder(bytes.NewBuffer(config.Data)).Decode(&timerMode)
 

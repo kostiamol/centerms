@@ -7,6 +7,7 @@ import (
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
 	"menteslibres.net/gosexy/redis"
+	"net"
 )
 
 const (
@@ -18,7 +19,7 @@ type RedisStorage struct {
 	DbServer entities.Server
 }
 
-func (rc *RedisStorage) SetServer(s entities.Server) error {
+func (rc *RedisStorage) SetServer(s *entities.Server) error {
 	var err error
 	if s.Host == "" {
 		err = errors.New("db server host is empty")
@@ -26,7 +27,7 @@ func (rc *RedisStorage) SetServer(s entities.Server) error {
 		err = errors.Wrap(err, "db server port is empty")
 	}
 
-	rc.DbServer = s
+	rc.DbServer = *s
 	return err
 }
 
@@ -124,26 +125,26 @@ func (rc *RedisStorage) GetKeyForConfig(mac string) (string, error) {
 	return mac + partKeyToConfig, nil
 }
 
-func (rc *RedisStorage) GetDevData(devParamsKey string, m entities.DevMeta) (entities.DevData, error) {
-	switch t := m.Type; t {
+func (rc *RedisStorage) GetDevData(devParamsKey string, m *entities.DevMeta) (*entities.DevData, error) {
+	switch m.Type {
 	case "fridge":
 		return rc.getFridgeData(devParamsKey, m)
 	default:
-		return entities.DevData{}, errors.New("dev type is unknown")
+		return &entities.DevData{}, errors.New("dev type is unknown")
 	}
 }
 
-func (rc *RedisStorage) SetDevData(m entities.DevMeta, r *entities.Request) error {
-	switch t := m.Type; t {
+func (rc *RedisStorage) SetDevData(req *entities.Request) error {
+	switch req.Meta.Type {
 	case "fridge":
-		return rc.setFridgeData(r)
+		return rc.setFridgeData(req)
 	default:
 		return errors.New("dev type is unknown")
 	}
 }
 
-func (rc *RedisStorage) GetDevConfig(t string, configInfo, mac string) (*entities.DevConfig, error) {
-	switch t := t; t {
+func (rc *RedisStorage) GetDevConfig(t string, configInfo string, mac string) (*entities.DevConfig, error) {
+	switch t {
 	case "fridge":
 		return rc.getFridgeConfig(configInfo, mac)
 	default:
@@ -152,7 +153,7 @@ func (rc *RedisStorage) GetDevConfig(t string, configInfo, mac string) (*entitie
 }
 
 func (rc *RedisStorage) SetDevConfig(t string, configInfo string, c *entities.DevConfig) error {
-	switch t := t; t {
+	switch t {
 	case "fridge":
 		return rc.setFridgeConfig(configInfo, c)
 	default:
@@ -160,11 +161,20 @@ func (rc *RedisStorage) SetDevConfig(t string, configInfo string, c *entities.De
 	}
 }
 
-func (rc *RedisStorage) GetDevDefaultConfig(t string, f *entities.Fridge) (*entities.DevConfig, error) {
-	switch t := t; t {
+func (rc *RedisStorage) GetDevDefaultConfig(t string, m *entities.DevMeta) (*entities.DevConfig, error) {
+	switch t {
 	case "fridge":
-		return rc.getFridgeDefaultConfig(f)
+		return rc.getFridgeDefaultConfig(m)
 	default:
 		return &entities.DevConfig{}, errors.New("dev type is unknown")
+	}
+}
+
+func (rc *RedisStorage) SendDevDefaultConfig(conn net.Conn, req *entities.Request) ([]byte, error) {
+	switch req.Meta.Type {
+	case "fridge":
+		return rc.sendFridgeDefaultConfig(conn, req), nil
+	default:
+		return []byte{}, errors.New("dev type is unknown")
 	}
 }

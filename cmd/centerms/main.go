@@ -1,31 +1,35 @@
 package main
 
 import (
+	"time"
+
 	"github.com/giperboloid/centerms/entities"
 	"github.com/giperboloid/centerms/servers"
 	"github.com/giperboloid/centerms/storages/redis"
 )
 
 func main() {
+	var (
+		storage    = &storages.RedisStorage{}
+		reconnect  = time.NewTicker(time.Second * 1)
+		ctrl = entities.RoutinesController{StopChan: make(chan struct{})}
+	)
 
-	storage := &storages.RedisStorage{}
-	storage.SetServer(StorageServer)
+	storage.SetServer(&StorageServer)
 
-	controller := entities.RoutinesController{StopChan: make(chan struct{})}
+	ws := servers.NewWebServer(entities.Server{Host: localhost, Port: webPort}, ctrl, storage)
+	go ws.Run()
 
-	httpServer := servers.NewWebServer(entities.Server{Host: localhost, Port: httpPort}, controller, storage)
-	go httpServer.Run()
+	ss := servers.NewStreamServer(entities.Server{Host: localhost, Port: streamPort}, ctrl, storage)
+	go ss.Run()
 
-	wsServer := servers.NewWebSocketServer(entities.Server{Host: localhost, Port: wsPort}, controller, storage)
-	go wsServer.Run()
+	dds := servers.NewDevDataServer(entities.Server{Host: localhost, Port: devDataPort}, reconnect,
+		ctrl, storage)
+	go dds.Run()
 
-	tcpDevConfigServer := servers.NewDevConfigServerDefault(entities.Server{Host: localhost, Port: tcpConfigPort},
-		controller, storage)
-	go tcpDevConfigServer.Run()
+	dcs := servers.NewDevConfigServer(entities.Server{Host: localhost, Port: devConfigPort}, reconnect,
+		ctrl, storage, make(chan []string), make(chan struct{}))
+	go dcs.Run()
 
-	tcpDevDataServer := servers.NewDevDataServerDefault(entities.Server{Host: localhost, Port: tcpDataPort},
-		controller, storage)
-	go tcpDevDataServer.Run()
-
-	controller.Wait()
+	ctrl.Wait()
 }

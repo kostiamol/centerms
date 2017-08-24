@@ -9,7 +9,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/giperboloid/centerms/entities"
-	storages "github.com/giperboloid/centerms/storages/redis"
+	"github.com/giperboloid/centerms/storages/redis"
 	"github.com/pkg/errors"
 )
 
@@ -20,18 +20,13 @@ type DevDataServer struct {
 	Storage     entities.Storage
 }
 
-func NewDevDataServer(serv entities.Server, reconnect *time.Ticker, c entities.RoutinesController, s entities.Storage) *DevDataServer {
+func NewDevDataServer(s entities.Server, r *time.Ticker, c entities.RoutinesController, st entities.Storage) *DevDataServer {
 	return &DevDataServer{
-		LocalServer: serv,
-		Reconnect:   reconnect,
+		LocalServer: s,
+		Reconnect:   r,
 		Controller:  c,
-		Storage:     s,
+		Storage:     st,
 	}
-}
-
-func NewDevDataServerDefault(serv entities.Server, c entities.RoutinesController, s entities.Storage) *DevDataServer {
-	reconnect := time.NewTicker(time.Second * 1)
-	return NewDevDataServer(serv, reconnect, c, s)
 }
 
 func (s *DevDataServer) Run() {
@@ -56,12 +51,12 @@ func (s *DevDataServer) Run() {
 	for {
 		conn, err := ln.Accept()
 		if err == nil {
-			go s.tcpDataHandler(conn)
+			go s.DevDataHandler(conn)
 		}
 	}
 }
 
-func (s *DevDataServer) tcpDataHandler(conn net.Conn) {
+func (s *DevDataServer) DevDataHandler(conn net.Conn) {
 	var req entities.Request
 	var res entities.Response
 	for {
@@ -84,23 +79,17 @@ func (s *DevDataServer) tcpDataHandler(conn net.Conn) {
 	}
 }
 
-func (s *DevDataServer) devTypeHandler(req *entities.Request) string {
+func (s *DevDataServer) devTypeHandler(r *entities.Request) string {
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
 		log.Errorln("db connection hasn't been established")
 	}
 	defer conn.CloseConnection()
 
-	switch req.Action {
+	switch r.Action {
 	case "update":
-		data := IdentifyDevice(req.Meta.Type)
-		if data == nil || !entities.ValidateMAC(req.Meta.MAC) {
-			return string("Device request: unknown device type")
-		}
-		log.Println("Data has been received")
-
-		s.Storage.SetDevData(&req, )
-		go storages.PublishWS(req, "devWS", s.Storage)
+		s.Storage.SetDevData(r)
+		go storages.PublishWS(r, "devWS", s.Storage)
 
 	default:
 		log.Println("Device request: unknown action")

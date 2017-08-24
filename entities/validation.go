@@ -4,6 +4,17 @@ import (
 	"errors"
 )
 
+func ValidateType(t string) bool {
+	switch t {
+	case "fridge":
+		return true;
+	case "washer":
+		return true;
+	default:
+		return false;
+	}
+}
+
 func ValidateMAC(mac string) bool {
 	if len(mac) {
 		errors.New("mac address should contain 17 symbols")
