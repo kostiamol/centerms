@@ -27,12 +27,13 @@ type StreamServer struct {
 }
 
 type StreamConnMap struct {
+	sync.Mutex
 	ConnChanCloseWS   chan *websocket.Conn
 	StopCloseWS       chan string
 	MacChan           chan string
 	CloseMapCollector chan string
 	MapConn           map[string]*ListConnection
-	sync.Mutex
+
 }
 
 type PubSub struct {
@@ -44,6 +45,17 @@ type PubSub struct {
 type ListConnection struct {
 	sync.Mutex
 	Connections []*websocket.Conn
+}
+
+func NewStreamServer(s entities.Server, c entities.RoutinesController, st entities.Storage) *StreamServer {
+	var (
+		roomIDForDevWSPublish = "devWS"
+		stopSub               = make(chan bool)
+		subWSChannel          = make(chan []string)
+	)
+
+	return NewWSServer(s, *NewPubSub(roomIDForDevWSPublish, stopSub, subWSChannel),
+		*NewWSConnections(), c, st)
 }
 
 func NewWSConnections() *StreamConnMap {
@@ -69,17 +81,6 @@ func NewPubSub(roomIDForWSPubSub string, stopSub chan bool, subWSChannel chan []
 		StopSub:           stopSub,
 		SubWSChannel:      subWSChannel,
 	}
-}
-
-func NewStreamServer(s entities.Server, c entities.RoutinesController, st entities.Storage) *StreamServer {
-	var (
-		roomIDForDevWSPublish = "devWS"
-		stopSub               = make(chan bool)
-		subWSChannel          = make(chan []string)
-	)
-
-	return NewWSServer(s, *NewPubSub(roomIDForDevWSPublish, stopSub, subWSChannel),
-		*NewWSConnections(), c, st)
 }
 
 // Return referenced address on the StreamServer with default Upgrader where:
@@ -111,79 +112,92 @@ func NewWSServer(s entities.Server, pubSub PubSub, wsConnections StreamConnMap, 
 	}
 }
 
-func (ss *StreamServer) Recover() {
+func (s *StreamServer) Recover() {
 	if r := recover(); r != nil {
-		ss.Connections.StopCloseWS <- ""
-		ss.PubSub.StopSub <- false
-		ss.Connections.CloseMapCollector <- ""
-		ss.Controller.Close()
+		s.Connections.StopCloseWS <- ""
+		s.PubSub.StopSub <- false
+		s.Connections.CloseMapCollector <- ""
+		s.Controller.Close()
 		log.Error("WebSocketServer Failed")
 	}
 }
 
-func (ss *StreamServer) Run() {
-	defer ss.Recover()
+func (s *StreamServer) Run() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("StreamServer: Run(): panic leads to halt")
+			s.gracefulHalt()
+			s.Connections.StopCloseWS <- ""
+			s.PubSub.StopSub <- false
+			s.Connections.CloseMapCollector <- ""
+			s.Controller.Close()
+		}
+	}()
 
-	conn, err := ss.Storage.CreateConnection()
+	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("db connection hasn't been established")
+		log.Errorln("StreamServer: Run(): db connection hasn't been established")
 	}
 	defer conn.CloseConnection()
 
-	go ss.Close()
-	go ss.Subscribe(conn)
-	go ss.Connections.MapCollector()
+	go s.Close()
+	go s.Subscribe(conn)
+	go s.Connections.MapCollector()
 
 	r := mux.NewRouter()
-	r.HandleFunc("/devices/{id}", ss.WSHandler)
+	r.HandleFunc("/devices/{id}", s.WSHandler)
 
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         ss.LocalServer.Host + ":" + fmt.Sprint(ss.LocalServer.Port),
+		Addr:         s.LocalServer.Host + ":" + fmt.Sprint(s.LocalServer.Port),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 	go log.Fatal(srv.ListenAndServe())
 }
 
-func (ss *StreamServer) WSHandler(w http.ResponseWriter, r *http.Request) {
+func (s *StreamServer) gracefulHalt() {
+	s.Storage.CloseConnection()
+}
 
-	conn, err := ss.Upgrader.Upgrade(w, r, nil)
+func (s *StreamServer) WSHandler(w http.ResponseWriter, r *http.Request) {
+
+	conn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 	//http://..../device/type/name/mac
-	ss.Connections.Lock()
+	s.Connections.Lock()
 	uri := strings.Split(r.URL.String(), "/")
 
-	if _, ok := ss.Connections.MapConn[uri[2]]; !ok {
-		ss.Connections.MapConn[uri[2]] = new(ListConnection)
+	if _, ok := s.Connections.MapConn[uri[2]]; !ok {
+		s.Connections.MapConn[uri[2]] = new(ListConnection)
 	}
-	ss.Connections.MapConn[uri[2]].Add(conn)
-	ss.Connections.Unlock()
+	s.Connections.MapConn[uri[2]].Add(conn)
+	s.Connections.Unlock()
 
-	log.Info(len(ss.Connections.MapConn))
+	log.Info(len(s.Connections.MapConn))
 
 }
 
 /**
 Delete connections in mapConn
 */
-func (ss *StreamServer) Close() {
-	defer ss.Recover()
+func (s *StreamServer) Close() {
+	defer s.Recover()
 	for {
 		select {
-		case connAddres := <-ss.Connections.ConnChanCloseWS:
-			for key, val := range ss.Connections.MapConn {
+		case connAddres := <-s.Connections.ConnChanCloseWS:
+			for key, val := range s.Connections.MapConn {
 
 				if ok := val.Remove(connAddres); ok {
-					ss.Connections.MacChan <- key
+					s.Connections.MacChan <- key
 					break
 				}
 			}
-		case <-ss.Connections.StopCloseWS:
-			log.Info("CloseConnection closed")
+		case <-s.Connections.StopCloseWS:
+			log.Info("StreamServer: Close(): conn is down")
 			return
 		}
 	}
@@ -192,16 +206,16 @@ func (ss *StreamServer) Close() {
 /*
 Listens changes in database. If they have, we will send to all websocket which working with them.
 */
-func (ss *StreamServer) Subscribe(s entities.Storage) {
-	defer ss.Recover()
-	s.Subscribe(ss.PubSub.SubWSChannel, ss.PubSub.RoomIDForWSPubSub)
+func (s *StreamServer) Subscribe(st entities.Storage) {
+	defer s.Recover()
+	st.Subscribe(s.PubSub.SubWSChannel, s.PubSub.RoomIDForWSPubSub)
 	for {
 		select {
-		case msg := <-ss.PubSub.SubWSChannel:
+		case msg := <-s.PubSub.SubWSChannel:
 			if msg[0] == "message" {
-				go ss.checkAndSendInfoToWSClient(msg)
+				go s.checkAndSendInfoToWSClient(msg)
 			}
-		case <-ss.PubSub.StopSub:
+		case <-s.PubSub.StopSub:
 			log.Info("Subscribe closed")
 			return
 		}
@@ -211,31 +225,31 @@ func (ss *StreamServer) Subscribe(s entities.Storage) {
 //We are check mac in our mapConnections.
 // If we have mac in the map we will send message to all connections.
 // Else we do nothing
-func (ss *StreamServer) checkAndSendInfoToWSClient(msg []string) error {
+func (s *StreamServer) checkAndSendInfoToWSClient(msg []string) error {
 	r := new(entities.Request)
 	err := json.Unmarshal([]byte(msg[2]), &r)
 	if err != nil {
 		errors.Wrap(err, "Request unmarshalling has failed")
 		return err
 	}
-	if _, ok := ss.Connections.MapConn[r.Meta.MAC]; ok {
-		ss.sendInfoToWSClient(r.Meta.MAC, msg[2])
+	if _, ok := s.Connections.MapConn[r.Meta.MAC]; ok {
+		s.sendInfoToWSClient(r.Meta.MAC, msg[2])
 		return nil
 	}
 	return nil
 }
 
 //Send message to all connections which we have in map, and which pertain to mac
-func (ss *StreamServer) sendInfoToWSClient(mac, msg string) {
-	ss.Connections.MapConn[mac].Lock()
-	for _, val := range ss.Connections.MapConn[mac].Connections {
+func (s *StreamServer) sendInfoToWSClient(mac, msg string) {
+	s.Connections.MapConn[mac].Lock()
+	for _, val := range s.Connections.MapConn[mac].Connections {
 		err := val.WriteMessage(1, []byte(msg))
 		if err != nil {
 			log.Errorf("Connection %v closed", val.RemoteAddr())
-			go getToChannel(val, ss.Connections.ConnChanCloseWS)
+			go getToChannel(val, s.Connections.ConnChanCloseWS)
 		}
 	}
-	ss.Connections.MapConn[mac].Unlock()
+	s.Connections.MapConn[mac].Unlock()
 }
 
 func getToChannel(conn *websocket.Conn, connChanCloseWS chan *websocket.Conn) {

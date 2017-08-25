@@ -155,7 +155,7 @@ func (rc *RedisStorage) getFridgeDefaultConfig(m *entities.DevMeta) (*entities.D
 	}, err
 }
 
-func (rc *RedisStorage) sendFridgeDefaultConfig(conn net.Conn, req *entities.Request) []byte {
+func (rc *RedisStorage) sendFridgeDefaultConfig(c *net.Conn, req *entities.Request) ([]byte, error) {
 	var config *entities.DevConfig
 	var err error
 	configInfo := req.Meta.MAC + ":" + "config" // key
@@ -175,5 +175,5 @@ func (rc *RedisStorage) sendFridgeDefaultConfig(conn net.Conn, req *entities.Req
 		rc.setFridgeConfig(configInfo, config)
 	}
 
-	return config.Data
+	return config.Data, err
 }

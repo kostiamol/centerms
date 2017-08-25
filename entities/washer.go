@@ -1,33 +1,5 @@
 package entities
 
-type Washer struct {
-	Data          WasherData
-	Config        WasherConfig
-	Meta          DevMeta
-	timeStartWash int64
-}
-
-type WasherData struct {
-	Turnovers map[int64]int64   `json:"turnovers"`
-	WaterTemp map[int64]float32 `json:"waterTemp"`
-}
-
-type WasherConfig struct {
-	Name           string  `json:"name"`
-	MAC            string  `json:"mac"`
-	Temperature    float32 `json:"temperature"`
-	WashTime       int64   `json:"washTime"`
-	WashTurnovers  int64   `json:"washTurnovers"`
-	RinseTime      int64   `json:"rinseTime"`
-	RinseTurnovers int64   `json:"rinseTurnovers"`
-	SpinTime       int64   `json:"spinTime"`
-	SpinTurnovers  int64   `json:"spinTurnovers"`
-}
-type TimerMode struct {
-	Name      string `json:"name"`
-	StartTime int64  `json:"time"`
-}
-
 var (
 	LightMode WasherConfig = WasherConfig{
 		Name:           "LightMode",
@@ -61,17 +33,31 @@ var (
 	}
 )
 
-func (washer *Washer) selectMode(mode string) WasherConfig {
-	switch mode {
-	case "LightMode":
-		washer.Config = LightMode
-		return LightMode
-	case "FastMode":
-		washer.Config = FastMode
-		return FastMode
-	case "StandardMode":
-		washer.Config = StandardMode
-		return StandardMode
-	}
-	return WasherConfig{}
+type Washer struct {
+	Data          WasherData
+	Config        WasherConfig
+	Meta          DevMeta
+	timeStartWash int64
+}
+
+type WasherData struct {
+	Turnovers map[int64]int64   `json:"turnovers"`
+	WaterTemp map[int64]float32 `json:"waterTemp"`
+}
+
+type WasherConfig struct {
+	Name           string  `json:"name"`
+	MAC            string  `json:"mac"`
+	Temperature    float32 `json:"temperature"`
+	WashTime       int64   `json:"washTime"`
+	WashTurnovers  int64   `json:"washTurnovers"`
+	RinseTime      int64   `json:"rinseTime"`
+	RinseTurnovers int64   `json:"rinseTurnovers"`
+	SpinTime       int64   `json:"spinTime"`
+	SpinTurnovers  int64   `json:"spinTurnovers"`
+}
+
+type TimerMode struct {
+	Name      string `json:"name"`
+	StartTime int64  `json:"time"`
 }

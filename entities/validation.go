@@ -16,7 +16,7 @@ func ValidateType(t string) bool {
 }
 
 func ValidateMAC(mac string) bool {
-	if len(mac) {
+	if len(mac) != 17 {
 		errors.New("mac address should contain 17 symbols")
 		return false
 	}

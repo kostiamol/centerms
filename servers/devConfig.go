@@ -38,8 +38,9 @@ func (s *DevConfigServer) Run() {
 	defer func() {
 		if r := recover(); r != nil {
 			s.StopConfigSubscribe <- struct{}{}
+			log.Error("DevConfigServer: Run(): panic leads to halt")
+			s.gracefulHalt()
 			s.Controller.Close()
-			log.Error("DevConfigServer Failed")
 		}
 	}()
 
@@ -47,7 +48,7 @@ func (s *DevConfigServer) Run() {
 
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("db connection hasn't been established")
+		log.Errorln("DevConfigServer: Run(): db connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
@@ -68,8 +69,12 @@ func (s *DevConfigServer) Run() {
 		if err != nil {
 			errors.Wrap(err, "tcp connection acceptance has failed")
 		}
-		go s.sendDefaultConfiguration(conn, &s.Pool)
+		go s.sendDefaultConfig(conn, &s.Pool)
 	}
+}
+
+func (s *DevConfigServer) gracefulHalt() {
+	s.Storage.CloseConnection()
 }
 
 func (s *DevConfigServer) sendNewConfiguration(config entities.DevConfig, pool *entities.ConnPool) {
@@ -86,7 +91,7 @@ func (s *DevConfigServer) sendNewConfiguration(config entities.DevConfig, pool *
 	}
 }
 
-func (s *DevConfigServer) sendDefaultConfiguration(c net.Conn, pool *entities.ConnPool) {
+func (s *DevConfigServer) sendDefaultConfig(c net.Conn, pool *entities.ConnPool) {
 	var (
 		req    entities.Request
 		config entities.DevConfig
@@ -99,12 +104,12 @@ func (s *DevConfigServer) sendDefaultConfiguration(c net.Conn, pool *entities.Co
 
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("db connection hasn't been established")
+		log.Errorln("DevConfigServer: sendDefaultConfig(): db connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
 
-	config.Data, err = s.Storage.SendDevDefaultConfig(c, &req)
+	config.Data, err = s.Storage.SendDevDefaultConfig(&c, &req)
 	if err != nil {
 		errors.Wrap(err, "config sending has failed")
 	}
@@ -120,7 +125,7 @@ func (s *DevConfigServer) sendDefaultConfiguration(c net.Conn, pool *entities.Co
 func (s *DevConfigServer) configSubscribe(roomID string, message chan []string, pool *entities.ConnPool) {
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("db connection hasn't been established")
+		log.Errorln("func configSubscribe: db connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()

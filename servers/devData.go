@@ -32,9 +32,9 @@ func NewDevDataServer(s entities.Server, r *time.Ticker, c entities.RoutinesCont
 func (s *DevDataServer) Run() {
 	defer func() {
 		if r := recover(); r != nil {
+			log.Error("DevConfigServer: Run(): panic leads to halt")
+			s.gracefulHalt()
 			s.Controller.Close()
-			errors.New("DevDataServer has failed")
-			log.Error("DevDataServer has failed")
 		}
 	}()
 
@@ -54,6 +54,10 @@ func (s *DevDataServer) Run() {
 			go s.DevDataHandler(conn)
 		}
 	}
+}
+
+func (s *DevDataServer) gracefulHalt() {
+	s.Storage.CloseConnection()
 }
 
 func (s *DevDataServer) DevDataHandler(conn net.Conn) {
@@ -82,7 +86,7 @@ func (s *DevDataServer) DevDataHandler(conn net.Conn) {
 func (s *DevDataServer) devTypeHandler(r *entities.Request) string {
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("db connection hasn't been established")
+		log.Errorln("func devTypeHandler: db connection hasn't been established")
 	}
 	defer conn.CloseConnection()
 

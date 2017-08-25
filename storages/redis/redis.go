@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"strings"
 
+	"net"
+
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
 	"menteslibres.net/gosexy/redis"
-	"net"
+	"time"
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -36,8 +39,8 @@ func (rc *RedisStorage) FlushAll() error {
 	return err
 }
 
-func (rc *RedisStorage) Publish(channel string, message interface{}) (int64, error) {
-	return rc.Client.Publish(channel, message)
+func (rc *RedisStorage) Publish(channel string, msg interface{}) (int64, error) {
+	return rc.Client.Publish(channel, msg)
 }
 
 func (rc *RedisStorage) Subscribe(c chan []string, channel ...string) error {
@@ -55,6 +58,12 @@ func (rc *RedisStorage) CreateConnection() (entities.Storage, error) {
 	}
 
 	err := nrc.Client.Connect(nrc.DbServer.Host, nrc.DbServer.Port)
+	for err != nil {
+		log.Errorln("RedisStorage: Connect(): failed")
+		time.Sleep(3 * time.Second)
+		err = nrc.Client.Connect(nrc.DbServer.Host, nrc.DbServer.Port)
+	}
+
 	return &nrc, err
 }
 
@@ -66,7 +75,7 @@ func PublishWS(r *entities.Request, roomID string, db entities.Storage) error {
 
 	conn, err := db.CreateConnection()
 	if err != nil {
-		errors.Wrap(err, "db connection hasn't been established")
+		errors.Wrap(err, "PublishWS(): db connection hasn't been established")
 	}
 	defer conn.CloseConnection()
 
@@ -115,7 +124,6 @@ func (rc *RedisStorage) GetAllDevices() ([]entities.DevData, error) {
 			}
 			device.Data[p] = values[i]
 		}
-
 		devices = append(devices, device)
 	}
 	return devices, err
@@ -129,6 +137,8 @@ func (rc *RedisStorage) GetDevData(devParamsKey string, m *entities.DevMeta) (*e
 	switch m.Type {
 	case "fridge":
 		return rc.getFridgeData(devParamsKey, m)
+	case "washer":
+		return rc.getWasherData(devParamsKey, m)
 	default:
 		return &entities.DevData{}, errors.New("dev type is unknown")
 	}
@@ -138,6 +148,8 @@ func (rc *RedisStorage) SetDevData(req *entities.Request) error {
 	switch req.Meta.Type {
 	case "fridge":
 		return rc.setFridgeData(req)
+	case "washer":
+		return rc.setWasherData(req)
 	default:
 		return errors.New("dev type is unknown")
 	}
@@ -147,6 +159,8 @@ func (rc *RedisStorage) GetDevConfig(t string, configInfo string, mac string) (*
 	switch t {
 	case "fridge":
 		return rc.getFridgeConfig(configInfo, mac)
+	case "washer":
+		return rc.getWasherConfig(configInfo, mac)
 	default:
 		return &entities.DevConfig{}, errors.New("dev type is unknown")
 	}
@@ -156,6 +170,8 @@ func (rc *RedisStorage) SetDevConfig(t string, configInfo string, c *entities.De
 	switch t {
 	case "fridge":
 		return rc.setFridgeConfig(configInfo, c)
+	case "washer":
+		return rc.setWasherConfig(configInfo, c)
 	default:
 		return errors.New("dev type is unknown")
 	}
@@ -165,15 +181,19 @@ func (rc *RedisStorage) GetDevDefaultConfig(t string, m *entities.DevMeta) (*ent
 	switch t {
 	case "fridge":
 		return rc.getFridgeDefaultConfig(m)
+	case "washer":
+		return rc.getWasherDefaultConfig(m)
 	default:
 		return &entities.DevConfig{}, errors.New("dev type is unknown")
 	}
 }
 
-func (rc *RedisStorage) SendDevDefaultConfig(conn net.Conn, req *entities.Request) ([]byte, error) {
+func (rc *RedisStorage) SendDevDefaultConfig(c *net.Conn, req *entities.Request) ([]byte, error) {
 	switch req.Meta.Type {
 	case "fridge":
-		return rc.sendFridgeDefaultConfig(conn, req), nil
+		return rc.sendFridgeDefaultConfig(c, req)
+	case "washer":
+		return rc.sendWasherDefaultConfig(c, req)
 	default:
 		return []byte{}, errors.New("dev type is unknown")
 	}

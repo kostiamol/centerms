@@ -11,8 +11,8 @@ import (
 func main() {
 	var (
 		storage    = &storages.RedisStorage{}
-		reconnect  = time.NewTicker(time.Second * 1)
 		ctrl = entities.RoutinesController{StopChan: make(chan struct{})}
+		reconnect  = time.NewTicker(time.Second * 1)
 	)
 
 	storage.SetServer(&StorageServer)

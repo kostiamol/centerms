@@ -18,12 +18,13 @@ type Storage interface {
 
 	GetDevData(devParamsKey string, m *DevMeta) (*DevData, error)
 	SetDevData(req *Request) error
-	GetDevConfig(t, configInfo string, mac string) (*DevConfig, error)
-	SetDevConfig(t, configInfo string, c *DevConfig) error
-	GetDevDefaultConfig(t string, m *DevMeta) (*DevConfig, error)
-	SendDevDefaultConfig(conn net.Conn, req *Request) ([]byte, error)
 
-	Publish(channel string, message interface{}) (int64, error)
+	GetDevConfig(t string, configInfo string, mac string) (*DevConfig, error)
+	SetDevConfig(t string, configInfo string, c *DevConfig) error
+	GetDevDefaultConfig(t string, m *DevMeta) (*DevConfig, error)
+	SendDevDefaultConfig(c *net.Conn, req *Request) ([]byte, error)
+
+	Publish(channel string, msg interface{}) (int64, error)
 	Subscribe(c chan []string, channel ...string) error
 }
 
@@ -33,6 +34,28 @@ type Notifier interface {
 
 type Device interface {
 
+}
+
+type DevConfigDriver interface {
+	GetDevConfig(configInfo, mac string, client Storage) *DevConfig
+	SetDevConfig(configInfo string, config *DevConfig, client Storage)
+	GetDefaultConfig() *DevConfig
+}
+
+type DevDataDriver interface {
+	GetDevData(devParamsKey string, devMeta DevMeta, client Storage) DevData
+	SetDevData(req *Request, worker Storage) error
+}
+
+type DevServerHandler interface {
+	SendDefaultConfigurationTCP(conn net.Conn, dbClient Storage, req *Request) []byte
+	PatchDevConfigHandlerHTTP()
+}
+
+type Driver interface {
+	DevDataDriver
+	DevServerHandler
+	DevConfigDriver
 }
 
 type RoutinesController struct {
@@ -115,5 +138,3 @@ func (c *RoutinesController) Close() {
 		close(c.StopChan)
 	}
 }
-
-

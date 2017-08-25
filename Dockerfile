@@ -4,11 +4,11 @@ MAINTAINER giperboloid (kostyamol@gmail.com)
 EXPOSE 6379 3030 3000 8100 2540
 
 RUN \
-    mkdir -p /home/center-smart-house/bin \
-    mkdir -p /home/center-smart-house/view
+    mkdir -p /home/centerms/bin \
+    mkdir -p /home/centerms/view
 
-WORKDIR /home/center-smart-house/bin
-COPY ./cmd/center-smart-house .
+WORKDIR /home/centerms/bin
+COPY ./cmd/centerms .
 COPY ./view ../view
 
 RUN \  
@@ -16,4 +16,4 @@ RUN \
     chmod +x center-smart-house
   
 USER daemon
-ENTRYPOINT ["./center-smart-house"]
+ENTRYPOINT ["./centerms"]

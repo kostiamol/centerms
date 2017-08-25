@@ -31,8 +31,9 @@ func NewWebServer(s entities.Server, c entities.RoutinesController, st entities.
 func (s *WebServer) Run() {
 	defer func() {
 		if r := recover(); r != nil {
+			log.Error("WebServer: Run(): panic leads to halt")
+			s.gracefulHalt()
 			s.Controller.Close()
-			log.Error("WebServer Failed")
 		}
 	}()
 
@@ -41,10 +42,9 @@ func (s *WebServer) Run() {
 	r.HandleFunc("/devices/{id}/data", s.getDevDataHandler).Methods(http.MethodGet)
 	r.HandleFunc("/devices/{id}/config", s.getDevConfigHandler).Methods(http.MethodGet)
 	r.HandleFunc("/devices/{id}/config", s.patchDevConfigHandler).Methods(http.MethodPatch)
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("../view/")))
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./view/")))
 
 	port := fmt.Sprint(s.LocalServer.Port)
-
 	srv := &http.Server{
 		Handler:      r,
 		Addr:         s.LocalServer.Host + ":" + port,
@@ -58,10 +58,14 @@ func (s *WebServer) Run() {
 	go log.Fatal(srv.ListenAndServe())
 }
 
+func (s *WebServer) gracefulHalt() {
+	s.Storage.CloseConnection()
+}
+
 func (s *WebServer) getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("db connection hasn't been established")
+		log.Errorln("func getDevicesHandler db connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
@@ -78,10 +82,9 @@ func (s *WebServer) getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
-
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("db connection hasn't been established")
+		log.Errorln("func getDevDataHandler db connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
@@ -117,7 +120,7 @@ func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) 
 
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("db connection hasn't been established")
+		log.Errorln("func getDevConfigHandler db connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
@@ -145,7 +148,7 @@ func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request
 
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("db connection hasn't been established")
+		log.Errorln("func patchDevConfigHandler db connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
