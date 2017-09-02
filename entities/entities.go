@@ -13,12 +13,11 @@ type Storage interface {
 	CreateConnection() (Storage, error)
 	CloseConnection() error
 
-	GetAllDevices() ([]DevData, error)
-	GetKeyForConfig(mac string) (string, error)
-
+	GetDevsData() ([]DevData, error)
 	GetDevData(devParamsKey string, m *DevMeta) (*DevData, error)
 	SetDevData(req *Request) error
 
+	GetConfigKey(mac string) (string, error)
 	GetDevConfig(t string, configInfo string, mac string) (*DevConfig, error)
 	SetDevConfig(t string, configInfo string, c *DevConfig) error
 	GetDevDefaultConfig(t string, m *DevMeta) (*DevConfig, error)

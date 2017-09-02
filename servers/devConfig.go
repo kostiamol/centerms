@@ -6,31 +6,35 @@ import (
 	"net"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
 )
 
 type DevConfigServer struct {
-	LocalServer         entities.Server
+	Server              entities.Server
+	Storage             entities.Storage
+	Controller          entities.RoutinesController
+	Log                 *logrus.Logger
 	Reconnect           *time.Ticker
 	Pool                entities.ConnPool
 	Messages            chan []string
 	StopConfigSubscribe chan struct{}
-	Controller          entities.RoutinesController
-	Storage             entities.Storage
 }
 
-func NewDevConfigServer(s entities.Server, r *time.Ticker, c entities.RoutinesController, st entities.Storage,
-	msgs chan []string, stopConfigSubscribe chan struct{}) *DevConfigServer {
+func NewDevConfigServer(s entities.Server, st entities.Storage, c entities.RoutinesController, l *logrus.Logger,
+	r *time.Ticker, msgs chan []string, stopConfigSubscribe chan struct{}) *DevConfigServer {
+	l.Out = os.Stdout
 	return &DevConfigServer{
-		LocalServer:         s,
+		Server:              s,
+		Storage:             st,
+		Controller:          c,
+		Log:                 l,
 		Reconnect:           r,
 		Messages:            msgs,
-		Controller:          c,
 		StopConfigSubscribe: stopConfigSubscribe,
-		Storage:             st,
 	}
 }
 
@@ -38,26 +42,24 @@ func (s *DevConfigServer) Run() {
 	defer func() {
 		if r := recover(); r != nil {
 			s.StopConfigSubscribe <- struct{}{}
-			log.Error("DevConfigServer: Run(): panic leads to halt")
+			errors.New("DevConfigServer: Run(): panic leads to halt")
 			s.gracefulHalt()
 			s.Controller.Close()
 		}
 	}()
 
 	s.Pool.Init()
-
-	conn, err := s.Storage.CreateConnection()
+	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 	if err != nil {
-		log.Errorln("DevConfigServer: Run(): db connection hasn't been established")
-		return
+		errors.Wrap(err, "DevConfigServer: Run(): Listen() has failed")
 	}
-	defer conn.CloseConnection()
-
-	ln, err := net.Listen("tcp", s.LocalServer.Host+":"+fmt.Sprint(s.LocalServer.Port))
 
 	for err != nil {
 		for range s.Reconnect.C {
-			ln, _ = net.Listen("tcp", s.LocalServer.Host+":"+fmt.Sprint(s.LocalServer.Port))
+			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
+			if err != nil {
+				errors.Wrap(err, "DevConfigServer: Run(): Listen() has failed")
+			}
 		}
 		s.Reconnect.Stop()
 	}
@@ -67,7 +69,7 @@ func (s *DevConfigServer) Run() {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			errors.Wrap(err, "tcp connection acceptance has failed")
+			errors.Wrap(err, "DevConfigServer: Run(): Accept() has failed")
 		}
 		go s.sendDefaultConfig(conn, &s.Pool)
 	}
@@ -77,16 +79,16 @@ func (s *DevConfigServer) gracefulHalt() {
 	s.Storage.CloseConnection()
 }
 
-func (s *DevConfigServer) sendNewConfiguration(config entities.DevConfig, pool *entities.ConnPool) {
+func (s *DevConfigServer) sendNewConfig(config entities.DevConfig, pool *entities.ConnPool) {
 	connection := pool.GetConn(config.MAC)
 	if connection == nil {
-		log.Error("Has not connection with mac:config.MAC  in connectionPool")
+		errors.New("DevConfigServer: sendNewConfig(): there isn't such a connection in pool")
 		return
 	}
 
 	_, err := connection.Write(config.Data)
 	if err != nil {
-		errors.Wrap(err, "Data writing has failed")
+		errors.Wrap(err, "DevConfigServer: sendNewConfig(): DevConfig.Data writing has failed")
 		pool.RemoveConn(config.MAC)
 	}
 }
@@ -98,49 +100,47 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, pool *entities.ConnPool)
 	)
 	err := json.NewDecoder(c).Decode(&req)
 	if err != nil {
-		errors.Wrap(err, "Request marshalling has failed")
+		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): Request marshalling has failed")
 	}
 	pool.AddConn(c, req.Meta.MAC)
 
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("DevConfigServer: sendDefaultConfig(): db connection hasn't been established")
+		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): storage connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
 
-	config.Data, err = s.Storage.SendDevDefaultConfig(&c, &req)
+	config.Data, err = conn.SendDevDefaultConfig(&c, &req)
 	if err != nil {
-		errors.Wrap(err, "config sending has failed")
+		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): default config sending has failed")
 	}
 
 	_, err = c.Write(config.Data)
 	if err != nil {
-		errors.Wrap(err, "data writing has failed")
+		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): DevConfig.Data writing has failed")
 	}
-
-	log.Warningln("Configuration has been successfully sent ", err)
 }
 
-func (s *DevConfigServer) configSubscribe(roomID string, message chan []string, pool *entities.ConnPool) {
+func (s *DevConfigServer) configSubscribe(roomID string, msg chan []string, pool *entities.ConnPool) {
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("func configSubscribe: db connection hasn't been established")
+		errors.Wrap(err, "DevConfigServer: configSubscribe(): storage connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
 
-	conn.Subscribe(message, roomID)
+	conn.Subscribe(msg, roomID)
 	for {
 		var config entities.DevConfig
 		select {
-		case msg := <-message:
+		case msg := <-msg:
 			if msg[0] == "message" {
 				err := json.Unmarshal([]byte(msg[2]), &config)
 				if err != nil {
-					errors.Wrap(err, "DevConfig marshalling has failed")
+					errors.Wrap(err, "DevConfigServer: configSubscribe(): DevConfig unmarshalling has failed")
 				}
-				go s.sendNewConfiguration(config, pool)
+				go s.sendNewConfig(config, pool)
 			}
 		case <-s.StopConfigSubscribe:
 			return

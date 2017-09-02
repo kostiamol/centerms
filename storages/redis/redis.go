@@ -87,7 +87,7 @@ func PublishWS(r *entities.Request, roomID string, db entities.Storage) error {
 	return err
 }
 
-func (rc *RedisStorage) GetAllDevices() ([]entities.DevData, error) {
+func (rc *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 	rc.CreateConnection()
 
 	var device entities.DevData
@@ -129,7 +129,7 @@ func (rc *RedisStorage) GetAllDevices() ([]entities.DevData, error) {
 	return devices, err
 }
 
-func (rc *RedisStorage) GetKeyForConfig(mac string) (string, error) {
+func (rc *RedisStorage) GetConfigKey(mac string) (string, error) {
 	return mac + partKeyToConfig, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"github.com/giperboloid/centerms/entities"
 	"os"
 	"strconv"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -20,8 +21,12 @@ var (
 )
 
 func getEnvStoragePort(key string) uint {
-	parsed64, _ := strconv.ParseUint(os.Getenv(key), 10, 64)
-	port := uint(parsed64)
+	parsed, err := strconv.ParseUint(os.Getenv(key), 10, 64)
+	if err != nil {
+		errors.New("getEnvStoragePort(): ParseUint() has failed")
+	}
+
+	port := uint(parsed)
 	if port == 0 {
 		return uint(6379)
 	}

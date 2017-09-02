@@ -6,89 +6,86 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+
+	"os"
 
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
 )
 
 type WebServer struct {
-	LocalServer entities.Server
-	Controller  entities.RoutinesController
-	Storage     entities.Storage
+	Server     entities.Server
+	Storage    entities.Storage
+	Controller entities.RoutinesController
+	Log        *logrus.Logger
 }
 
-func NewWebServer(s entities.Server, c entities.RoutinesController, st entities.Storage) *WebServer {
+func NewWebServer(s entities.Server, st entities.Storage, c entities.RoutinesController, l *logrus.Logger) *WebServer {
+	l.Out = os.Stdout
 	return &WebServer{
-		LocalServer: s,
-		Controller:  c,
-		Storage:     st,
+		Server:     s,
+		Storage:    st,
+		Controller: c,
+		Log:        l,
 	}
 }
 
 func (s *WebServer) Run() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("WebServer: Run(): panic leads to halt")
+			errors.New("WebServer: Run(): panic leads to halt")
 			s.gracefulHalt()
 			s.Controller.Close()
 		}
 	}()
 
 	r := mux.NewRouter()
-	r.HandleFunc("/devices", s.getDevicesHandler).Methods(http.MethodGet)
+	r.HandleFunc("/devices", s.getDevsDataHandler).Methods(http.MethodGet)
 	r.HandleFunc("/devices/{id}/data", s.getDevDataHandler).Methods(http.MethodGet)
 	r.HandleFunc("/devices/{id}/config", s.getDevConfigHandler).Methods(http.MethodGet)
 	r.HandleFunc("/devices/{id}/config", s.patchDevConfigHandler).Methods(http.MethodPatch)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./view/")))
 
-	port := fmt.Sprint(s.LocalServer.Port)
+	port := fmt.Sprint(s.Server.Port)
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         s.LocalServer.Host + ":" + port,
+		Addr:         s.Server.Host + ":" + port,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 
-	//CORS provides Cross-Origin Resource Sharing middleware
-	http.ListenAndServe(s.LocalServer.Host+":"+port, handlers.CORS()(r))
+	http.ListenAndServe(s.Server.Host+":"+port, handlers.CORS()(r))
 
-	go log.Fatal(srv.ListenAndServe())
+	go s.Log.Fatal(srv.ListenAndServe())
 }
 
 func (s *WebServer) gracefulHalt() {
 	s.Storage.CloseConnection()
 }
 
-func (s *WebServer) getDevicesHandler(w http.ResponseWriter, r *http.Request) {
+func (s *WebServer) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("func getDevicesHandler db connection hasn't been established")
+		errors.Wrap(err, "WebServer: getDevicesHandler(): storage connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
 
-	devs, err := conn.GetAllDevices()
+	devs, err := conn.GetDevsData()
 	if err != nil {
-		errors.Wrap(err, "devices info extraction has failed")
+		errors.Wrap(err, "WebServer: getDevicesHandler(): devices info extraction has failed")
 	}
 
 	err = json.NewEncoder(w).Encode(devs)
 	if err != nil {
-		errors.Wrap(err, "[]DevData marshalling has failed")
+		errors.Wrap(err, "WebServer: getDevicesHandler(): []DevData encoding has failed")
 	}
 }
 
 func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.Storage.CreateConnection()
-	if err != nil {
-		log.Errorln("func getDevDataHandler db connection hasn't been established")
-		return
-	}
-	defer conn.CloseConnection()
-
 	devMeta := entities.DevMeta{
 		Type: r.FormValue("type"),
 		Name: r.FormValue("name"),
@@ -99,14 +96,21 @@ func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	devID := "device:" + devMeta.Type + ":" + devMeta.Name + ":" + devMeta.MAC
 	devParamsKey := devID + ":" + "params"
 
-	deviceData, err := s.Storage.GetDevData(devParamsKey, &devMeta)
+	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		errors.Wrap(err, "dev data extraction has failed")
+		errors.Wrap(err, "WebServer: getDevDataHandler(): storage connection hasn't been established")
+		return
+	}
+	defer conn.CloseConnection()
+
+	devData, err := conn.GetDevData(devParamsKey, &devMeta)
+	if err != nil {
+		errors.Wrap(err, "WebServer: getDevDataHandler(): DevData extraction has failed")
 	}
 
-	err = json.NewEncoder(w).Encode(deviceData)
+	err = json.NewEncoder(w).Encode(devData)
 	if err != nil {
-		errors.Wrap(err, "DevData marshalling has failed")
+		errors.Wrap(err, "WebServer: getDevDataHandler(): DevData encoding has failed")
 	}
 }
 
@@ -120,25 +124,24 @@ func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) 
 
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("func getDevConfigHandler db connection hasn't been established")
+		errors.Wrap(err, "WebServer: getDevConfigHandler(): storage connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
 
-	configInfo, err := conn.GetKeyForConfig(devMeta.MAC) // key
+	configInfo, err := conn.GetConfigKey(devMeta.MAC)
 	if err != nil {
-		log.Errorln("key extraction has failed")
+		errors.Wrap(err, "WebServer: getDevConfigHandler(): config key extraction has failed")
 	}
 
-	config, err := s.Storage.GetDevConfig(devMeta.Type, configInfo, devMeta.MAC)
+	config, err := conn.GetDevConfig(devMeta.Type, configInfo, devMeta.MAC)
 	if err != nil {
-		errors.Wrap(err, "dev config extraction has failed")
+		errors.Wrap(err, "WebServer: getDevConfigHandler(): DevConfig extraction has failed")
 	}
 	w.Write(config.Data)
 }
 
 func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-
 	devMeta := entities.DevMeta{
 		Type: r.FormValue("type"),
 		Name: r.FormValue("name"),
@@ -146,23 +149,27 @@ func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request
 		IP:   "",
 	}
 
+	var config *entities.DevConfig
+	configInfo := devMeta.MAC + ":" + "config"
+
+	err := json.NewDecoder(r.Body).Decode(&config)
+	if err != nil {
+		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig decoding has failed")
+	}
+
 	conn, err := s.Storage.CreateConnection()
 	if err != nil {
-		log.Errorln("func patchDevConfigHandler db connection hasn't been established")
+		errors.Wrap(err, "WebServer: getDevConfigHandler(): storage connection hasn't been established")
 		return
 	}
 	defer conn.CloseConnection()
 
-	var config *entities.DevConfig
-	configInfo := devMeta.MAC + ":" + "config"
-
-	err = json.NewDecoder(r.Body).Decode(&config)
+	// validation must be implemented
+	conn.SetDevConfig(devMeta.Type, configInfo, config)
+	JSONConfig, err := json.Marshal(config)
 	if err != nil {
-		errors.Wrap(err, "decoding has failed")
+		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig marshalling has failed")
 	}
 
-	// validation
-	s.Storage.SetDevConfig(devMeta.Type, configInfo, config)
-	JSONConfig, _ := json.Marshal(config)
-	s.Storage.Publish("configChan", JSONConfig)
+	conn.Publish("configChan", JSONConfig)
 }
