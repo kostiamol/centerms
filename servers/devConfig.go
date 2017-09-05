@@ -76,7 +76,7 @@ func (s *DevConfigServer) Run() {
 }
 
 func (s *DevConfigServer) gracefulHalt() {
-	s.Storage.CloseConnection()
+	s.Storage.CloseConn()
 }
 
 func (s *DevConfigServer) sendNewConfig(config entities.DevConfig, pool *entities.ConnPool) {
@@ -104,12 +104,12 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, pool *entities.ConnPool)
 	}
 	pool.AddConn(c, req.Meta.MAC)
 
-	conn, err := s.Storage.CreateConnection()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): storage connection hasn't been established")
 		return
 	}
-	defer conn.CloseConnection()
+	defer conn.CloseConn()
 
 	config.Data, err = conn.SendDevDefaultConfig(&c, &req)
 	if err != nil {
@@ -123,12 +123,12 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, pool *entities.ConnPool)
 }
 
 func (s *DevConfigServer) configSubscribe(roomID string, msg chan []string, pool *entities.ConnPool) {
-	conn, err := s.Storage.CreateConnection()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: configSubscribe(): storage connection hasn't been established")
 		return
 	}
-	defer conn.CloseConnection()
+	defer conn.CloseConn()
 
 	conn.Subscribe(msg, roomID)
 	for {

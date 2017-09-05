@@ -10,18 +10,19 @@ import (
 type Storage interface {
 	SetServer(s *Server) error
 
-	CreateConnection() (Storage, error)
-	CloseConnection() error
+	CreateConn() (Storage, error)
+	CloseConn() error
 
 	GetDevsData() ([]DevData, error)
-	GetDevData(devParamsKey string, m *DevMeta) (*DevData, error)
-	SetDevData(req *Request) error
+	GetDevData(m *DevMeta) (*DevData, error)
+	SetDevData(r *Request) error
 
-	GetConfigKey(mac string) (string, error)
-	GetDevConfig(t string, configInfo string, mac string) (*DevConfig, error)
-	SetDevConfig(t string, configInfo string, c *DevConfig) error
-	GetDevDefaultConfig(t string, m *DevMeta) (*DevConfig, error)
-	SendDevDefaultConfig(c *net.Conn, req *Request) ([]byte, error)
+	GetDevConfig(t string, mac string) (*DevConfig, error)
+	SetDevConfig(t string, mac string, c *DevConfig) error
+
+	GetDevDefaultConfig(m *DevMeta) (*DevConfig, error)
+	// remove
+	SendDevDefaultConfig(c *net.Conn, r *Request) ([]byte, error)
 
 	Publish(channel string, msg interface{}) (int64, error)
 	Subscribe(c chan []string, channel ...string) error
@@ -87,7 +88,6 @@ type DevMeta struct {
 	Type string `json:"type"`
 	Name string `json:"name"`
 	MAC  string `json:"mac"`
-	IP   string `json:"ip"`
 }
 
 type DevData struct {

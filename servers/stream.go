@@ -100,11 +100,11 @@ func (s *StreamServer) Run() {
 		}
 	}()
 
-	conn, err := s.Storage.CreateConnection()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		errors.New("StreamServer: Run(): storage connection hasn't been established")
 	}
-	defer conn.CloseConnection()
+	defer conn.CloseConn()
 
 	go s.Close()
 	go s.Subscribe(conn)
@@ -124,7 +124,7 @@ func (s *StreamServer) Run() {
 }
 
 func (s *StreamServer) gracefulHalt() {
-	s.Storage.CloseConnection()
+	s.Storage.CloseConn()
 }
 
 func (s *StreamServer) WSHandler(w http.ResponseWriter, r *http.Request) {

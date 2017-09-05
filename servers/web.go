@@ -63,113 +63,98 @@ func (s *WebServer) Run() {
 }
 
 func (s *WebServer) gracefulHalt() {
-	s.Storage.CloseConnection()
+	s.Storage.CloseConn()
 }
 
 func (s *WebServer) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.Storage.CreateConnection()
+	cn, err := s.Storage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevicesHandler(): storage connection hasn't been established")
 		return
 	}
-	defer conn.CloseConnection()
+	defer cn.CloseConn()
 
-	devs, err := conn.GetDevsData()
+	ds, err := cn.GetDevsData()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevicesHandler(): devices info extraction has failed")
 	}
 
-	err = json.NewEncoder(w).Encode(devs)
+	err = json.NewEncoder(w).Encode(ds)
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevicesHandler(): []DevData encoding has failed")
 	}
 }
 
 func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
-	devMeta := entities.DevMeta{
+	m := entities.DevMeta{
 		Type: r.FormValue("type"),
 		Name: r.FormValue("name"),
 		MAC:  r.FormValue("mac"),
-		IP:   "",
 	}
 
-	devID := "device:" + devMeta.Type + ":" + devMeta.Name + ":" + devMeta.MAC
-	devParamsKey := devID + ":" + "params"
-
-	conn, err := s.Storage.CreateConnection()
+	cn, err := s.Storage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevDataHandler(): storage connection hasn't been established")
 		return
 	}
-	defer conn.CloseConnection()
+	defer cn.CloseConn()
 
-	devData, err := conn.GetDevData(devParamsKey, &devMeta)
+	d, err := cn.GetDevData(&m)
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevDataHandler(): DevData extraction has failed")
 	}
 
-	err = json.NewEncoder(w).Encode(devData)
+	err = json.NewEncoder(w).Encode(d)
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevDataHandler(): DevData encoding has failed")
 	}
 }
 
 func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	devMeta := entities.DevMeta{
+	m := entities.DevMeta{
 		Type: r.FormValue("type"),
 		Name: r.FormValue("name"),
 		MAC:  r.FormValue("mac"),
-		IP:   "",
 	}
 
-	conn, err := s.Storage.CreateConnection()
+	cn, err := s.Storage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevConfigHandler(): storage connection hasn't been established")
 		return
 	}
-	defer conn.CloseConnection()
+	defer cn.CloseConn()
 
-	configInfo, err := conn.GetConfigKey(devMeta.MAC)
-	if err != nil {
-		errors.Wrap(err, "WebServer: getDevConfigHandler(): config key extraction has failed")
-	}
-
-	config, err := conn.GetDevConfig(devMeta.Type, configInfo, devMeta.MAC)
+	c, err := cn.GetDevConfig(m.Type, m.MAC)
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevConfigHandler(): DevConfig extraction has failed")
 	}
-	w.Write(config.Data)
+	w.Write(c.Data)
 }
 
 func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	devMeta := entities.DevMeta{
+	m := entities.DevMeta{
 		Type: r.FormValue("type"),
 		Name: r.FormValue("name"),
 		MAC:  r.FormValue("mac"),
-		IP:   "",
 	}
 
-	var config *entities.DevConfig
-	configInfo := devMeta.MAC + ":" + "config"
-
-	err := json.NewDecoder(r.Body).Decode(&config)
+	var c entities.DevConfig
+	err := json.NewDecoder(r.Body).Decode(&c)
 	if err != nil {
 		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig decoding has failed")
 	}
 
-	conn, err := s.Storage.CreateConnection()
+	cn, err := s.Storage.CreateConn()
 	if err != nil {
-		errors.Wrap(err, "WebServer: getDevConfigHandler(): storage connection hasn't been established")
+		errors.Wrap(err, "WebServer: patchDevConfigHandler(): storage connection hasn't been established")
 		return
 	}
-	defer conn.CloseConnection()
+	defer cn.CloseConn()
 
-	// validation must be implemented
-	conn.SetDevConfig(devMeta.Type, configInfo, config)
-	JSONConfig, err := json.Marshal(config)
+	cn.SetDevConfig(m.Type, m.MAC, &c)
+	jc, err := json.Marshal(c)
 	if err != nil {
 		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig marshalling has failed")
 	}
-
-	conn.Publish("configChan", JSONConfig)
+	cn.Publish("configChan", jc)
 }

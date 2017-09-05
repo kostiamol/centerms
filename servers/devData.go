@@ -65,7 +65,7 @@ func (s *DevDataServer) Run() {
 }
 
 func (s *DevDataServer) gracefulHalt() {
-	s.Storage.CloseConnection()
+	s.Storage.CloseConn()
 }
 
 func (s *DevDataServer) devDataHandler(conn net.Conn) {
@@ -92,11 +92,11 @@ func (s *DevDataServer) devDataHandler(conn net.Conn) {
 }
 
 func (s *DevDataServer) devTypeHandler(r *entities.Request) {
-	conn, err := s.Storage.CreateConnection()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: devTypeHandler(): storage connection hasn't been established")
 	}
-	defer conn.CloseConnection()
+	defer conn.CloseConn()
 
 	switch r.Action {
 	case "update":

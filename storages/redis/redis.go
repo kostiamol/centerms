@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	partKeyToConfig = ":config"
+	partialConfigKey = ":config"
 )
 
 type RedisStorage struct {
@@ -34,11 +34,6 @@ func (rc *RedisStorage) SetServer(s *entities.Server) error {
 	return err
 }
 
-func (rc *RedisStorage) FlushAll() error {
-	_, err := rc.Client.FlushAll()
-	return err
-}
-
 func (rc *RedisStorage) Publish(channel string, msg interface{}) (int64, error) {
 	return rc.Client.Publish(channel, msg)
 }
@@ -47,11 +42,11 @@ func (rc *RedisStorage) Subscribe(c chan []string, channel ...string) error {
 	return rc.Client.Subscribe(c, channel...)
 }
 
-func (rc *RedisStorage) CloseConnection() error {
+func (rc *RedisStorage) CloseConn() error {
 	return rc.Client.Close()
 }
 
-func (rc *RedisStorage) CreateConnection() (entities.Storage, error) {
+func (rc *RedisStorage) CreateConn() (entities.Storage, error) {
 	nrc := RedisStorage{
 		Client:   redis.New(),
 		DbServer: rc.DbServer,
@@ -67,19 +62,19 @@ func (rc *RedisStorage) CreateConnection() (entities.Storage, error) {
 	return &nrc, err
 }
 
-func PublishWS(r *entities.Request, roomID string, db entities.Storage) error {
+func PublishWS(r *entities.Request, roomID string, st entities.Storage) error {
 	pubReq, err := json.Marshal(r)
 	for err != nil {
 		errors.Wrap(err, "req marshalling has failed")
 	}
 
-	conn, err := db.CreateConnection()
+	conn, err := st.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "PublishWS(): db connection hasn't been established")
 	}
-	defer conn.CloseConnection()
+	defer conn.CloseConn()
 
-	_, err = db.Publish(roomID, pubReq)
+	_, err = st.Publish(roomID, pubReq)
 	if err != nil {
 		errors.Wrap(err, "publishing has failed")
 	}
@@ -88,10 +83,10 @@ func PublishWS(r *entities.Request, roomID string, db entities.Storage) error {
 }
 
 func (rc *RedisStorage) GetDevsData() ([]entities.DevData, error) {
-	rc.CreateConnection()
+	rc.CreateConn()
 
-	var device entities.DevData
-	var devices []entities.DevData
+	var d entities.DevData
+	var ds []entities.DevData
 
 	devParamsKeys, err := rc.Client.SMembers("devParamsKeys")
 	if err != nil {
@@ -109,12 +104,12 @@ func (rc *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 			errors.Wrapf(err, "can't read members from %s", devParamsKeys[index])
 		}
 
-		device.Meta = entities.DevMeta{
+		d.Meta = entities.DevMeta{
 			Type: key[1],
 			Name: key[2],
 			MAC:  key[3],
 		}
-		device.Data = make(map[string][]string)
+		d.Data = make(map[string][]string)
 
 		values := make([][]string, len(params))
 		for i, p := range params {
@@ -122,18 +117,17 @@ func (rc *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 			if err != nil {
 				errors.Wrapf(err, "can't use ZRangeByScore for %s", devParamsKeys[index])
 			}
-			device.Data[p] = values[i]
+			d.Data[p] = values[i]
 		}
-		devices = append(devices, device)
+		ds = append(ds, d)
 	}
-	return devices, err
+	return ds, err
 }
 
-func (rc *RedisStorage) GetConfigKey(mac string) (string, error) {
-	return mac + partKeyToConfig, nil
-}
+func (rc *RedisStorage) GetDevData(m *entities.DevMeta) (*entities.DevData, error) {
+	devID := "device:" + m.Type + ":" + m.Name + ":" + m.MAC
+	devParamsKey := devID + ":" + "params"
 
-func (rc *RedisStorage) GetDevData(devParamsKey string, m *entities.DevMeta) (*entities.DevData, error) {
 	switch m.Type {
 	case "fridge":
 		return rc.getFridgeData(devParamsKey, m)
@@ -144,41 +138,43 @@ func (rc *RedisStorage) GetDevData(devParamsKey string, m *entities.DevMeta) (*e
 	}
 }
 
-func (rc *RedisStorage) SetDevData(req *entities.Request) error {
-	switch req.Meta.Type {
+func (rc *RedisStorage) SetDevData(r *entities.Request) error {
+	switch r.Meta.Type {
 	case "fridge":
-		return rc.setFridgeData(req)
+		return rc.setFridgeData(r)
 	case "washer":
-		return rc.setWasherData(req)
+		return rc.setWasherData(r)
 	default:
 		return errors.New("dev type is unknown")
 	}
 }
 
-func (rc *RedisStorage) GetDevConfig(t string, configInfo string, mac string) (*entities.DevConfig, error) {
+func (rc *RedisStorage) GetDevConfig(t string, mac string) (*entities.DevConfig, error) {
+	k := mac + partialConfigKey
 	switch t {
 	case "fridge":
-		return rc.getFridgeConfig(configInfo, mac)
+		return rc.getFridgeConfig(k, mac)
 	case "washer":
-		return rc.getWasherConfig(configInfo, mac)
+		return rc.getWasherConfig(k, mac)
 	default:
 		return &entities.DevConfig{}, errors.New("dev type is unknown")
 	}
 }
 
-func (rc *RedisStorage) SetDevConfig(t string, configInfo string, c *entities.DevConfig) error {
+func (rc *RedisStorage) SetDevConfig(t string, mac string, c *entities.DevConfig) error {
+	k := mac + partialConfigKey
 	switch t {
 	case "fridge":
-		return rc.setFridgeConfig(configInfo, c)
+		return rc.setFridgeConfig(k, c)
 	case "washer":
-		return rc.setWasherConfig(configInfo, c)
+		return rc.setWasherConfig(k, c)
 	default:
 		return errors.New("dev type is unknown")
 	}
 }
 
-func (rc *RedisStorage) GetDevDefaultConfig(t string, m *entities.DevMeta) (*entities.DevConfig, error) {
-	switch t {
+func (rc *RedisStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+	switch m.Type {
 	case "fridge":
 		return rc.getFridgeDefaultConfig(m)
 	case "washer":
@@ -188,12 +184,12 @@ func (rc *RedisStorage) GetDevDefaultConfig(t string, m *entities.DevMeta) (*ent
 	}
 }
 
-func (rc *RedisStorage) SendDevDefaultConfig(c *net.Conn, req *entities.Request) ([]byte, error) {
-	switch req.Meta.Type {
+func (rc *RedisStorage) SendDevDefaultConfig(c *net.Conn, r *entities.Request) ([]byte, error) {
+	switch r.Meta.Type {
 	case "fridge":
-		return rc.sendFridgeDefaultConfig(c, req)
+		return rc.sendFridgeDefaultConfig(c, r)
 	case "washer":
-		return rc.sendWasherDefaultConfig(c, req)
+		return rc.sendWasherDefaultConfig(c, r)
 	default:
 		return []byte{}, errors.New("dev type is unknown")
 	}
