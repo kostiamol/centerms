@@ -11,10 +11,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (rc *RedisStorage) getFridgeData(devParamsKey string, m *entities.DevMeta) (*entities.DevData, error) {
+func (rs *RedisStorage) getFridgeData(m *entities.DevMeta) (*entities.DevData, error) {
+	devID := "device:" + m.Type + ":" + m.Name + ":" + m.MAC
+	devParamsKey := devID + ":" + "params"
+
 	var f entities.DevData
 
-	params, err := rc.Client.SMembers(devParamsKey)
+	params, err := rs.Client.SMembers(devParamsKey)
 	if err != nil {
 		errors.Wrap(err, "can't read members from devParamsKeys")
 	}
@@ -24,7 +27,7 @@ func (rc *RedisStorage) getFridgeData(devParamsKey string, m *entities.DevMeta) 
 
 	values := make([][]string, len(params))
 	for i, p := range params {
-		values[i], err = rc.Client.ZRangeByScore(devParamsKey+":"+p, "-inf", "inf")
+		values[i], err = rs.Client.ZRangeByScore(devParamsKey+":"+p, "-inf", "inf")
 		if err != nil {
 			errors.Wrap(err, "func ZRangeByScore has failed")
 		}
@@ -34,7 +37,7 @@ func (rc *RedisStorage) getFridgeData(devParamsKey string, m *entities.DevMeta) 
 	return &f, err
 }
 
-func (rc *RedisStorage) setFridgeData(req *entities.Request) error {
+func (rs *RedisStorage) setFridgeData(req *entities.Request) error {
 	var f entities.FridgeData
 
 	devKey := "device" + ":" + req.Meta.Type + ":" + req.Meta.Name + ":" + req.Meta.MAC
@@ -46,47 +49,48 @@ func (rc *RedisStorage) setFridgeData(req *entities.Request) error {
 		return err
 	}
 
-	rc.Client.Multi()
-	rc.Client.SAdd("devParamsKeys", devParamsKey)
-	rc.Client.HMSet(devKey, "ReqTime", req.Time)
-	rc.Client.SAdd(devParamsKey, "TempCam1", "TempCam2")
-	rc.setFridgeCameraData(f.TempCam1, devParamsKey+":"+"TempCam1")
-	rc.setFridgeCameraData(f.TempCam2, devParamsKey+":"+"TempCam2")
-	_, err = rc.Client.Exec()
+	rs.Client.Multi()
+	rs.Client.SAdd("devParamsKeys", devParamsKey)
+	rs.Client.HMSet(devKey, "ReqTime", req.Time)
+	rs.Client.SAdd(devParamsKey, "TempCam1", "TempCam2")
+	rs.setFridgeCameraData(f.TempCam1, devParamsKey+":"+"TempCam1")
+	rs.setFridgeCameraData(f.TempCam2, devParamsKey+":"+"TempCam2")
+	_, err = rs.Client.Exec()
 	if err != nil {
 		errors.Wrap(err, "trash")
-		rc.Client.Discard()
+		rs.Client.Discard()
 		return err
 	}
 
 	return nil
 }
 
-func (rc *RedisStorage) setFridgeCameraData(tempCam map[int64]float32, key string) error {
+func (rs *RedisStorage) setFridgeCameraData(tempCam map[int64]float32, key string) error {
 	for t, v := range tempCam {
-		rc.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
+		rs.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+strconv.FormatFloat(float64(v), 'f', -1, 32))
 	}
 	return nil
 }
 
-func (rc *RedisStorage) getFridgeConfig(configInfo string, mac string) (*entities.DevConfig, error) {
-	state, err := rc.Client.HMGet(configInfo, "TurnedOn")
+func (rs *RedisStorage) getFridgeConfig(mac string) (*entities.DevConfig, error) {
+	config := mac + ":config"
+	state, err := rs.Client.HMGet(config, "TurnedOn")
 	if err != nil {
 		errors.Wrap(err, "TurnedOn field extraction has failed")
 	}
 
-	sendFreq, err := rc.Client.HMGet(configInfo, "SendFreq")
+	sendFreq, err := rs.Client.HMGet(config, "SendFreq")
 	if err != nil {
 		errors.Wrap(err, "SendFreq field extraction has failed")
 	}
 
-	collectFreq, err := rc.Client.HMGet(configInfo, "CollectFreq")
+	collectFreq, err := rs.Client.HMGet(config, "CollectFreq")
 	if err != nil {
 		errors.Wrap(err, "CollectFreq field extraction has failed")
 	}
 
-	streamOn, err := rc.Client.HMGet(configInfo, "StreamOn")
+	streamOn, err := rs.Client.HMGet(config, "StreamOn")
 	if err != nil {
 		errors.Wrap(err, "StreamOn field extraction has failed")
 	}
@@ -119,24 +123,24 @@ func (rc *RedisStorage) getFridgeConfig(configInfo string, mac string) (*entitie
 	return &devConfig, err
 }
 
-func (rc *RedisStorage) setFridgeConfig(configInfo string, c *entities.DevConfig) error {
+func (rs *RedisStorage) setFridgeConfig(mac string, c *entities.DevConfig) error {
 	var fridgeConfig entities.FridgeConfig
 	json.Unmarshal(c.Data, &fridgeConfig)
-
-	rc.Client.Multi()
-	rc.Client.HMSet(configInfo, "TurnedOn", fridgeConfig.TurnedOn)
-	rc.Client.HMSet(configInfo, "CollectFreq", fridgeConfig.CollectFreq)
-	rc.Client.HMSet(configInfo, "SendFreq", fridgeConfig.SendFreq)
-	rc.Client.HMSet(configInfo, "StreamOn", fridgeConfig.StreamOn)
-	_, err := rc.Client.Exec()
+	config := mac + ":config"
+	rs.Client.Multi()
+	rs.Client.HMSet(config, "TurnedOn", fridgeConfig.TurnedOn)
+	rs.Client.HMSet(config, "CollectFreq", fridgeConfig.CollectFreq)
+	rs.Client.HMSet(config, "SendFreq", fridgeConfig.SendFreq)
+	rs.Client.HMSet(config, "StreamOn", fridgeConfig.StreamOn)
+	_, err := rs.Client.Exec()
 	if err != nil {
 		errors.Wrap(err, "trash")
-		rc.Client.Discard()
+		rs.Client.Discard()
 	}
 	return nil
 }
 
-func (rc *RedisStorage) getFridgeDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (rs *RedisStorage) getFridgeDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	config := entities.FridgeConfig{
 		TurnedOn:    true,
 		StreamOn:    true,
@@ -155,25 +159,48 @@ func (rc *RedisStorage) getFridgeDefaultConfig(m *entities.DevMeta) (*entities.D
 	}, err
 }
 
-func (rc *RedisStorage) sendFridgeDefaultConfig(c *net.Conn, req *entities.Request) ([]byte, error) {
+func (rs *RedisStorage) sendFridgeDefaultConfig(c *net.Conn, req *entities.Request) ([]byte, error) {
 	var config *entities.DevConfig
 	var err error
-	configInfo := req.Meta.MAC + ":" + "config" // key
-	if ok, _ := rc.Client.Exists(configInfo); ok {
-		config, err = rc.getFridgeConfig(configInfo, req.Meta.MAC)
+	configKey := req.Meta.MAC + ":" + "config"
+	if ok, _ := rs.Client.Exists(configKey); ok {
+		config, err = rs.getFridgeConfig(req.Meta.MAC)
 		if err != nil {
 			errors.New("fridge config ")
 		}
-		log.Println("Old Device with MAC: ", req.Meta.MAC, "detected.")
 	} else {
 		log.Warningln("New Device with MAC: ", req.Meta.MAC, "detected.")
 		log.Warningln("Default Config will be sent.")
-		config, err = rc.getFridgeDefaultConfig(&req.Meta)
+		config, err = rs.getFridgeDefaultConfig(&req.Meta)
 		if err != nil {
 			errors.Wrap(err, "fridge config extraction has failed")
 		}
-		rc.setFridgeConfig(configInfo, config)
+		rs.setFridgeConfig(configKey, config)
 	}
 
 	return config.Data, err
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
