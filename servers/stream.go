@@ -19,7 +19,7 @@ import (
 
 type StreamServer struct {
 	Server     entities.Server
-	Storage    entities.Storage
+	Storage    entities.DevStore
 	Controller entities.RoutinesController
 	Log        *logrus.Logger
 	Conns      StreamConnMap
@@ -47,7 +47,7 @@ type ListConnection struct {
 	Conns []*websocket.Conn
 }
 
-func NewStreamServer(s entities.Server, st entities.Storage, c entities.RoutinesController, l *logrus.Logger) *StreamServer {
+func NewStreamServer(s entities.Server, st entities.DevStore, c entities.RoutinesController, l *logrus.Logger) *StreamServer {
 	u := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -169,7 +169,7 @@ func (s *StreamServer) Close() {
 /*
 Listens changes in database. If they have, we will send to all websocket which working with them.
 */
-func (s *StreamServer) Subscribe(st entities.Storage) {
+func (s *StreamServer) Subscribe(st entities.DevStore) {
 	st.Subscribe(s.PubSub.SubWSChannel, s.PubSub.RoomIDForWSPubSub)
 	for {
 		select {

@@ -23,7 +23,7 @@ var (
 func getEnvStoragePort(key string) uint {
 	parsed, err := strconv.ParseUint(os.Getenv(key), 10, 64)
 	if err != nil {
-		errors.New("getEnvStoragePort(): ParseUint() has failed")
+		errors.New("main: getEnvStoragePort(): ParseUint() has failed")
 	}
 
 	port := uint(parsed)

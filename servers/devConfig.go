@@ -15,7 +15,7 @@ import (
 
 type DevConfigServer struct {
 	Server              entities.Server
-	Storage             entities.Storage
+	DevStore            entities.DevStore
 	Controller          entities.RoutinesController
 	Log                 *logrus.Logger
 	Reconnect           *time.Ticker
@@ -24,12 +24,12 @@ type DevConfigServer struct {
 	StopConfigSubscribe chan struct{}
 }
 
-func NewDevConfigServer(s entities.Server, st entities.Storage, c entities.RoutinesController, l *logrus.Logger,
+func NewDevConfigServer(s entities.Server, ds entities.DevStore, c entities.RoutinesController, l *logrus.Logger,
 	r *time.Ticker, msgs chan []string, stopConfigSubscribe chan struct{}) *DevConfigServer {
 	l.Out = os.Stdout
 	return &DevConfigServer{
 		Server:              s,
-		Storage:             st,
+		DevStore:            ds,
 		Controller:          c,
 		Log:                 l,
 		Reconnect:           r,
@@ -76,44 +76,44 @@ func (s *DevConfigServer) Run() {
 }
 
 func (s *DevConfigServer) gracefulHalt() {
-	s.Storage.CloseConn()
+	s.DevStore.CloseConn()
 }
 
-func (s *DevConfigServer) sendNewConfig(config entities.DevConfig, pool *entities.ConnPool) {
-	connection := pool.GetConn(config.MAC)
+func (s *DevConfigServer) sendNewConfig(c *entities.DevConfig, p *entities.ConnPool) {
+	connection := p.GetConn(c.MAC)
 	if connection == nil {
 		errors.New("DevConfigServer: sendNewConfig(): there isn't such a connection in pool")
 		return
 	}
 
-	_, err := connection.Write(config.Data)
+	_, err := connection.Write(c.Data)
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: sendNewConfig(): DevConfig.Data writing has failed")
-		pool.RemoveConn(config.MAC)
+		p.RemoveConn(c.MAC)
 	}
 }
 
 func (s *DevConfigServer) sendDefaultConfig(c net.Conn, pool *entities.ConnPool) {
-	var (
-		req    entities.Request
-		config entities.DevConfig
-	)
+	var req entities.Request
 	err := json.NewDecoder(c).Decode(&req)
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): Request marshalling has failed")
 	}
 	pool.AddConn(c, req.Meta.MAC)
 
-	conn, err := s.Storage.CreateConn()
+	conn, err := s.DevStore.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): storage connection hasn't been established")
 		return
 	}
 	defer conn.CloseConn()
 
-	config.Data, err = conn.SendDevDefaultConfig(&c, &req)
+	config, err := conn.GetDevDefaultConfig(&req.Meta)
 	if err != nil {
-		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): default config sending has failed")
+		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): DevConfig extraction has failed")
+	}
+	if config != nil {
+		conn.SetDevConfig(&req.Meta, config)
 	}
 
 	_, err = c.Write(config.Data)
@@ -123,7 +123,7 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, pool *entities.ConnPool)
 }
 
 func (s *DevConfigServer) configSubscribe(roomID string, msg chan []string, pool *entities.ConnPool) {
-	conn, err := s.Storage.CreateConn()
+	conn, err := s.DevStore.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: configSubscribe(): storage connection hasn't been established")
 		return
@@ -132,15 +132,15 @@ func (s *DevConfigServer) configSubscribe(roomID string, msg chan []string, pool
 
 	conn.Subscribe(msg, roomID)
 	for {
-		var config entities.DevConfig
+		var c entities.DevConfig
 		select {
 		case msg := <-msg:
 			if msg[0] == "message" {
-				err := json.Unmarshal([]byte(msg[2]), &config)
+				err := json.Unmarshal([]byte(msg[2]), &c)
 				if err != nil {
 					errors.Wrap(err, "DevConfigServer: configSubscribe(): DevConfig unmarshalling has failed")
 				}
-				go s.sendNewConfig(config, pool)
+				go s.sendNewConfig(&c, pool)
 			}
 		case <-s.StopConfigSubscribe:
 			return

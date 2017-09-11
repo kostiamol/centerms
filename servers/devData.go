@@ -15,13 +15,13 @@ import (
 
 type DevDataServer struct {
 	Server     entities.Server
-	Storage    entities.Storage
+	Storage    entities.DevStore
 	Controller entities.RoutinesController
 	Log        *logrus.Logger
 	Reconnect  *time.Ticker
 }
 
-func NewDevDataServer(s entities.Server, st entities.Storage, c entities.RoutinesController,
+func NewDevDataServer(s entities.Server, st entities.DevStore, c entities.RoutinesController,
 	l *logrus.Logger, r *time.Ticker) *DevDataServer {
 	return &DevDataServer{
 		Server:     s,
@@ -68,11 +68,13 @@ func (s *DevDataServer) gracefulHalt() {
 	s.Storage.CloseConn()
 }
 
-func (s *DevDataServer) devDataHandler(conn net.Conn) {
-	var req entities.Request
-	var resp entities.Response
+func (s *DevDataServer) devDataHandler(c net.Conn) {
+	var (
+		req  entities.Request
+		resp entities.Response
+	)
 	for {
-		err := json.NewDecoder(conn).Decode(&req)
+		err := json.NewDecoder(c).Decode(&req)
 		if err != nil {
 			errors.Wrap(err, "DevConfigServer: devDataHandler(): Request decoding has failed")
 			return
@@ -84,7 +86,7 @@ func (s *DevDataServer) devDataHandler(conn net.Conn) {
 			Status: 200,
 			Descr:  "OK",
 		}
-		err = json.NewEncoder(conn).Encode(&resp)
+		err = json.NewEncoder(c).Encode(&resp)
 		if err != nil {
 			errors.Wrap(err, "DevConfigServer: devDataHandler(): Response encoding has failed")
 		}

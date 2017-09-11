@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (rs *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, error) {
+func (rs *RedisDevStore) getWasherData(m *entities.DevMeta) (*entities.DevData, error) {
 	devID := "device:" + m.Type + ":" + m.Name + ":" + m.MAC
 	devParamsKey := devID + ":" + "params"
 
@@ -37,7 +37,7 @@ func (rs *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, e
 	return &device, err
 }
 
-func (rs *RedisStorage) setWasherData(req *entities.Request) error {
+func (rs *RedisDevStore) setWasherData(req *entities.Request) error {
 	var w entities.WasherData
 
 	devKey := "device" + ":" + req.Meta.Type + ":" + req.Meta.Name + ":" + req.Meta.MAC
@@ -62,7 +62,7 @@ func (rs *RedisStorage) setWasherData(req *entities.Request) error {
 	return nil
 }
 
-func (rs *RedisStorage) setWaterTempData(TempCam map[int64]float32, key string) error {
+func (rs *RedisDevStore) setWaterTempData(TempCam map[int64]float32, key string) error {
 	for t, v := range TempCam {
 		rs.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+
@@ -71,7 +71,7 @@ func (rs *RedisStorage) setWaterTempData(TempCam map[int64]float32, key string) 
 	return nil
 }
 
-func (rs *RedisStorage) setTurnoversData(TempCam map[int64]int64, key string) error {
+func (rs *RedisDevStore) setTurnoversData(TempCam map[int64]int64, key string) error {
 	for t, v := range TempCam {
 		rs.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+strconv.FormatInt(int64(v), 10))
@@ -79,11 +79,17 @@ func (rs *RedisStorage) setTurnoversData(TempCam map[int64]int64, key string) er
 	return nil
 }
 
-func (rs *RedisStorage) getWasherConfig(mac string) (*entities.DevConfig, error) {
+func (rs *RedisDevStore) getWasherConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+	if ok, err := rs.devIsRegistered(m); !ok {
+		if err != nil {
+			return nil, nil
+		}
+		return rs.getFridgeDefaultConfig(m)
+	}
 	return &entities.DevConfig{}, nil
 }
 
-func (rs *RedisStorage) setWasherConfig(mac string, c *entities.DevConfig) error {
+func (rs *RedisDevStore) setWasherConfig(mac string, c *entities.DevConfig) error {
 	var timerMode *entities.TimerMode
 	json.NewDecoder(bytes.NewBuffer(c.Data)).Decode(&timerMode)
 	config := mac + ":config"
@@ -91,12 +97,12 @@ func (rs *RedisStorage) setWasherConfig(mac string, c *entities.DevConfig) error
 	return nil
 }
 
-func (rs *RedisStorage) getWasherDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (rs *RedisDevStore) getWasherDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	b, _ := json.Marshal(entities.WasherConfig{})
 	return &entities.DevConfig{Data: b}, nil
 }
 
-func (rs *RedisStorage) sendWasherDefaultConfig(c *net.Conn, req *entities.Request) ([]byte, error) {
+func (rs *RedisDevStore) sendWasherDefaultConfig(c *net.Conn, req *entities.Request) ([]byte, error) {
 	var config *entities.DevConfig
 	var err error
 	configKey := req.Meta.MAC + ":" + "config"
@@ -118,11 +124,11 @@ func (rs *RedisStorage) sendWasherDefaultConfig(c *net.Conn, req *entities.Reque
 	return config.Data, err
 }
 
-func (rs *RedisStorage) PatchDevConfigHandlerHTTP(w http.ResponseWriter, r *http.Request, meta entities.DevMeta) error {
+func (rs *RedisDevStore) PatchDevConfigHandlerHTTP(w http.ResponseWriter, r *http.Request, meta entities.DevMeta) error {
 	return nil
 }
 
-func (rs *RedisStorage) getActualWasherConfig(configInfo string, mac string, unixTime int64, m *entities.DevMeta) (*entities.DevConfig, error) {
+func (rs *RedisDevStore) getActualWasherConfig(configInfo string, mac string, unixTime int64, m *entities.DevMeta) (*entities.DevConfig, error) {
 	config, err := rs.getWasherDefaultConfig(m)
 	config.MAC = mac
 
@@ -143,7 +149,7 @@ func (rs *RedisStorage) getActualWasherConfig(configInfo string, mac string, uni
 	return config, err
 }
 
-func (rs *RedisStorage) saveWasherToBD(configInfo string, config *entities.DevConfig, req *entities.Request) {
+func (rs *RedisDevStore) saveWasherToBD(configInfo string, config *entities.DevConfig, req *entities.Request) {
 	var timerMode entities.TimerMode
 	json.NewDecoder(bytes.NewBuffer(config.Data)).Decode(&timerMode)
 

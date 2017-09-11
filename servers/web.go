@@ -18,16 +18,16 @@ import (
 
 type WebServer struct {
 	Server     entities.Server
-	Storage    entities.Storage
+	DevStore   entities.DevStore
 	Controller entities.RoutinesController
 	Log        *logrus.Logger
 }
 
-func NewWebServer(s entities.Server, st entities.Storage, c entities.RoutinesController, l *logrus.Logger) *WebServer {
+func NewWebServer(s entities.Server, ds entities.DevStore, c entities.RoutinesController, l *logrus.Logger) *WebServer {
 	l.Out = os.Stdout
 	return &WebServer{
 		Server:     s,
-		Storage:    st,
+		DevStore:   ds,
 		Controller: c,
 		Log:        l,
 	}
@@ -63,11 +63,11 @@ func (s *WebServer) Run() {
 }
 
 func (s *WebServer) gracefulHalt() {
-	s.Storage.CloseConn()
+	s.DevStore.CloseConn()
 }
 
 func (s *WebServer) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
-	cn, err := s.Storage.CreateConn()
+	cn, err := s.DevStore.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevicesHandler(): storage connection hasn't been established")
 		return
@@ -86,18 +86,18 @@ func (s *WebServer) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
-	m := entities.DevMeta{
-		Type: r.FormValue("type"),
-		Name: r.FormValue("name"),
-		MAC:  r.FormValue("mac"),
-	}
-
-	cn, err := s.Storage.CreateConn()
+	cn, err := s.DevStore.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevDataHandler(): storage connection hasn't been established")
 		return
 	}
 	defer cn.CloseConn()
+
+	m := entities.DevMeta{
+		Type: r.FormValue("type"),
+		Name: r.FormValue("name"),
+		MAC:  r.FormValue("mac"),
+	}
 
 	d, err := cn.GetDevData(&m)
 	if err != nil {
@@ -111,20 +111,20 @@ func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	m := entities.DevMeta{
-		Type: r.FormValue("type"),
-		Name: r.FormValue("name"),
-		MAC:  r.FormValue("mac"),
-	}
-
-	cn, err := s.Storage.CreateConn()
+	cn, err := s.DevStore.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevConfigHandler(): storage connection hasn't been established")
 		return
 	}
 	defer cn.CloseConn()
 
-	c, err := cn.GetDevConfig(m.Type, m.MAC)
+	m := entities.DevMeta{
+		Type: r.FormValue("type"),
+		Name: r.FormValue("name"),
+		MAC:  r.FormValue("mac"),
+	}
+
+	c, err := cn.GetDevConfig(&m)
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevConfigHandler(): DevConfig extraction has failed")
 	}
@@ -132,26 +132,26 @@ func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	m := entities.DevMeta{
-		Type: r.FormValue("type"),
-		Name: r.FormValue("name"),
-		MAC:  r.FormValue("mac"),
-	}
-
-	var c entities.DevConfig
-	err := json.NewDecoder(r.Body).Decode(&c)
-	if err != nil {
-		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig decoding has failed")
-	}
-
-	cn, err := s.Storage.CreateConn()
+	cn, err := s.DevStore.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: patchDevConfigHandler(): storage connection hasn't been established")
 		return
 	}
 	defer cn.CloseConn()
 
-	cn.SetDevConfig(m.Type, m.MAC, &c)
+	var c entities.DevConfig
+	err = json.NewDecoder(r.Body).Decode(&c)
+	if err != nil {
+		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig decoding has failed")
+	}
+
+	m := entities.DevMeta{
+		Type: r.FormValue("type"),
+		Name: r.FormValue("name"),
+		MAC:  r.FormValue("mac"),
+	}
+
+	cn.SetDevConfig(&m, &c)
 	jc, err := json.Marshal(c)
 	if err != nil {
 		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig marshalling has failed")
