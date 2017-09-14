@@ -18,12 +18,12 @@ import (
 
 type WebServer struct {
 	Server     entities.Server
-	DevStore   entities.DevStore
+	DevStore   entities.DevStorage
 	Controller entities.RoutinesController
 	Log        *logrus.Logger
 }
 
-func NewWebServer(s entities.Server, ds entities.DevStore, c entities.RoutinesController, l *logrus.Logger) *WebServer {
+func NewWebServer(s entities.Server, ds entities.DevStorage, c entities.RoutinesController, l *logrus.Logger) *WebServer {
 	l.Out = os.Stdout
 	return &WebServer{
 		Server:     s,
@@ -151,7 +151,11 @@ func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request
 		MAC:  r.FormValue("mac"),
 	}
 
-	cn.SetDevConfig(&m, &c)
+	err = cn.SetDevConfig(&m, &c)
+	if err != nil {
+		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig setting has failed")
+	}
+
 	jc, err := json.Marshal(c)
 	if err != nil {
 		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig marshalling has failed")

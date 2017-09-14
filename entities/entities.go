@@ -7,36 +7,31 @@ import (
 	"time"
 )
 
-type DevStore interface {
-	DevDataStore
-	DevConfigStore
-	// substitute with NATS in separate entity
-	Notifier
+type Notifier interface {
+	Publish(channel string, msg interface{}) (int64, error)
+	Subscribe(c chan []string, channel ...string) error
 }
 
-type DevDataStore interface {
-	Store
+type DevDataDriver interface {
 	GetDevsData() ([]DevData, error)
 	GetDevData(m *DevMeta) (*DevData, error)
 	SetDevData(r *Request) error
 }
 
-type DevConfigStore interface {
-	Store
+type DevConfigDriver interface {
 	GetDevConfig(m *DevMeta) (*DevConfig, error)
 	SetDevConfig(m *DevMeta, c *DevConfig) error
 	GetDevDefaultConfig(m *DevMeta) (*DevConfig, error)
+	DevIsRegistered(m *DevMeta) (bool, error)
 }
 
-type Store interface {
+type DevStorage interface {
+	Notifier
+	DevDataDriver
+	DevConfigDriver
 	SetServer(s *Server) error
-	CreateConn() (DevStore, error)
+	CreateConn() (DevStorage, error)
 	CloseConn() error
-}
-
-type Notifier interface {
-	Publish(channel string, msg interface{}) (int64, error)
-	Subscribe(c chan []string, channel ...string) error
 }
 
 type Device interface {

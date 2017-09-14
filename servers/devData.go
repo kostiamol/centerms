@@ -15,17 +15,17 @@ import (
 
 type DevDataServer struct {
 	Server     entities.Server
-	Storage    entities.DevStore
+	DevStorage entities.DevStorage
 	Controller entities.RoutinesController
 	Log        *logrus.Logger
 	Reconnect  *time.Ticker
 }
 
-func NewDevDataServer(s entities.Server, st entities.DevStore, c entities.RoutinesController,
+func NewDevDataServer(s entities.Server, ds entities.DevStorage, c entities.RoutinesController,
 	l *logrus.Logger, r *time.Ticker) *DevDataServer {
 	return &DevDataServer{
 		Server:     s,
-		Storage:    st,
+		DevStorage: ds,
 		Controller: c,
 		Log:        l,
 		Reconnect:  r,
@@ -65,14 +65,11 @@ func (s *DevDataServer) Run() {
 }
 
 func (s *DevDataServer) gracefulHalt() {
-	s.Storage.CloseConn()
+	s.DevStorage.CloseConn()
 }
 
 func (s *DevDataServer) devDataHandler(c net.Conn) {
-	var (
-		req  entities.Request
-		resp entities.Response
-	)
+	var req  entities.Request
 	for {
 		err := json.NewDecoder(c).Decode(&req)
 		if err != nil {
@@ -82,7 +79,7 @@ func (s *DevDataServer) devDataHandler(c net.Conn) {
 
 		go s.devTypeHandler(&req)
 
-		resp = entities.Response{
+		resp := entities.Response{
 			Status: 200,
 			Descr:  "OK",
 		}
@@ -94,7 +91,7 @@ func (s *DevDataServer) devDataHandler(c net.Conn) {
 }
 
 func (s *DevDataServer) devTypeHandler(r *entities.Request) {
-	conn, err := s.Storage.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: devTypeHandler(): storage connection hasn't been established")
 	}
@@ -104,7 +101,6 @@ func (s *DevDataServer) devTypeHandler(r *entities.Request) {
 	case "update":
 		conn.SetDevData(r)
 		go storages.PublishWS(r, "devWS", conn)
-
 	default:
 		errors.Wrap(err, "DevConfigServer: devTypeHandler(): device Request - unknown action")
 	}

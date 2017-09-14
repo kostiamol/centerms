@@ -15,7 +15,7 @@ import (
 
 type DevConfigServer struct {
 	Server              entities.Server
-	DevStore            entities.DevStore
+	DevStorage          entities.DevStorage
 	Controller          entities.RoutinesController
 	Log                 *logrus.Logger
 	Reconnect           *time.Ticker
@@ -24,12 +24,12 @@ type DevConfigServer struct {
 	StopConfigSubscribe chan struct{}
 }
 
-func NewDevConfigServer(s entities.Server, ds entities.DevStore, c entities.RoutinesController, l *logrus.Logger,
+func NewDevConfigServer(s entities.Server, ds entities.DevStorage, c entities.RoutinesController, l *logrus.Logger,
 	r *time.Ticker, msgs chan []string, stopConfigSubscribe chan struct{}) *DevConfigServer {
 	l.Out = os.Stdout
 	return &DevConfigServer{
 		Server:              s,
-		DevStore:            ds,
+		DevStorage:          ds,
 		Controller:          c,
 		Log:                 l,
 		Reconnect:           r,
@@ -76,44 +76,57 @@ func (s *DevConfigServer) Run() {
 }
 
 func (s *DevConfigServer) gracefulHalt() {
-	s.DevStore.CloseConn()
+	s.DevStorage.CloseConn()
 }
 
 func (s *DevConfigServer) sendNewConfig(c *entities.DevConfig, p *entities.ConnPool) {
-	connection := p.GetConn(c.MAC)
-	if connection == nil {
+	conn := p.GetConn(c.MAC)
+	if conn == nil {
 		errors.New("DevConfigServer: sendNewConfig(): there isn't such a connection in pool")
 		return
 	}
 
-	_, err := connection.Write(c.Data)
+	_, err := conn.Write(c.Data)
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: sendNewConfig(): DevConfig.Data writing has failed")
 		p.RemoveConn(c.MAC)
 	}
 }
 
-func (s *DevConfigServer) sendDefaultConfig(c net.Conn, pool *entities.ConnPool) {
-	var req entities.Request
-	err := json.NewDecoder(c).Decode(&req)
+func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *entities.ConnPool) {
+	var r entities.Request
+	err := json.NewDecoder(c).Decode(&r)
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): Request marshalling has failed")
 	}
-	pool.AddConn(c, req.Meta.MAC)
+	p.AddConn(c, r.Meta.MAC)
 
-	conn, err := s.DevStore.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): storage connection hasn't been established")
 		return
 	}
 	defer conn.CloseConn()
 
-	config, err := conn.GetDevDefaultConfig(&req.Meta)
-	if err != nil {
-		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): DevConfig extraction has failed")
-	}
-	if config != nil {
-		conn.SetDevConfig(&req.Meta, config)
+	var config *entities.DevConfig
+	if ok, err := conn.DevIsRegistered(&r.Meta); !ok {
+		if err != nil {
+			errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): DevIsRegistered() has failed")
+		}
+
+		config, err = conn.GetDevConfig(&r.Meta)
+		if err != nil {
+			errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): GetDevConfig() has failed")
+		}
+	} else {
+		config, err = conn.GetDevDefaultConfig(&r.Meta)
+		if err != nil {
+			errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): GetDevDefaultConfig() has failed")
+		}
+		err = conn.SetDevConfig(&r.Meta, config)
+		if err != nil {
+			errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): SetDevConfig() has failed")
+		}
 	}
 
 	_, err = c.Write(config.Data)
@@ -122,8 +135,8 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, pool *entities.ConnPool)
 	}
 }
 
-func (s *DevConfigServer) configSubscribe(roomID string, msg chan []string, pool *entities.ConnPool) {
-	conn, err := s.DevStore.CreateConn()
+func (s *DevConfigServer) configSubscribe(roomID string, msg chan []string, p *entities.ConnPool) {
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: configSubscribe(): storage connection hasn't been established")
 		return
@@ -140,7 +153,7 @@ func (s *DevConfigServer) configSubscribe(roomID string, msg chan []string, pool
 				if err != nil {
 					errors.Wrap(err, "DevConfigServer: configSubscribe(): DevConfig unmarshalling has failed")
 				}
-				go s.sendNewConfig(&c, pool)
+				go s.sendNewConfig(&c, p)
 			}
 		case <-s.StopConfigSubscribe:
 			return

@@ -12,32 +12,32 @@ import (
 	"menteslibres.net/gosexy/redis"
 )
 
-type RedisDevStore struct {
+type RedisDevStorage struct {
 	Client   *redis.Client
 	DbServer entities.Server
 }
 
-func (rs *RedisDevStore) SetServer(s *entities.Server) error {
+func (rs *RedisDevStorage) SetServer(s *entities.Server) error {
 	var err error
 	if s.Host == "" {
-		err = errors.New("RedisDevStore: SetServer(): store server's host is empty")
+		err = errors.New("RedisDevStorage: SetServer(): store server's host is empty")
 	} else if s.Port == 0 {
-		err = errors.Wrap(err, "RedisDevStore: SetServer(): store server's port is empty")
+		err = errors.Wrap(err, "RedisDevStorage: SetServer(): store server's port is empty")
 	}
-
 	rs.DbServer = *s
+
 	return err
 }
 
-func (rs *RedisDevStore) CreateConn() (entities.DevStore, error) {
-	nrc := RedisDevStore{
+func (rs *RedisDevStorage) CreateConn() (entities.DevStorage, error) {
+	nrc := RedisDevStorage{
 		Client:   redis.New(),
 		DbServer: rs.DbServer,
 	}
 
 	err := nrc.Client.Connect(nrc.DbServer.Host, nrc.DbServer.Port)
 	for err != nil {
-		log.Errorln("RedisDevStore: CreateConn(): Connect() has failed")
+		log.Errorln("RedisDevStorage: CreateConn(): Connect() has failed")
 		time.Sleep(3 * time.Second)
 		err = nrc.Client.Connect(nrc.DbServer.Host, nrc.DbServer.Port)
 	}
@@ -45,19 +45,19 @@ func (rs *RedisDevStore) CreateConn() (entities.DevStore, error) {
 	return &nrc, err
 }
 
-func (rs *RedisDevStore) CloseConn() error {
+func (rs *RedisDevStorage) CloseConn() error {
 	return rs.Client.Close()
 }
 
-func (rs *RedisDevStore) GetDevsData() ([]entities.DevData, error) {
+func (rs *RedisDevStorage) GetDevsData() ([]entities.DevData, error) {
 	devParamsKeys, err := rs.Client.SMembers("devParamsKeys")
 	if err != nil {
-		errors.Wrap(err, "RedisDevStore: GetDevsData(): SMembers for devParamsKeys has failed")
+		errors.Wrap(err, "RedisDevStorage: GetDevsData(): SMembers for devParamsKeys has failed")
 	}
 
 	devParamsKeysTokens := make([][]string, len(devParamsKeys))
-	for i, k := range devParamsKeys {
-		devParamsKeysTokens[i] = strings.Split(k, ":")
+	for k, v := range devParamsKeys {
+		devParamsKeysTokens[k] = strings.Split(v, ":")
 	}
 
 	var (
@@ -68,7 +68,7 @@ func (rs *RedisDevStore) GetDevsData() ([]entities.DevData, error) {
 	for i, k := range devParamsKeysTokens {
 		params, err := rs.Client.SMembers(devParamsKeys[i])
 		if err != nil {
-			errors.Wrapf(err, "RedisDevStore: GetDevsData(): SMembers() for %s has failed", devParamsKeys[i])
+			errors.Wrapf(err, "RedisDevStorage: GetDevsData(): SMembers() for %s has failed", devParamsKeys[i])
 		}
 
 		d.Meta = entities.DevMeta{
@@ -78,20 +78,30 @@ func (rs *RedisDevStore) GetDevsData() ([]entities.DevData, error) {
 		}
 		d.Data = make(map[string][]string)
 
-		values := make([][]string, len(params))
+		vals := make([][]string, len(params))
 		for i, p := range params {
-			values[i], _ = rs.Client.ZRangeByScore(devParamsKeys[i]+":"+p, "-inf", "inf")
+			vals[i], _ = rs.Client.ZRangeByScore(devParamsKeys[i]+":"+p, "-inf", "inf")
 			if err != nil {
-				errors.Wrapf(err, "RedisDevStore: GetDevsData(): ZRangeByScore() for %s has failed", devParamsKeys[i])
+				errors.Wrapf(err, "RedisDevStorage: GetDevsData(): ZRangeByScore() for %s has failed", devParamsKeys[i])
 			}
-			d.Data[p] = values[i]
+			d.Data[p] = vals[i]
 		}
 		ds = append(ds, d)
 	}
+
 	return ds, err
 }
 
-func (rs *RedisDevStore) GetDevData(m *entities.DevMeta) (*entities.DevData, error) {
+func (rs *RedisDevStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
+	configKey := m.MAC + ":" + "config"
+	if ok, err := rs.Client.Exists(configKey); ok {
+		return true, err
+	}
+
+	return false, nil
+}
+
+func (rs *RedisDevStorage) GetDevData(m *entities.DevMeta) (*entities.DevData, error) {
 	switch m.Type {
 	case "fridge":
 		return rs.getFridgeData(m)
@@ -102,7 +112,7 @@ func (rs *RedisDevStore) GetDevData(m *entities.DevMeta) (*entities.DevData, err
 	}
 }
 
-func (rs *RedisDevStore) SetDevData(r *entities.Request) error {
+func (rs *RedisDevStorage) SetDevData(r *entities.Request) error {
 	switch r.Meta.Type {
 	case "fridge":
 		return rs.setFridgeData(r)
@@ -113,7 +123,7 @@ func (rs *RedisDevStore) SetDevData(r *entities.Request) error {
 	}
 }
 
-func (rs *RedisDevStore) GetDevConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (rs *RedisDevStorage) GetDevConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	switch m.Type {
 	case "fridge":
 		return rs.getFridgeConfig(m)
@@ -124,18 +134,18 @@ func (rs *RedisDevStore) GetDevConfig(m *entities.DevMeta) (*entities.DevConfig,
 	}
 }
 
-func (rs *RedisDevStore) SetDevConfig(m *entities.DevMeta, c *entities.DevConfig) error {
+func (rs *RedisDevStorage) SetDevConfig(m *entities.DevMeta, c *entities.DevConfig) error {
 	switch m.Type {
 	case "fridge":
-		return rs.setFridgeConfig(m.MAC, c)
+		return rs.setFridgeConfig(c)
 	case "washer":
-		return rs.setWasherConfig(m.MAC, c)
+		return rs.setWasherConfig(c)
 	default:
 		return errors.New("dev type is unknown")
 	}
 }
 
-func (rs *RedisDevStore) GetDevDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (rs *RedisDevStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	switch m.Type {
 	case "fridge":
 		return rs.getFridgeDefaultConfig(m)
@@ -146,38 +156,30 @@ func (rs *RedisDevStore) GetDevDefaultConfig(m *entities.DevMeta) (*entities.Dev
 	}
 }
 
-func (rs *RedisDevStore) Publish(channel string, msg interface{}) (int64, error) {
+func (rs *RedisDevStorage) Publish(channel string, msg interface{}) (int64, error) {
 	return rs.Client.Publish(channel, msg)
 }
 
-func (rs *RedisDevStore) Subscribe(c chan []string, channel ...string) error {
+func (rs *RedisDevStorage) Subscribe(c chan []string, channel ...string) error {
 	return rs.Client.Subscribe(c, channel...)
 }
 
-func PublishWS(r *entities.Request, roomID string, st entities.DevStore) error {
+func PublishWS(r *entities.Request, roomID string, st entities.DevStorage) error {
 	pr, err := json.Marshal(r)
 	for err != nil {
-		errors.Wrap(err, "RedisDevStore: PublishWS(): Request marshalling has failed")
+		errors.Wrap(err, "RedisDevStorage: PublishWS(): Request marshalling has failed")
 	}
 
 	conn, err := st.CreateConn()
 	if err != nil {
-		errors.Wrap(err, "RedisDevStore: PublishWS(): storage connection hasn't been established")
+		errors.Wrap(err, "RedisDevStorage: PublishWS(): storage connection hasn't been established")
 	}
 	defer conn.CloseConn()
 
 	_, err = st.Publish(roomID, pr)
 	if err != nil {
-		errors.Wrap(err, "RedisDevStore: PublishWS(): publishing has failed")
+		errors.Wrap(err, "RedisDevStorage: PublishWS(): publishing has failed")
 	}
 
 	return err
-}
-
-func (rs *RedisDevStore) devIsRegistered(m *entities.DevMeta) (bool, error) {
-	configKey := m.MAC + ":" + "config"
-	if ok, err := rs.Client.Exists(configKey); ok {
-		return true, err
-	}
-	return false, nil
 }

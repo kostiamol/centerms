@@ -19,35 +19,35 @@ import (
 
 type StreamServer struct {
 	Server     entities.Server
-	Storage    entities.DevStore
+	Storage    entities.DevStorage
 	Controller entities.RoutinesController
 	Log        *logrus.Logger
-	Conns      StreamConnMap
+	Conns      ConnMap
 	PubSub     PubSub
 	Upgrader   websocket.Upgrader
 }
 
-type StreamConnMap struct {
+type ConnMap struct {
 	sync.Mutex
 	ConnChanCloseWS   chan *websocket.Conn
 	StopCloseWS       chan string
-	MacChan           chan string
+	MACChan           chan string
 	CloseMapCollector chan string
-	MapConn           map[string]*ListConnection
+	ConnMap           map[string]*ConnList
 }
 
 type PubSub struct {
-	RoomIDForWSPubSub string
 	StopSub           chan bool
-	SubWSChannel      chan []string
+	SubWSChann        chan []string
+	RoomIDForWSPubSub string
 }
 
-type ListConnection struct {
+type ConnList struct {
 	sync.Mutex
 	Conns []*websocket.Conn
 }
 
-func NewStreamServer(s entities.Server, st entities.DevStore, c entities.RoutinesController, l *logrus.Logger) *StreamServer {
+func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.RoutinesController, l *logrus.Logger) *StreamServer {
 	u := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -64,18 +64,18 @@ func NewStreamServer(s entities.Server, st entities.DevStore, c entities.Routine
 		Storage:    st,
 		Controller: c,
 		Log:        l,
-		Conns:      *NewWSConnections(),
+		Conns:      *NewWSConns(),
 		PubSub:     *NewPubSub("devWS", make(chan bool), make(chan []string)),
 		Upgrader:   u,
 	}
 }
 
-func NewWSConnections() *StreamConnMap {
-	return &StreamConnMap{
+func NewWSConns() *ConnMap {
+	return &ConnMap{
 		ConnChanCloseWS:   make(chan *websocket.Conn),
 		StopCloseWS:       make(chan string),
-		MapConn:           make(map[string]*ListConnection),
-		MacChan:           make(chan string),
+		ConnMap:           make(map[string]*ConnList),
+		MACChan:           make(chan string),
 		CloseMapCollector: make(chan string),
 	}
 }
@@ -84,7 +84,7 @@ func NewPubSub(roomIDForWSPubSub string, stopSub chan bool, subWSChannel chan []
 	return &PubSub{
 		RoomIDForWSPubSub: roomIDForWSPubSub,
 		StopSub:           stopSub,
-		SubWSChannel:      subWSChannel,
+		SubWSChann:        subWSChannel,
 	}
 }
 
@@ -106,12 +106,12 @@ func (s *StreamServer) Run() {
 	}
 	defer conn.CloseConn()
 
-	go s.Close()
 	go s.Subscribe(conn)
+	go s.Unsubscribe()
 	go s.Conns.MapCollector()
 
 	r := mux.NewRouter()
-	r.HandleFunc("/devices/{id}", s.WSHandler)
+	r.HandleFunc("/devices/{id}", s.devDataStreamHandler)
 
 	srv := &http.Server{
 		Handler:      r,
@@ -127,133 +127,113 @@ func (s *StreamServer) gracefulHalt() {
 	s.Storage.CloseConn()
 }
 
-func (s *StreamServer) WSHandler(w http.ResponseWriter, r *http.Request) {
-
-	conn, err := s.Upgrader.Upgrade(w, r, nil)
+func (s *StreamServer) devDataStreamHandler(w http.ResponseWriter, r *http.Request) {
+	cnn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		errors.Wrap(err, "StreamServer: WSHandler(): Upgrage() has failed")
+		errors.Wrap(err, "StreamServer: devDataStreamHandler(): Upgrage() has failed")
 		return
 	}
-	//http://..../device/type/name/mac
+
 	s.Conns.Lock()
 	uri := strings.Split(r.URL.String(), "/")
 
-	if _, ok := s.Conns.MapConn[uri[2]]; !ok {
-		s.Conns.MapConn[uri[2]] = new(ListConnection)
+	if _, ok := s.Conns.ConnMap[uri[2]]; !ok {
+		s.Conns.ConnMap[uri[2]] = new(ConnList)
 	}
-	s.Conns.MapConn[uri[2]].AddConn(conn)
+	s.Conns.ConnMap[uri[2]].AddConn(cnn)
 	s.Conns.Unlock()
 }
 
-/**
-Delete connections in mapConn
-*/
-func (s *StreamServer) Close() {
+func (s *StreamServer) Subscribe(st entities.DevStorage) {
+	st.Subscribe(s.PubSub.SubWSChann, s.PubSub.RoomIDForWSPubSub)
 	for {
 		select {
-		case connAddres := <-s.Conns.ConnChanCloseWS:
-			for key, val := range s.Conns.MapConn {
+		case msg := <-s.PubSub.SubWSChann:
+			if msg[0] == "message" {
+				go s.Publish(msg)
+			}
+		case <-s.PubSub.StopSub:
+			return
+		}
+	}
+}
 
-				if ok := val.RemoveConn(connAddres); ok {
-					s.Conns.MacChan <- key
+func (s *StreamServer) Unsubscribe() {
+	for {
+		select {
+		case connAddr := <-s.Conns.ConnChanCloseWS:
+			for k, v := range s.Conns.ConnMap {
+				if ok := v.RemoveConn(connAddr); ok {
+					s.Conns.MACChan <- k
 					break
 				}
 			}
 		case <-s.Conns.StopCloseWS:
-			s.Log.Info("StreamServer: Close(): conn is down")
 			return
 		}
 	}
 }
 
-/*
-Listens changes in database. If they have, we will send to all websocket which working with them.
-*/
-func (s *StreamServer) Subscribe(st entities.DevStore) {
-	st.Subscribe(s.PubSub.SubWSChannel, s.PubSub.RoomIDForWSPubSub)
-	for {
-		select {
-		case msg := <-s.PubSub.SubWSChannel:
-			if msg[0] == "message" {
-				go s.checkAndSendInfoToWSClient(msg)
-			}
-		case <-s.PubSub.StopSub:
-			s.Log.Info("StreamServer: Close(): subscribe is closed")
-			return
-		}
-	}
-}
-
-//We are check mac in our mapConnections.
-// If we have mac in the map we will send message to all connections.
-// Else we do nothing
-func (s *StreamServer) checkAndSendInfoToWSClient(msg []string) error {
-	r := new(entities.Request)
-	err := json.Unmarshal([]byte(msg[2]), &r)
+func (s *StreamServer) Publish(msgs []string) error {
+	var req entities.Request
+	err := json.Unmarshal([]byte(msgs[2]), &req)
 	if err != nil {
-		errors.Wrap(err, "StreamServer: checkAndSendInfoToWSClient(): Request unmarshalling has failed")
+		errors.Wrap(err, "StreamServer: Publish(): Request unmarshalling has failed")
 		return err
 	}
-	if _, ok := s.Conns.MapConn[r.Meta.MAC]; ok {
-		s.sendInfoToWSClient(r.Meta.MAC, msg[2])
+
+	if _, ok := s.Conns.ConnMap[req.Meta.MAC]; ok {
+		s.Conns.ConnMap[req.Meta.MAC].Lock()
+		for _, val := range s.Conns.ConnMap[req.Meta.MAC].Conns {
+			err := val.WriteMessage(1, []byte(msgs[2]))
+			if err != nil {
+				errors.Errorf("StreamServer: Publish(): connection %v has been closed", val.RemoteAddr())
+				go getToChannel(val, s.Conns.ConnChanCloseWS)
+			}
+		}
+		s.Conns.ConnMap[req.Meta.MAC].Unlock()
 		return nil
 	}
 	return nil
-}
-
-//Send message to all connections which we have in map, and which pertain to mac
-func (s *StreamServer) sendInfoToWSClient(mac, msg string) {
-	s.Conns.MapConn[mac].Lock()
-	for _, val := range s.Conns.MapConn[mac].Conns {
-		err := val.WriteMessage(1, []byte(msg))
-		if err != nil {
-			errors.Errorf("StreamServer: sendInfoToWSClient(): connection %v closed", val.RemoteAddr())
-			go getToChannel(val, s.Conns.ConnChanCloseWS)
-		}
-	}
-	s.Conns.MapConn[mac].Unlock()
 }
 
 func getToChannel(conn *websocket.Conn, connChanCloseWS chan *websocket.Conn) {
 	connChanCloseWS <- conn
 }
 
-func (l *ListConnection) AddConn(conn *websocket.Conn) {
+func (l *ConnList) AddConn(conn *websocket.Conn) {
 	l.Lock()
 	l.Conns = append(l.Conns, conn)
 	l.Unlock()
 }
 
-func (l *ListConnection) RemoveConn(conn *websocket.Conn) bool {
+func (l *ConnList) RemoveConn(conn *websocket.Conn) bool {
 	l.Lock()
 	defer l.Unlock()
-	position := 0
-	for _, v := range l.Conns {
+	for i, v := range l.Conns {
 		if v == conn {
-			l.Conns = append(l.Conns[:position], l.Conns[position+1:]...)
+			l.Conns = append(l.Conns[:i], l.Conns[i+1:]...)
 			return true
 		}
-		position++
 	}
 	return false
 }
 
-func (m *StreamConnMap) Remove(mac string) {
+func (m *ConnMap) RemoveConn(mac string) {
 	m.Lock()
-	delete(m.MapConn, mac)
+	delete(m.ConnMap, mac)
 	m.Unlock()
 }
 
-func (m *StreamConnMap) MapCollector() {
+func (m *ConnMap) MapCollector() {
 	for {
 		select {
-		case mac := <-m.MacChan:
+		case mac := <-m.MACChan:
 			m.Lock()
-			if len(m.MapConn[mac].Conns) == 0 {
-				delete(m.MapConn, mac)
+			if len(m.ConnMap[mac].Conns) == 0 {
+				delete(m.ConnMap, mac)
 			}
 			m.Unlock()
-
 		case <-m.CloseMapCollector:
 			return
 		}
