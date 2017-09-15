@@ -2,8 +2,6 @@ package entities
 
 import (
 	"encoding/json"
-	"net"
-	"sync"
 	"time"
 )
 
@@ -35,10 +33,6 @@ type DevStorage interface {
 }
 
 type Device interface {
-}
-
-type RoutinesController struct {
-	StopChan chan struct{}
 }
 
 type Server struct {
@@ -75,41 +69,16 @@ type DevData struct {
 	Data map[string][]string `json:"data"`
 }
 
-type ConnPool struct {
-	sync.Mutex
-	conn map[string]net.Conn
+type ServersController struct {
+	StopChan chan struct{}
 }
 
-func (pool *ConnPool) Init() {
-	pool.Lock()
-	defer pool.Unlock()
-	pool.conn = make(map[string]net.Conn)
-}
-
-func (c *RoutinesController) Wait() {
+func (c *ServersController) Wait() {
 	<-c.StopChan
-	<-time.NewTimer(5).C
+	<-time.NewTimer(time.Second * 3).C
 }
 
-func (pool *ConnPool) AddConn(conn net.Conn, key string) {
-	pool.Lock()
-	pool.conn[key] = conn
-	defer pool.Unlock()
-}
-
-func (pool *ConnPool) GetConn(key string) net.Conn {
-	pool.Lock()
-	defer pool.Unlock()
-	return pool.conn[key]
-}
-
-func (pool *ConnPool) RemoveConn(key string) {
-	pool.Lock()
-	defer pool.Unlock()
-	delete(pool.conn, key)
-}
-
-func (c *RoutinesController) Close() {
+func (c *ServersController) Terminate() {
 	select {
 	case <-c.StopChan:
 	default:

@@ -1,7 +1,6 @@
 package storages
 
 import (
-	"encoding/json"
 	"strings"
 
 	"time"
@@ -162,24 +161,4 @@ func (rs *RedisDevStorage) Publish(channel string, msg interface{}) (int64, erro
 
 func (rs *RedisDevStorage) Subscribe(c chan []string, channel ...string) error {
 	return rs.Client.Subscribe(c, channel...)
-}
-
-func PublishWS(r *entities.Request, roomID string, st entities.DevStorage) error {
-	pr, err := json.Marshal(r)
-	for err != nil {
-		errors.Wrap(err, "RedisDevStorage: PublishWS(): Request marshalling has failed")
-	}
-
-	conn, err := st.CreateConn()
-	if err != nil {
-		errors.Wrap(err, "RedisDevStorage: PublishWS(): storage connection hasn't been established")
-	}
-	defer conn.CloseConn()
-
-	_, err = st.Publish(roomID, pr)
-	if err != nil {
-		errors.Wrap(err, "RedisDevStorage: PublishWS(): publishing has failed")
-	}
-
-	return err
 }

@@ -8,52 +8,105 @@ import (
 
 	"os"
 
+	"context"
+
+	"sync"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
 )
 
-type DevConfigServer struct {
-	Server              entities.Server
-	DevStorage          entities.DevStorage
-	Controller          entities.RoutinesController
-	Log                 *logrus.Logger
-	Reconnect           *time.Ticker
-	Pool                entities.ConnPool
-	Messages            chan []string
-	StopConfigSubscribe chan struct{}
+type ConnPool struct {
+	sync.Mutex
+	conn map[string]net.Conn
 }
 
-func NewDevConfigServer(s entities.Server, ds entities.DevStorage, c entities.RoutinesController, l *logrus.Logger,
-	r *time.Ticker, msgs chan []string, stopConfigSubscribe chan struct{}) *DevConfigServer {
+func (p *ConnPool) Init() {
+	p.Lock()
+	defer p.Unlock()
+	p.conn = make(map[string]net.Conn)
+}
+
+func (p *ConnPool) AddConn(conn net.Conn, key string) {
+	p.Lock()
+	p.conn[key] = conn
+	defer p.Unlock()
+}
+
+func (p *ConnPool) GetConn(key string) net.Conn {
+	p.Lock()
+	defer p.Unlock()
+	return p.conn[key]
+}
+
+func (p *ConnPool) RemoveConn(key string) {
+	p.Lock()
+	defer p.Unlock()
+	delete(p.conn, key)
+}
+
+type DevConfigServer struct {
+	Server     entities.Server
+	DevStorage entities.DevStorage
+	Controller entities.ServersController
+	Log        *logrus.Logger
+	Reconnect  *time.Ticker
+	ConnPool   ConnPool
+	Messages   chan []string
+}
+
+func NewDevConfigServer(s entities.Server, ds entities.DevStorage, c entities.ServersController, l *logrus.Logger,
+	r *time.Ticker, msgs chan []string) *DevConfigServer {
 	l.Out = os.Stdout
+
 	return &DevConfigServer{
-		Server:              s,
-		DevStorage:          ds,
-		Controller:          c,
-		Log:                 l,
-		Reconnect:           r,
-		Messages:            msgs,
-		StopConfigSubscribe: stopConfigSubscribe,
+		Server:     s,
+		DevStorage: ds,
+		Controller: c,
+		Log:        l,
+		Reconnect:  r,
+		Messages:   msgs,
 	}
 }
 
 func (s *DevConfigServer) Run() {
+	s.Log.Infoln("DevConfigServer has started")
+	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.StopConfigSubscribe <- struct{}{}
-			errors.New("DevConfigServer: Run(): panic leads to halt")
+			s.Log.Error("DevConfigServer: Run(): panic: ", r)
+			cancel()
 			s.gracefulHalt()
-			s.Controller.Close()
 		}
 	}()
 
-	s.Pool.Init()
-	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
-	if err != nil {
-		errors.Wrap(err, "DevConfigServer: Run(): Listen() has failed")
-	}
+	go s.handleTermination()
 
+	s.ConnPool.Init()
+	go s.configSubscribe(ctx, "configChan", s.Messages, &s.ConnPool)
+
+	go s.listenForConnections(ctx)
+}
+
+func (s *DevConfigServer) handleTermination() {
+	for {
+		select {
+		case <-s.Controller.StopChan:
+			s.gracefulHalt()
+			return
+		}
+	}
+}
+
+func (s *DevConfigServer) gracefulHalt() {
+	s.DevStorage.CloseConn()
+	s.Log.Infoln("DevConfigServer has shut down")
+	s.Controller.Terminate()
+}
+
+func (s *DevConfigServer) listenForConnections(ctx context.Context) {
+	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 	for err != nil {
 		for range s.Reconnect.C {
 			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
@@ -64,42 +117,29 @@ func (s *DevConfigServer) Run() {
 		s.Reconnect.Stop()
 	}
 
-	go s.configSubscribe("configChan", s.Messages, &s.Pool)
-
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			errors.Wrap(err, "DevConfigServer: Run(): Accept() has failed")
 		}
-		go s.sendDefaultConfig(conn, &s.Pool)
+		go s.sendDefaultConfig(ctx, conn, &s.ConnPool)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
-func (s *DevConfigServer) gracefulHalt() {
-	s.DevStorage.CloseConn()
-}
-
-func (s *DevConfigServer) sendNewConfig(c *entities.DevConfig, p *entities.ConnPool) {
-	conn := p.GetConn(c.MAC)
-	if conn == nil {
-		errors.New("DevConfigServer: sendNewConfig(): there isn't such a connection in pool")
-		return
-	}
-
-	_, err := conn.Write(c.Data)
-	if err != nil {
-		errors.Wrap(err, "DevConfigServer: sendNewConfig(): DevConfig.Data writing has failed")
-		p.RemoveConn(c.MAC)
-	}
-}
-
-func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *entities.ConnPool) {
+func (s *DevConfigServer) sendDefaultConfig(ctx context.Context, c net.Conn, cp *ConnPool) {
 	var r entities.Request
 	err := json.NewDecoder(c).Decode(&r)
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): Request marshalling has failed")
 	}
-	p.AddConn(c, r.Meta.MAC)
+	cp.AddConn(c, r.Meta.MAC)
 
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
@@ -109,7 +149,7 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *entities.ConnPool) {
 	defer conn.CloseConn()
 
 	var config *entities.DevConfig
-	if ok, err := conn.DevIsRegistered(&r.Meta); !ok {
+	if ok, err := conn.DevIsRegistered(&r.Meta); ok {
 		if err != nil {
 			errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): DevIsRegistered() has failed")
 		}
@@ -133,9 +173,16 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *entities.ConnPool) {
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: sendDefaultConfig(): DevConfig.Data writing has failed")
 	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
-func (s *DevConfigServer) configSubscribe(roomID string, msg chan []string, p *entities.ConnPool) {
+func (s *DevConfigServer) configSubscribe(ctx context.Context, roomID string, msg chan []string, cp *ConnPool) {
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: configSubscribe(): storage connection hasn't been established")
@@ -153,9 +200,30 @@ func (s *DevConfigServer) configSubscribe(roomID string, msg chan []string, p *e
 				if err != nil {
 					errors.Wrap(err, "DevConfigServer: configSubscribe(): DevConfig unmarshalling has failed")
 				}
-				go s.sendNewConfig(&c, p)
+				go s.sendNewConfig(ctx, &c, cp)
 			}
-		case <-s.StopConfigSubscribe:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (s *DevConfigServer) sendNewConfig(ctx context.Context, c *entities.DevConfig, cp *ConnPool) {
+	conn := cp.GetConn(c.MAC)
+	if conn == nil {
+		errors.New("DevConfigServer: sendNewConfig(): there isn't such a connection in pool")
+		return
+	}
+
+	_, err := conn.Write(c.Data)
+	if err != nil {
+		errors.Wrap(err, "DevConfigServer: sendNewConfig(): DevConfig.Data writing has failed")
+		cp.RemoveConn(c.MAC)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
 			return
 		}
 	}

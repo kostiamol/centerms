@@ -13,41 +13,94 @@ import (
 	"fmt"
 	"sync"
 
+	"context"
+
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
 )
-
-type StreamServer struct {
-	Server     entities.Server
-	Storage    entities.DevStorage
-	Controller entities.RoutinesController
-	Log        *logrus.Logger
-	Conns      ConnMap
-	PubSub     PubSub
-	Upgrader   websocket.Upgrader
-}
-
-type ConnMap struct {
-	sync.Mutex
-	ConnChanCloseWS   chan *websocket.Conn
-	StopCloseWS       chan string
-	MACChan           chan string
-	CloseMapCollector chan string
-	ConnMap           map[string]*ConnList
-}
-
-type PubSub struct {
-	StopSub           chan bool
-	SubWSChann        chan []string
-	RoomIDForWSPubSub string
-}
 
 type ConnList struct {
 	sync.Mutex
 	Conns []*websocket.Conn
 }
 
-func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.RoutinesController, l *logrus.Logger) *StreamServer {
+func (l *ConnList) AddConn(conn *websocket.Conn) {
+	l.Lock()
+	defer l.Unlock()
+	l.Conns = append(l.Conns, conn)
+}
+
+func (l *ConnList) RemoveConn(conn *websocket.Conn) bool {
+	l.Lock()
+	defer l.Unlock()
+	for i, v := range l.Conns {
+		if v == conn {
+			l.Conns = append(l.Conns[:i], l.Conns[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+type StreamConns struct {
+	sync.Mutex
+	ConnChanCloseWS chan *websocket.Conn
+	MACChan         chan string
+	ConnMap         map[string]*ConnList
+}
+
+func NewStreamConns() *StreamConns {
+	return &StreamConns{
+		ConnChanCloseWS: make(chan *websocket.Conn),
+		ConnMap:         make(map[string]*ConnList),
+		MACChan:         make(chan string),
+	}
+}
+
+func (c *StreamConns) RemoveConn(mac string) {
+	c.Lock()
+	defer c.Unlock()
+	delete(c.ConnMap, mac)
+}
+
+func (c *StreamConns) MapCollector(ctx context.Context) {
+	for {
+		select {
+		case mac := <-c.MACChan:
+			c.Lock()
+			if len(c.ConnMap[mac].Conns) == 0 {
+				delete(c.ConnMap, mac)
+			}
+			c.Unlock()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+type PubSub struct {
+	SubWSChann        chan []string
+	RoomIDForWSPubSub string
+}
+
+func NewPubSub(roomIDForWSPubSub string, stopSub chan bool, subWSChannel chan []string) *PubSub {
+	return &PubSub{
+		RoomIDForWSPubSub: roomIDForWSPubSub,
+		SubWSChann:        subWSChannel,
+	}
+}
+
+type StreamServer struct {
+	Server     entities.Server
+	DevStorage entities.DevStorage
+	Controller entities.ServersController
+	Log        *logrus.Logger
+	Conns      StreamConns
+	PubSub     PubSub
+	Upgrader   websocket.Upgrader
+}
+
+func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.ServersController, l *logrus.Logger) *StreamServer {
 	u := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -61,54 +114,37 @@ func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.Routi
 
 	return &StreamServer{
 		Server:     s,
-		Storage:    st,
+		DevStorage: st,
 		Controller: c,
 		Log:        l,
-		Conns:      *NewWSConns(),
+		Conns:      *NewStreamConns(),
 		PubSub:     *NewPubSub("devWS", make(chan bool), make(chan []string)),
 		Upgrader:   u,
 	}
 }
 
-func NewWSConns() *ConnMap {
-	return &ConnMap{
-		ConnChanCloseWS:   make(chan *websocket.Conn),
-		StopCloseWS:       make(chan string),
-		ConnMap:           make(map[string]*ConnList),
-		MACChan:           make(chan string),
-		CloseMapCollector: make(chan string),
-	}
-}
-
-func NewPubSub(roomIDForWSPubSub string, stopSub chan bool, subWSChannel chan []string) *PubSub {
-	return &PubSub{
-		RoomIDForWSPubSub: roomIDForWSPubSub,
-		StopSub:           stopSub,
-		SubWSChann:        subWSChannel,
-	}
-}
-
 func (s *StreamServer) Run() {
+	s.Log.Infoln("StreamServer has started")
+	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
 			errors.New("StreamServer: Run(): panic leads to halt")
+			cancel()
 			s.gracefulHalt()
-			s.Conns.StopCloseWS <- ""
-			s.PubSub.StopSub <- false
-			s.Conns.CloseMapCollector <- ""
-			s.Controller.Close()
 		}
 	}()
 
-	conn, err := s.Storage.CreateConn()
+	go s.handleTermination()
+
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.New("StreamServer: Run(): storage connection hasn't been established")
 	}
 	defer conn.CloseConn()
 
-	go s.Subscribe(conn)
-	go s.Unsubscribe()
-	go s.Conns.MapCollector()
+	go s.Subscribe(ctx, conn)
+	go s.Unsubscribe(ctx)
+	go s.Conns.MapCollector(ctx)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/devices/{id}", s.devDataStreamHandler)
@@ -123,28 +159,41 @@ func (s *StreamServer) Run() {
 	go s.Log.Fatal(srv.ListenAndServe())
 }
 
+func (s *StreamServer) handleTermination() {
+	for {
+		select {
+		case <-s.Controller.StopChan:
+			s.gracefulHalt()
+			return
+		}
+	}
+}
+
 func (s *StreamServer) gracefulHalt() {
-	s.Storage.CloseConn()
+	s.DevStorage.CloseConn()
+	s.Log.Infoln("StreamServer has shut down")
+	s.Controller.Terminate()
 }
 
 func (s *StreamServer) devDataStreamHandler(w http.ResponseWriter, r *http.Request) {
-	cnn, err := s.Upgrader.Upgrade(w, r, nil)
+	uri := strings.Split(r.URL.String(), "/")
+
+	s.Conns.Lock()
+	defer s.Conns.Unlock()
+	if _, ok := s.Conns.ConnMap[uri[2]]; !ok {
+		s.Conns.ConnMap[uri[2]] = new(ConnList)
+	}
+
+	conn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		errors.Wrap(err, "StreamServer: devDataStreamHandler(): Upgrage() has failed")
 		return
 	}
 
-	s.Conns.Lock()
-	uri := strings.Split(r.URL.String(), "/")
-
-	if _, ok := s.Conns.ConnMap[uri[2]]; !ok {
-		s.Conns.ConnMap[uri[2]] = new(ConnList)
-	}
-	s.Conns.ConnMap[uri[2]].AddConn(cnn)
-	s.Conns.Unlock()
+	s.Conns.ConnMap[uri[2]].AddConn(conn)
 }
 
-func (s *StreamServer) Subscribe(st entities.DevStorage) {
+func (s *StreamServer) Subscribe(ctx context.Context, st entities.DevStorage) {
 	st.Subscribe(s.PubSub.SubWSChann, s.PubSub.RoomIDForWSPubSub)
 	for {
 		select {
@@ -152,13 +201,13 @@ func (s *StreamServer) Subscribe(st entities.DevStorage) {
 			if msg[0] == "message" {
 				go s.Publish(msg)
 			}
-		case <-s.PubSub.StopSub:
+		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (s *StreamServer) Unsubscribe() {
+func (s *StreamServer) Unsubscribe(ctx context.Context) {
 	for {
 		select {
 		case connAddr := <-s.Conns.ConnChanCloseWS:
@@ -168,7 +217,7 @@ func (s *StreamServer) Unsubscribe() {
 					break
 				}
 			}
-		case <-s.Conns.StopCloseWS:
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -188,54 +237,11 @@ func (s *StreamServer) Publish(msgs []string) error {
 			err := val.WriteMessage(1, []byte(msgs[2]))
 			if err != nil {
 				errors.Errorf("StreamServer: Publish(): connection %v has been closed", val.RemoteAddr())
-				go getToChannel(val, s.Conns.ConnChanCloseWS)
+				s.Conns.ConnChanCloseWS <- val
 			}
 		}
 		s.Conns.ConnMap[req.Meta.MAC].Unlock()
 		return nil
 	}
 	return nil
-}
-
-func getToChannel(conn *websocket.Conn, connChanCloseWS chan *websocket.Conn) {
-	connChanCloseWS <- conn
-}
-
-func (l *ConnList) AddConn(conn *websocket.Conn) {
-	l.Lock()
-	l.Conns = append(l.Conns, conn)
-	l.Unlock()
-}
-
-func (l *ConnList) RemoveConn(conn *websocket.Conn) bool {
-	l.Lock()
-	defer l.Unlock()
-	for i, v := range l.Conns {
-		if v == conn {
-			l.Conns = append(l.Conns[:i], l.Conns[i+1:]...)
-			return true
-		}
-	}
-	return false
-}
-
-func (m *ConnMap) RemoveConn(mac string) {
-	m.Lock()
-	delete(m.ConnMap, mac)
-	m.Unlock()
-}
-
-func (m *ConnMap) MapCollector() {
-	for {
-		select {
-		case mac := <-m.MACChan:
-			m.Lock()
-			if len(m.ConnMap[mac].Conns) == 0 {
-				delete(m.ConnMap, mac)
-			}
-			m.Unlock()
-		case <-m.CloseMapCollector:
-			return
-		}
-	}
 }

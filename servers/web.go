@@ -18,29 +18,32 @@ import (
 
 type WebServer struct {
 	Server     entities.Server
-	DevStore   entities.DevStorage
-	Controller entities.RoutinesController
+	DevStorage entities.DevStorage
+	Controller entities.ServersController
 	Log        *logrus.Logger
 }
 
-func NewWebServer(s entities.Server, ds entities.DevStorage, c entities.RoutinesController, l *logrus.Logger) *WebServer {
+func NewWebServer(s entities.Server, ds entities.DevStorage, c entities.ServersController, l *logrus.Logger) *WebServer {
 	l.Out = os.Stdout
+
 	return &WebServer{
 		Server:     s,
-		DevStore:   ds,
+		DevStorage: ds,
 		Controller: c,
 		Log:        l,
 	}
 }
 
 func (s *WebServer) Run() {
+	s.Log.Infoln("WebServer has started")
 	defer func() {
 		if r := recover(); r != nil {
-			errors.New("WebServer: Run(): panic leads to halt")
+			s.Log.Error("WebServer: Run(): panic: ", r)
 			s.gracefulHalt()
-			s.Controller.Close()
 		}
 	}()
+
+	go s.handleTermination()
 
 	r := mux.NewRouter()
 	r.HandleFunc("/devices", s.getDevsDataHandler).Methods(http.MethodGet)
@@ -58,16 +61,27 @@ func (s *WebServer) Run() {
 	}
 
 	http.ListenAndServe(s.Server.Host+":"+port, handlers.CORS()(r))
-
 	go s.Log.Fatal(srv.ListenAndServe())
 }
 
+func (s *WebServer) handleTermination() {
+	for {
+		select {
+		case <-s.Controller.StopChan:
+			s.gracefulHalt()
+			return
+		}
+	}
+}
+
 func (s *WebServer) gracefulHalt() {
-	s.DevStore.CloseConn()
+	s.DevStorage.CloseConn()
+	s.Log.Infoln("WebServer has shut down")
+	s.Controller.Terminate()
 }
 
 func (s *WebServer) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
-	cn, err := s.DevStore.CreateConn()
+	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevicesHandler(): storage connection hasn't been established")
 		return
@@ -86,7 +100,7 @@ func (s *WebServer) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
-	cn, err := s.DevStore.CreateConn()
+	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevDataHandler(): storage connection hasn't been established")
 		return
@@ -111,7 +125,7 @@ func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	cn, err := s.DevStore.CreateConn()
+	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevConfigHandler(): storage connection hasn't been established")
 		return
@@ -132,7 +146,7 @@ func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	cn, err := s.DevStore.CreateConn()
+	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: patchDevConfigHandler(): storage connection hasn't been established")
 		return

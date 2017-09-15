@@ -12,10 +12,9 @@ import (
 func main() {
 	var (
 		st        = &storages.RedisDevStorage{}
-		ctrl      = entities.RoutinesController{StopChan: make(chan struct{})}
+		ctrl      = entities.ServersController{StopChan: make(chan struct{})}
 		reconnect = time.NewTicker(time.Second * 1)
 	)
-
 	st.SetServer(&StorageServer)
 
 	ws := servers.NewWebServer(entities.Server{Host: localhost, Port: webPort}, st, ctrl, logrus.New())
@@ -29,8 +28,9 @@ func main() {
 	go dds.Run()
 
 	dcs := servers.NewDevConfigServer(entities.Server{Host: localhost, Port: devConfigPort}, st, ctrl, logrus.New(),
-		reconnect, make(chan []string), make(chan struct{}))
+		reconnect, make(chan []string))
 	go dcs.Run()
 
 	ctrl.Wait()
+	logrus.Info("All the servers are shut down")
 }
