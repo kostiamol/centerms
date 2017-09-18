@@ -16,22 +16,22 @@ type RedisDevStorage struct {
 	DbServer entities.Server
 }
 
-func (rs *RedisDevStorage) SetServer(s *entities.Server) error {
+func (rds *RedisDevStorage) SetServer(s *entities.Server) error {
 	var err error
 	if s.Host == "" {
-		err = errors.New("RedisDevStorage: SetServer(): store server's host is empty")
+		err = errors.New("RedisDevStorage: SetServer(): store server'rds host is empty")
 	} else if s.Port == 0 {
-		err = errors.Wrap(err, "RedisDevStorage: SetServer(): store server's port is empty")
+		err = errors.Wrap(err, "RedisDevStorage: SetServer(): store server'rds port is empty")
 	}
-	rs.DbServer = *s
+	rds.DbServer = *s
 
 	return err
 }
 
-func (rs *RedisDevStorage) CreateConn() (entities.DevStorage, error) {
+func (rds *RedisDevStorage) CreateConn() (entities.DevStorage, error) {
 	nrc := RedisDevStorage{
 		Client:   redis.New(),
-		DbServer: rs.DbServer,
+		DbServer: rds.DbServer,
 	}
 
 	err := nrc.Client.Connect(nrc.DbServer.Host, nrc.DbServer.Port)
@@ -44,12 +44,12 @@ func (rs *RedisDevStorage) CreateConn() (entities.DevStorage, error) {
 	return &nrc, err
 }
 
-func (rs *RedisDevStorage) CloseConn() error {
-	return rs.Client.Close()
+func (rds *RedisDevStorage) CloseConn() error {
+	return rds.Client.Close()
 }
 
-func (rs *RedisDevStorage) GetDevsData() ([]entities.DevData, error) {
-	devParamsKeys, err := rs.Client.SMembers("devParamsKeys")
+func (rds *RedisDevStorage) GetDevsData() ([]entities.DevData, error) {
+	devParamsKeys, err := rds.Client.SMembers("devParamsKeys")
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: GetDevsData(): SMembers for devParamsKeys has failed")
 	}
@@ -60,105 +60,108 @@ func (rs *RedisDevStorage) GetDevsData() ([]entities.DevData, error) {
 	}
 
 	var (
-		d  entities.DevData
-		ds []entities.DevData
+		devData  entities.DevData
+		devsData []entities.DevData
 	)
 
-	for i, k := range devParamsKeysTokens {
-		params, err := rs.Client.SMembers(devParamsKeys[i])
+	for index, key := range devParamsKeysTokens {
+		params, err := rds.Client.SMembers(devParamsKeys[index])
 		if err != nil {
-			errors.Wrapf(err, "RedisDevStorage: GetDevsData(): SMembers() for %s has failed", devParamsKeys[i])
+			errors.Wrapf(err, "RedisDevStorage: GetDevsData(): SMembers() for %rds has failed", devParamsKeys[index])
 		}
 
-		d.Meta = entities.DevMeta{
-			Type: k[1],
-			Name: k[2],
-			MAC:  k[3],
+		devData.Meta = entities.DevMeta{
+			Type: key[1],
+			Name: key[2],
+			MAC:  key[3],
 		}
-		d.Data = make(map[string][]string)
+		devData.Data = make(map[string][]string)
 
 		vals := make([][]string, len(params))
 		for i, p := range params {
-			vals[i], _ = rs.Client.ZRangeByScore(devParamsKeys[i]+":"+p, "-inf", "inf")
+			vals[i], _ = rds.Client.ZRangeByScore(devParamsKeys[index]+":"+p, "-inf", "inf")
 			if err != nil {
-				errors.Wrapf(err, "RedisDevStorage: GetDevsData(): ZRangeByScore() for %s has failed", devParamsKeys[i])
+				errors.Wrapf(err, "RedisDevStorage: GetDevsData(): ZRangeByScore() for %rds has failed", devParamsKeys[i])
 			}
-			d.Data[p] = vals[i]
+			devData.Data[p] = vals[i]
 		}
-		ds = append(ds, d)
+		devsData = append(devsData, devData)
 	}
 
-	return ds, err
+	return devsData, err
 }
 
-func (rs *RedisDevStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
+func (rds *RedisDevStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 	configKey := m.MAC + ":" + "config"
-	if ok, err := rs.Client.Exists(configKey); ok {
+	if ok, err := rds.Client.Exists(configKey); ok {
+		if err != nil {
+			errors.Wrap(err, "RedisDevStorage: GetDevsData(): Exists() has failed")
+		}
 		return true, err
 	}
 
 	return false, nil
 }
 
-func (rs *RedisDevStorage) GetDevData(m *entities.DevMeta) (*entities.DevData, error) {
+func (rds *RedisDevStorage) GetDevData(m *entities.DevMeta) (*entities.DevData, error) {
 	switch m.Type {
 	case "fridge":
-		return rs.getFridgeData(m)
+		return rds.getFridgeData(m)
 	case "washer":
-		return rs.getWasherData(m)
+		return rds.getWasherData(m)
 	default:
 		return &entities.DevData{}, errors.New("dev type is unknown")
 	}
 }
 
-func (rs *RedisDevStorage) SetDevData(r *entities.Request) error {
+func (rds *RedisDevStorage) SetDevData(r *entities.Request) error {
 	switch r.Meta.Type {
 	case "fridge":
-		return rs.setFridgeData(r)
+		return rds.setFridgeData(r)
 	case "washer":
-		return rs.setWasherData(r)
+		return rds.setWasherData(r)
 	default:
 		return errors.New("dev type is unknown")
 	}
 }
 
-func (rs *RedisDevStorage) GetDevConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (rds *RedisDevStorage) GetDevConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	switch m.Type {
 	case "fridge":
-		return rs.getFridgeConfig(m)
+		return rds.getFridgeConfig(m)
 	case "washer":
-		return rs.getWasherConfig(m)
+		return rds.getWasherConfig(m)
 	default:
 		return &entities.DevConfig{}, errors.New("dev type is unknown")
 	}
 }
 
-func (rs *RedisDevStorage) SetDevConfig(m *entities.DevMeta, c *entities.DevConfig) error {
+func (rds *RedisDevStorage) SetDevConfig(m *entities.DevMeta, c *entities.DevConfig) error {
 	switch m.Type {
 	case "fridge":
-		return rs.setFridgeConfig(c)
+		return rds.setFridgeConfig(c, m)
 	case "washer":
-		return rs.setWasherConfig(c)
+		return rds.setWasherConfig(c)
 	default:
 		return errors.New("dev type is unknown")
 	}
 }
 
-func (rs *RedisDevStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (rds *RedisDevStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	switch m.Type {
 	case "fridge":
-		return rs.getFridgeDefaultConfig(m)
+		return rds.getFridgeDefaultConfig(m)
 	case "washer":
-		return rs.getWasherDefaultConfig(m)
+		return rds.getWasherDefaultConfig(m)
 	default:
 		return &entities.DevConfig{}, errors.New("dev type is unknown")
 	}
 }
 
-func (rs *RedisDevStorage) Publish(channel string, msg interface{}) (int64, error) {
-	return rs.Client.Publish(channel, msg)
+func (rds *RedisDevStorage) Publish(channel string, msg interface{}) (int64, error) {
+	return rds.Client.Publish(channel, msg)
 }
 
-func (rs *RedisDevStorage) Subscribe(c chan []string, channel ...string) error {
-	return rs.Client.Subscribe(c, channel...)
+func (rds *RedisDevStorage) Subscribe(c chan []string, channel ...string) error {
+	return rds.Client.Subscribe(c, channel...)
 }

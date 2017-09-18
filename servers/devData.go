@@ -33,7 +33,7 @@ func NewDevDataServer(s entities.Server, ds entities.DevStorage, c entities.Serv
 }
 
 func (s *DevDataServer) Run() {
-	s.Log.Infoln("DevDataServer has started")
+	s.Log.Infof("DevDataServer has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
@@ -47,14 +47,14 @@ func (s *DevDataServer) Run() {
 
 	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 	if err != nil {
-		errors.Wrap(err, "DevConfigServer: Run(): Listen() has failed")
+		errors.Wrap(err, "DevDataServer: Run(): Listen() has failed")
 	}
 
 	for err != nil {
 		for range s.Reconnect.C {
 			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 			if err != nil {
-				errors.Wrap(err, "DevConfigServer: Run(): Listen() has failed")
+				errors.Wrap(err, "DevDataServer: Run(): Listen() has failed")
 			}
 		}
 		s.Reconnect.Stop()
@@ -85,27 +85,26 @@ func (s *DevDataServer) gracefulHalt() {
 }
 
 func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
-	var r entities.Request
+	var req entities.Request
 	for {
-		err := json.NewDecoder(c).Decode(&r)
+		err := json.NewDecoder(c).Decode(&req)
 		if err != nil {
-			errors.Wrap(err, "DevConfigServer: devDataHandler(): Request decoding has failed")
+			errors.Wrap(err, "DevDataServer: devDataHandler(): Request decoding has failed")
 			return
 		}
 
-		go s.devTypeHandler(ctx, &r)
+		go s.saveDevData(ctx, &req)
 
 		resp := entities.Response{
 			Status: 200,
-			Descr:  "OK",
+			Descr:  "DevData has been delivered",
 		}
+
 		err = json.NewEncoder(c).Encode(&resp)
 		if err != nil {
-			errors.Wrap(err, "DevConfigServer: devDataHandler(): Response encoding has failed")
+			errors.Wrap(err, "DevDataServer: devDataHandler(): Response encoding has failed")
 		}
-	}
 
-	for {
 		select {
 		case <-ctx.Done():
 			return
@@ -113,20 +112,21 @@ func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
 	}
 }
 
-func (s *DevDataServer) devTypeHandler(ctx context.Context, r *entities.Request) {
+func (s *DevDataServer) saveDevData(ctx context.Context, r *entities.Request) {
+	s.Log.Infof("Saving data for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		errors.Wrap(err, "DevConfigServer: devTypeHandler(): storage connection hasn't been established")
+		s.Log.Errorf("DevDataServer: saveDevData(): storage connection hasn't been established: %s", err)
 	}
 	defer conn.CloseConn()
 
-	switch r.Action {
-	case "update":
-		conn.SetDevData(r)
-		go s.publishWS(r, "devWS")
-	default:
-		errors.Wrap(err, "DevConfigServer: devTypeHandler(): unknown action")
+	err = conn.SetDevData(r)
+	if err != nil {
+		s.Log.Errorf("DevDataServer: SetDevData() has failed: %s", err)
+		return
 	}
+
+	go s.publishWS(ctx, r, "devWS")
 
 	for {
 		select {
@@ -136,21 +136,28 @@ func (s *DevDataServer) devTypeHandler(ctx context.Context, r *entities.Request)
 	}
 }
 
-func (s *DevDataServer) publishWS(r *entities.Request, roomID string) error {
+func (s *DevDataServer) publishWS(ctx context.Context, r *entities.Request, roomID string) error {
 	pr, err := json.Marshal(r)
 	for err != nil {
-		errors.Wrap(err, "DevConfigServer: publishWS(): Request marshalling has failed")
+		errors.Wrap(err, "DevDataServer: publishWS(): Request marshalling has failed")
 	}
 
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		errors.Wrap(err, "DevConfigServer: publishWS(): storage connection hasn't been established")
+		errors.Wrap(err, "DevDataServer: publishWS(): storage connection hasn't been established")
 	}
 	defer conn.CloseConn()
 
-	_, err = s.DevStorage.Publish(roomID, pr)
+	_, err = conn.Publish(roomID, pr)
 	if err != nil {
-		errors.Wrap(err, "DevConfigServer: publishWS(): publishing has failed")
+		errors.Wrap(err, "DevDataServer: publishWS(): publishing has failed")
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return err
+		}
 	}
 
 	return err

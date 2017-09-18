@@ -1,7 +1,7 @@
 package entities
 
 var (
-	LightMode WasherConfig = WasherConfig{
+	LightMode = WasherConfig{
 		Name:           "LightMode",
 		Temperature:    60,
 		WashTime:       90,
@@ -11,7 +11,8 @@ var (
 		SpinTime:       30,
 		SpinTurnovers:  60,
 	}
-	FastMode WasherConfig = WasherConfig{
+
+	FastMode = WasherConfig{
 		Name:           "FastMode",
 		Temperature:    180,
 		WashTime:       30,
@@ -21,7 +22,8 @@ var (
 		SpinTime:       15,
 		SpinTurnovers:  60,
 	}
-	StandardMode WasherConfig = WasherConfig{
+
+	StandardMode = WasherConfig{
 		Name:           "StandardMode",
 		Temperature:    240,
 		WashTime:       120,

@@ -71,7 +71,7 @@ func NewDevConfigServer(s entities.Server, ds entities.DevStorage, c entities.Se
 }
 
 func (s *DevConfigServer) Run() {
-	s.Log.Infoln("DevConfigServer has started")
+	s.Log.Infof("DevConfigServer has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
@@ -84,7 +84,7 @@ func (s *DevConfigServer) Run() {
 	go s.handleTermination()
 
 	s.ConnPool.Init()
-	go s.configSubscribe(ctx, "configChan", s.Messages, &s.ConnPool)
+	go s.configSubscribe(ctx, "devConfig", s.Messages, &s.ConnPool)
 
 	go s.listenForConnections(ctx)
 }
@@ -115,6 +115,11 @@ func (s *DevConfigServer) listenForConnections(ctx context.Context) {
 			}
 		}
 		s.Reconnect.Stop()
+
+		select {
+		case <-ctx.Done():
+			return
+		}
 	}
 
 	for {
@@ -123,9 +128,7 @@ func (s *DevConfigServer) listenForConnections(ctx context.Context) {
 			errors.Wrap(err, "DevConfigServer: Run(): Accept() has failed")
 		}
 		go s.sendDefaultConfig(ctx, conn, &s.ConnPool)
-	}
 
-	for {
 		select {
 		case <-ctx.Done():
 			return
@@ -182,7 +185,7 @@ func (s *DevConfigServer) sendDefaultConfig(ctx context.Context, c net.Conn, cp 
 	}
 }
 
-func (s *DevConfigServer) configSubscribe(ctx context.Context, roomID string, msg chan []string, cp *ConnPool) {
+func (s *DevConfigServer) configSubscribe(ctx context.Context, channel string, msg chan []string, cp *ConnPool) {
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevConfigServer: configSubscribe(): storage connection hasn't been established")
@@ -190,7 +193,7 @@ func (s *DevConfigServer) configSubscribe(ctx context.Context, roomID string, ms
 	}
 	defer conn.CloseConn()
 
-	conn.Subscribe(msg, roomID)
+	conn.Subscribe(msg, channel)
 	for {
 		var c entities.DevConfig
 		select {

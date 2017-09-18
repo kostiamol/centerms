@@ -15,26 +15,24 @@ func ValidateType(t string) bool {
 	}
 }
 
-func ValidateMAC(mac string) bool {
+func ValidateMAC(mac string) error {
 	if len(mac) != 17 {
-		errors.New("mac address should contain 17 symbols")
-		return false
+		return errors.New("mac address should contain 17 symbols")
 	}
-	return true
+	return nil
 }
 
-func ValidateSendFreq(sf int64) bool {
+func ValidateSendFreq(sf int64) error {
 	if sf > 150 {
-		errors.New("send frequency should be more than 150")
-		return false
+		return errors.New("send frequency should be more than 150")
 	}
-	return true
+	return nil
 }
 
-func ValidateCollectFreq(cf int64) bool {
+func ValidateCollectFreq(cf int64) error {
 	if cf > 150 {
-		errors.New("collect frequency should be more than 150")
-		return false
+		return errors.New("collect frequency should be more than 150")
+
 	}
-	return true
+	return nil
 }

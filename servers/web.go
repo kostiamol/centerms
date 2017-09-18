@@ -23,19 +23,19 @@ type WebServer struct {
 	Log        *logrus.Logger
 }
 
-func NewWebServer(s entities.Server, ds entities.DevStorage, c entities.ServersController, l *logrus.Logger) *WebServer {
+func NewWebServer(s entities.Server, ds entities.DevStorage, sc entities.ServersController, l *logrus.Logger) *WebServer {
 	l.Out = os.Stdout
 
 	return &WebServer{
 		Server:     s,
 		DevStorage: ds,
-		Controller: c,
+		Controller: sc,
 		Log:        l,
 	}
 }
 
 func (s *WebServer) Run() {
-	s.Log.Infoln("WebServer has started")
+	s.Log.Infof("WebServer has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Error("WebServer: Run(): panic: ", r)
@@ -107,24 +107,31 @@ func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cn.CloseConn()
 
-	m := entities.DevMeta{
+	dm := entities.DevMeta{
 		Type: r.FormValue("type"),
 		Name: r.FormValue("name"),
 		MAC:  r.FormValue("mac"),
 	}
 
-	d, err := cn.GetDevData(&m)
+	dd, err := cn.GetDevData(&dm)
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevDataHandler(): DevData extraction has failed")
 	}
 
-	err = json.NewEncoder(w).Encode(d)
+	err = json.NewEncoder(w).Encode(dd)
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevDataHandler(): DevData encoding has failed")
 	}
 }
 
 func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Error("WebServer: getDevConfigHandler(): panic: ", r)
+			s.gracefulHalt()
+		}
+	}()
+
 	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "WebServer: getDevConfigHandler(): storage connection hasn't been established")
@@ -132,17 +139,19 @@ func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	defer cn.CloseConn()
 
-	m := entities.DevMeta{
+	dm := entities.DevMeta{
 		Type: r.FormValue("type"),
 		Name: r.FormValue("name"),
 		MAC:  r.FormValue("mac"),
 	}
 
-	c, err := cn.GetDevConfig(&m)
+	dc, err := cn.GetDevConfig(&dm)
+
 	if err != nil {
-		errors.Wrap(err, "WebServer: getDevConfigHandler(): DevConfig extraction has failed")
+		s.Log.Errorf("WebServer: getDevConfigHandler(): DevConfig extraction has failed: %s", err)
 	}
-	w.Write(c.Data)
+
+	w.Write(dc.Data)
 }
 
 func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
@@ -153,26 +162,30 @@ func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request
 	}
 	defer cn.CloseConn()
 
-	var c entities.DevConfig
-	err = json.NewDecoder(r.Body).Decode(&c)
-	if err != nil {
-		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig decoding has failed")
-	}
-
-	m := entities.DevMeta{
+	dm := entities.DevMeta{
 		Type: r.FormValue("type"),
 		Name: r.FormValue("name"),
 		MAC:  r.FormValue("mac"),
 	}
 
-	err = cn.SetDevConfig(&m, &c)
-	if err != nil {
+	var dc entities.DevConfig
+	if err = json.NewDecoder(r.Body).Decode(&dc); err != nil {
+		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig decoding has failed")
+	}
+	s.Log.Infof("Config after decoding: %s", dc)
+
+
+	if err = cn.SetDevConfig(&dm, &dc); err != nil {
 		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig setting has failed")
 	}
 
-	jc, err := json.Marshal(c)
+	b, err := json.Marshal(dc)
 	if err != nil {
 		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig marshalling has failed")
 	}
-	cn.Publish("configChan", jc)
+
+	if _, err = cn.Publish("devConfig", b); err != nil {
+		errors.Wrap(err, "WebServer: patchDevConfigHandler(): Publish() has failed")
+	}
+	s.Log.Infof("WebServer: patchDevConfigHandler(): publish new config: %s for device %s", dc, dm)
 }

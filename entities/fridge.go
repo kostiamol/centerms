@@ -12,8 +12,9 @@ type FridgeData struct {
 }
 
 type FridgeConfig struct {
-	TurnedOn    bool  `json:"turnedOn"`
-	StreamOn    bool  `json:"streamOn"`
-	CollectFreq int64 `json:"collectFreq"`
-	SendFreq    int64 `json:"sendFreq"`
+	TurnedOn    bool  `json:"turnedOn,omitempty"`
+	StreamOn    bool  `json:"streamOn,omitempty"`
+	CollectFreq int64 `json:"collectFreq,omitempty"`
+	SendFreq    int64 `json:"sendFreq,omitempty"`
 }
+

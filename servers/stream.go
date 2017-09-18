@@ -124,7 +124,7 @@ func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.Serve
 }
 
 func (s *StreamServer) Run() {
-	s.Log.Infoln("StreamServer has started")
+	s.Log.Infof("StreamServer has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {

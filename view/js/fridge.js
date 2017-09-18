@@ -67,6 +67,23 @@ function sendDevConfigTurnedOn(id, turnedOn) {
     xhr.send(config);
 }
 
+function sendDevConfigStreamOn(id, streamOn) {
+    var xhr = new XMLHttpRequest();
+    requestHandler(id, xhr);
+
+    console.dir(id[0]);
+
+    var config = JSON.stringify(
+        {
+            "mac": id[0],
+            "data": {
+                "streamOn": streamOn
+            }
+        });
+
+    xhr.send(config);
+}
+
 function setDevDataFields(obj) {
     document.getElementById('devType').value = obj["meta"]["type"];
     document.getElementById('devName').value = obj["meta"]["name"];
@@ -241,11 +258,19 @@ $(document).ready(function () {
     document.getElementById("streamOnBtn").onclick = function () {
         var value = this.innerHTML;
         if (value === "On") {
+            sendDevConfigStreamOn(
+                urlParams["mac"],
+                false
+            );
+            showDataFromWS = false
             this.innerHTML = "Off";
             this.className = "btn btn-danger";
-            showDataFromWS = false
 
         } else {
+            sendDevConfigStreamOn(
+                urlParams["mac"],
+                true
+            );
             showDataFromWS = true;
             this.innerHTML = "On";
             this.className = "btn btn-success";
