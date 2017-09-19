@@ -68,10 +68,10 @@ func (c *StreamConns) MapCollector(ctx context.Context) {
 		select {
 		case mac := <-c.MACChan:
 			c.Lock()
+			defer c.Unlock()
 			if len(c.ConnMap[mac].Conns) == 0 {
 				delete(c.ConnMap, mac)
 			}
-			c.Unlock()
 		case <-ctx.Done():
 			return
 		}
@@ -128,7 +128,7 @@ func (s *StreamServer) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			errors.New("StreamServer: Run(): panic leads to halt")
+			s.Log.Errorf("StreamServer: Run(): panic leads to halt: %s", r)
 			cancel()
 			s.gracefulHalt()
 		}
@@ -136,13 +136,14 @@ func (s *StreamServer) Run() {
 
 	go s.handleTermination()
 
-	conn, err := s.DevStorage.CreateConn()
+	cnn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		errors.New("StreamServer: Run(): storage connection hasn't been established")
+		s.Log.Errorf("StreamServer: Run(): storage connection hasn't been established: %s", err)
+		return
 	}
-	defer conn.CloseConn()
+	defer cnn.CloseConn()
 
-	go s.Subscribe(ctx, conn)
+	go s.Subscribe(ctx, cnn)
 	go s.Unsubscribe(ctx)
 	go s.Conns.MapCollector(ctx)
 
@@ -184,13 +185,13 @@ func (s *StreamServer) devDataStreamHandler(w http.ResponseWriter, r *http.Reque
 		s.Conns.ConnMap[uri[2]] = new(ConnList)
 	}
 
-	conn, err := s.Upgrader.Upgrade(w, r, nil)
+	cn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		errors.Wrap(err, "StreamServer: devDataStreamHandler(): Upgrage() has failed")
+		s.Log.Errorf("StreamServer: devDataStreamHandler(): Upgrage() has failed: %s", err)
 		return
 	}
 
-	s.Conns.ConnMap[uri[2]].AddConn(conn)
+	s.Conns.ConnMap[uri[2]].AddConn(cn)
 }
 
 func (s *StreamServer) Subscribe(ctx context.Context, st entities.DevStorage) {
@@ -225,8 +226,7 @@ func (s *StreamServer) Unsubscribe(ctx context.Context) {
 
 func (s *StreamServer) Publish(msgs []string) error {
 	var req entities.Request
-	err := json.Unmarshal([]byte(msgs[2]), &req)
-	if err != nil {
+	if err := json.Unmarshal([]byte(msgs[2]), &req); err != nil {
 		errors.Wrap(err, "StreamServer: Publish(): Request unmarshalling has failed")
 		return err
 	}

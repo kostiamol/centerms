@@ -30,6 +30,7 @@ func getEnvStoragePort(key string) uint {
 	if port == 0 {
 		return uint(6379)
 	}
+
 	return port
 }
 
@@ -38,5 +39,6 @@ func getEnvStorageHost(key string) string {
 	if len(host) == 0 {
 		return "127.0.0.1"
 	}
+
 	return host
 }

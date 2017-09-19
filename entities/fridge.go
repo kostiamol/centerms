@@ -1,5 +1,14 @@
 package entities
 
+var (
+	DefaultFridgeConfig = FridgeConfig{
+		TurnedOn:    true,
+		StreamOn:    true,
+		CollectFreq: 1000,
+		SendFreq:    5000,
+	}
+)
+
 type Fridge struct {
 	Data   FridgeData   `json:"data"`
 	Config FridgeConfig `json:"config"`
@@ -12,9 +21,8 @@ type FridgeData struct {
 }
 
 type FridgeConfig struct {
-	TurnedOn    bool  `json:"turnedOn,omitempty"`
-	StreamOn    bool  `json:"streamOn,omitempty"`
-	CollectFreq int64 `json:"collectFreq,omitempty"`
-	SendFreq    int64 `json:"sendFreq,omitempty"`
+	TurnedOn    bool  `json:"turnedOn"`
+	StreamOn    bool  `json:"streamOn"`
+	CollectFreq int64 `json:"collectFreq"`
+	SendFreq    int64 `json:"sendFreq"`
 }
-

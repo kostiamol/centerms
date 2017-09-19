@@ -13,7 +13,6 @@ import (
 	"os"
 
 	"github.com/giperboloid/centerms/entities"
-	"github.com/pkg/errors"
 )
 
 type WebServer struct {
@@ -38,7 +37,7 @@ func (s *WebServer) Run() {
 	s.Log.Infof("WebServer has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Error("WebServer: Run(): panic: ", r)
+			s.Log.Errorf("WebServer: Run(): panic: %s", r)
 			s.gracefulHalt()
 		}
 	}()
@@ -83,26 +82,27 @@ func (s *WebServer) gracefulHalt() {
 func (s *WebServer) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
 	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		errors.Wrap(err, "WebServer: getDevicesHandler(): storage connection hasn't been established")
+		s.Log.Errorf("WebServer: getDevicesHandler(): storage connection hasn't been established: %s", err)
 		return
 	}
 	defer cn.CloseConn()
 
 	ds, err := cn.GetDevsData()
 	if err != nil {
-		errors.Wrap(err, "WebServer: getDevicesHandler(): devices info extraction has failed")
+		s.Log.Errorf("WebServer: getDevicesHandler(): devices data extraction has failed: %s", err)
+		return
 	}
 
-	err = json.NewEncoder(w).Encode(ds)
-	if err != nil {
-		errors.Wrap(err, "WebServer: getDevicesHandler(): []DevData encoding has failed")
+	if err = json.NewEncoder(w).Encode(ds); err != nil {
+		s.Log.Errorf("WebServer: getDevicesHandler(): []DevData encoding has failed: %s", err)
+		return
 	}
 }
 
 func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		errors.Wrap(err, "WebServer: getDevDataHandler(): storage connection hasn't been established")
+		s.Log.Errorf("WebServer: getDevDataHandler(): storage connection hasn't been established: %s", err)
 		return
 	}
 	defer cn.CloseConn()
@@ -115,26 +115,27 @@ func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 
 	dd, err := cn.GetDevData(&dm)
 	if err != nil {
-		errors.Wrap(err, "WebServer: getDevDataHandler(): DevData extraction has failed")
+		s.Log.Errorf("WebServer: getDevDataHandler(): DevData extraction has failed: %s", err)
+		return
 	}
 
-	err = json.NewEncoder(w).Encode(dd)
-	if err != nil {
-		errors.Wrap(err, "WebServer: getDevDataHandler(): DevData encoding has failed")
+	if err = json.NewEncoder(w).Encode(dd); err != nil {
+		s.Log.Errorf("WebServer: getDevDataHandler(): DevData encoding has failed: %s", err)
+		return
 	}
 }
 
 func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Error("WebServer: getDevConfigHandler(): panic: ", r)
+			s.Log.Errorf("WebServer: getDevConfigHandler(): panic: %s", r)
 			s.gracefulHalt()
 		}
 	}()
 
 	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		errors.Wrap(err, "WebServer: getDevConfigHandler(): storage connection hasn't been established")
+		s.Log.Errorf("WebServer: getDevConfigHandler(): storage connection hasn't been established: %s", err)
 		return
 	}
 	defer cn.CloseConn()
@@ -146,9 +147,9 @@ func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	dc, err := cn.GetDevConfig(&dm)
-
 	if err != nil {
 		s.Log.Errorf("WebServer: getDevConfigHandler(): DevConfig extraction has failed: %s", err)
+		return
 	}
 
 	w.Write(dc.Data)
@@ -157,7 +158,7 @@ func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) 
 func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
 	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		errors.Wrap(err, "WebServer: patchDevConfigHandler(): storage connection hasn't been established")
+		s.Log.Errorf("WebServer: patchDevConfigHandler(): storage connection hasn't been established: %s")
 		return
 	}
 	defer cn.CloseConn()
@@ -170,22 +171,24 @@ func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request
 
 	var dc entities.DevConfig
 	if err = json.NewDecoder(r.Body).Decode(&dc); err != nil {
-		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig decoding has failed")
+		s.Log.Errorf("WebServer: patchDevConfigHandler(): DevConfig decoding has failed: %s", err)
+		return
 	}
-	s.Log.Infof("Config after decoding: %s", dc)
-
 
 	if err = cn.SetDevConfig(&dm, &dc); err != nil {
-		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig setting has failed")
+		s.Log.Errorf("WebServer: patchDevConfigHandler(): DevConfig setting has failed: %s", err)
+		return
 	}
 
 	b, err := json.Marshal(dc)
 	if err != nil {
-		errors.Wrap(err, "WebServer: patchDevConfigHandler(): DevConfig marshalling has failed")
+		s.Log.Errorf("WebServer: patchDevConfigHandler(): DevConfig marshalling has failed: %s", err)
+		return
 	}
 
-	if _, err = cn.Publish("devConfig", b); err != nil {
-		errors.Wrap(err, "WebServer: patchDevConfigHandler(): Publish() has failed")
+	if _, err = cn.Publish(entities.DevConfigChan, b); err != nil {
+		s.Log.Errorf("WebServer: patchDevConfigHandler(): Publish() has failed: %s", err)
+		return
 	}
-	s.Log.Infof("WebServer: patchDevConfigHandler(): publish new config: %s for device %s", dc, dm)
+	s.Log.Infof("publish config patch: %s for device %s", dc, dm)
 }

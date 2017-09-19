@@ -32,5 +32,5 @@ func main() {
 	go dcs.Run()
 
 	ctrl.Wait()
-	logrus.Info("All the servers are shut down")
+	logrus.Info("all the servers are shut down")
 }

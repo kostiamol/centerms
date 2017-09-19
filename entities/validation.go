@@ -32,7 +32,6 @@ func ValidateSendFreq(sf int64) error {
 func ValidateCollectFreq(cf int64) error {
 	if cf > 150 {
 		return errors.New("collect frequency should be more than 150")
-
 	}
 	return nil
 }

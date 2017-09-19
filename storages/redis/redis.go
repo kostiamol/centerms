@@ -11,6 +11,12 @@ import (
 	"menteslibres.net/gosexy/redis"
 )
 
+const (
+	partialDevKey       = "device:"
+	partialDevConfigKey = ":config"
+	partialDevParamsKey = ":params"
+)
+
 type RedisDevStorage struct {
 	Client   *redis.Client
 	DbServer entities.Server
@@ -60,8 +66,8 @@ func (rds *RedisDevStorage) GetDevsData() ([]entities.DevData, error) {
 	}
 
 	var (
-		devData  entities.DevData
-		devsData []entities.DevData
+		dd  entities.DevData
+		dsd []entities.DevData
 	)
 
 	for index, key := range devParamsKeysTokens {
@@ -70,12 +76,12 @@ func (rds *RedisDevStorage) GetDevsData() ([]entities.DevData, error) {
 			errors.Wrapf(err, "RedisDevStorage: GetDevsData(): SMembers() for %rds has failed", devParamsKeys[index])
 		}
 
-		devData.Meta = entities.DevMeta{
+		dd.Meta = entities.DevMeta{
 			Type: key[1],
 			Name: key[2],
 			MAC:  key[3],
 		}
-		devData.Data = make(map[string][]string)
+		dd.Data = make(map[string][]string)
 
 		vals := make([][]string, len(params))
 		for i, p := range params {
@@ -83,16 +89,16 @@ func (rds *RedisDevStorage) GetDevsData() ([]entities.DevData, error) {
 			if err != nil {
 				errors.Wrapf(err, "RedisDevStorage: GetDevsData(): ZRangeByScore() for %rds has failed", devParamsKeys[i])
 			}
-			devData.Data[p] = vals[i]
+			dd.Data[p] = vals[i]
 		}
-		devsData = append(devsData, devData)
+		dsd = append(dsd, dd)
 	}
 
-	return devsData, err
+	return dsd, err
 }
 
 func (rds *RedisDevStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
-	configKey := m.MAC + ":" + "config"
+	configKey := m.MAC + partialDevConfigKey
 	if ok, err := rds.Client.Exists(configKey); ok {
 		if err != nil {
 			errors.Wrap(err, "RedisDevStorage: GetDevsData(): Exists() has failed")

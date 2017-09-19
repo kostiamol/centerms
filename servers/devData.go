@@ -37,7 +37,7 @@ func (s *DevDataServer) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Error("DevDataServer: Run(): panic: ", r)
+			s.Log.Errorf("DevDataServer: Run(): panic: %s", r)
 			cancel()
 			s.gracefulHalt()
 		}
@@ -47,22 +47,21 @@ func (s *DevDataServer) Run() {
 
 	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 	if err != nil {
-		errors.Wrap(err, "DevDataServer: Run(): Listen() has failed")
+		s.Log.Errorf("DevDataServer: Run(): Listen() has failed: %s", err)
 	}
 
 	for err != nil {
 		for range s.Reconnect.C {
 			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 			if err != nil {
-				errors.Wrap(err, "DevDataServer: Run(): Listen() has failed")
+				s.Log.Errorf("DevDataServer: Run(): Listen() has failed: %s", err)
 			}
 		}
 		s.Reconnect.Stop()
 	}
 
 	for {
-		conn, err := ln.Accept()
-		if err == nil {
+		if conn, err := ln.Accept(); err == nil {
 			go s.devDataHandler(ctx, conn)
 		}
 	}
@@ -87,9 +86,8 @@ func (s *DevDataServer) gracefulHalt() {
 func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
 	var req entities.Request
 	for {
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			errors.Wrap(err, "DevDataServer: devDataHandler(): Request decoding has failed")
+		if err := json.NewDecoder(c).Decode(&req); err != nil {
+			s.Log.Errorf("DevDataServer: devDataHandler(): Request decoding has failed: %s", err)
 			return
 		}
 
@@ -100,9 +98,9 @@ func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
 			Descr:  "DevData has been delivered",
 		}
 
-		err = json.NewEncoder(c).Encode(&resp)
-		if err != nil {
-			errors.Wrap(err, "DevDataServer: devDataHandler(): Response encoding has failed")
+		if err := json.NewEncoder(c).Encode(&resp); err != nil {
+			s.Log.Errorf("DevDataServer: devDataHandler(): Response encoding has failed: %s", err)
+			return
 		}
 
 		select {
@@ -114,14 +112,14 @@ func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
 
 func (s *DevDataServer) saveDevData(ctx context.Context, r *entities.Request) {
 	s.Log.Infof("Saving data for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)
-	conn, err := s.DevStorage.CreateConn()
+	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("DevDataServer: saveDevData(): storage connection hasn't been established: %s", err)
+		return
 	}
-	defer conn.CloseConn()
+	defer cn.CloseConn()
 
-	err = conn.SetDevData(r)
-	if err != nil {
+	if err = cn.SetDevData(r); err != nil {
 		s.Log.Errorf("DevDataServer: SetDevData() has failed: %s", err)
 		return
 	}
@@ -137,28 +135,30 @@ func (s *DevDataServer) saveDevData(ctx context.Context, r *entities.Request) {
 }
 
 func (s *DevDataServer) publishWS(ctx context.Context, r *entities.Request, roomID string) error {
-	pr, err := json.Marshal(r)
+	b, err := json.Marshal(r)
 	for err != nil {
 		errors.Wrap(err, "DevDataServer: publishWS(): Request marshalling has failed")
+		return err
 	}
 
-	conn, err := s.DevStorage.CreateConn()
+	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		errors.Wrap(err, "DevDataServer: publishWS(): storage connection hasn't been established")
+		return err
 	}
-	defer conn.CloseConn()
+	defer cn.CloseConn()
 
-	_, err = conn.Publish(roomID, pr)
-	if err != nil {
+	if _, err = cn.Publish(roomID, b); err != nil {
 		errors.Wrap(err, "DevDataServer: publishWS(): publishing has failed")
+		return err
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			return err
+			return nil
 		}
 	}
 
-	return err
+	return nil
 }

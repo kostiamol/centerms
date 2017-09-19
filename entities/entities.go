@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+const (
+	DevConfigChan = "devConfigChan"
+)
+
 type Notifier interface {
 	Publish(channel string, msg interface{}) (int64, error)
 	Subscribe(c chan []string, channel ...string) error
