@@ -68,10 +68,10 @@ func (c *StreamConns) MapCollector(ctx context.Context) {
 		select {
 		case mac := <-c.MACChan:
 			c.Lock()
-			defer c.Unlock()
 			if len(c.ConnMap[mac].Conns) == 0 {
 				delete(c.ConnMap, mac)
 			}
+			c.Unlock()
 		case <-ctx.Done():
 			return
 		}
@@ -83,7 +83,7 @@ type PubSub struct {
 	RoomIDForWSPubSub string
 }
 
-func NewPubSub(roomIDForWSPubSub string, stopSub chan bool, subWSChannel chan []string) *PubSub {
+func NewPubSub(roomIDForWSPubSub string, subWSChannel chan []string) *PubSub {
 	return &PubSub{
 		RoomIDForWSPubSub: roomIDForWSPubSub,
 		SubWSChann:        subWSChannel,
@@ -118,7 +118,7 @@ func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.Serve
 		Controller: c,
 		Log:        l,
 		Conns:      *NewStreamConns(),
-		PubSub:     *NewPubSub("devWS", make(chan bool), make(chan []string)),
+		PubSub:     *NewPubSub("devWS", make(chan []string)),
 		Upgrader:   u,
 	}
 }
@@ -234,10 +234,10 @@ func (s *StreamServer) Publish(msgs []string) error {
 	if _, ok := s.Conns.ConnMap[req.Meta.MAC]; ok {
 		s.Conns.ConnMap[req.Meta.MAC].Lock()
 		for _, val := range s.Conns.ConnMap[req.Meta.MAC].Conns {
-			err := val.WriteMessage(1, []byte(msgs[2]))
-			if err != nil {
+			if err := val.WriteMessage(1, []byte(msgs[2])); err != nil {
 				errors.Errorf("StreamServer: Publish(): connection %v has been closed", val.RemoteAddr())
 				s.Conns.ConnChanCloseWS <- val
+				return err
 			}
 		}
 		s.Conns.ConnMap[req.Meta.MAC].Unlock()

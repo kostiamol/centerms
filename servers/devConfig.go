@@ -217,7 +217,7 @@ func (s *DevConfigServer) configSubscribe(ctx context.Context, channel string, m
 func (s *DevConfigServer) sendNewConfig(ctx context.Context, c *entities.DevConfig) {
 	cn := s.ConnPool.GetConn(c.MAC)
 	if cn == nil {
-		s.Log.Error("DevConfigServer: sendNewConfig(): there isn't such a connection in pool")
+		s.Log.Errorf("DevConfigServer: sendNewConfig(): there isn't device connection with MAC [%s] in the pool", c.MAC)
 		return
 	}
 
