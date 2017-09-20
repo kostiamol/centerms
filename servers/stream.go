@@ -118,7 +118,7 @@ func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.Serve
 		Controller: c,
 		Log:        l,
 		Conns:      *NewStreamConns(),
-		PubSub:     *NewPubSub("devWS", make(chan []string)),
+		PubSub:     *NewPubSub(entities.DevDataChan, make(chan []string)),
 		Upgrader:   u,
 	}
 }

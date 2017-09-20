@@ -61,8 +61,9 @@ func (s *DevDataServer) Run() {
 	}
 
 	for {
-		if conn, err := ln.Accept(); err == nil {
-			go s.devDataHandler(ctx, conn)
+		if cn, err := ln.Accept(); err == nil {
+			s.Log.Info("DevDataServer: connection with device has been established")
+			go s.devDataHandler(ctx, cn)
 		}
 	}
 }
@@ -86,32 +87,31 @@ func (s *DevDataServer) gracefulHalt() {
 func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
 	var req entities.Request
 	for {
-		if err := json.NewDecoder(c).Decode(&req); err != nil {
-			s.Log.Errorf("DevDataServer: devDataHandler(): Request decoding has failed: %s", err)
-			return
-		}
-
-		go s.saveDevData(ctx, &req)
-
-		resp := entities.Response{
-			Status: 200,
-			Descr:  "DevData has been delivered",
-		}
-
-		if err := json.NewEncoder(c).Encode(&resp); err != nil {
-			s.Log.Errorf("DevDataServer: devDataHandler(): Response encoding has failed: %s", err)
-			return
-		}
-
 		select {
 		case <-ctx.Done():
 			return
+		default:
+			if err := json.NewDecoder(c).Decode(&req); err != nil {
+				s.Log.Errorf("DevDataServer: devDataHandler(): Request decoding has failed: %s", err)
+				return
+			}
+
+			go s.saveDevData(&req)
+
+			resp := entities.Response{
+				Status: 200,
+				Descr:  "DevData has been delivered",
+			}
+
+			if err := json.NewEncoder(c).Encode(&resp); err != nil {
+				s.Log.Errorf("DevDataServer: devDataHandler(): Response encoding has failed: %s", err)
+				return
+			}
 		}
 	}
 }
 
-func (s *DevDataServer) saveDevData(ctx context.Context, r *entities.Request) {
-	s.Log.Infof("Saving data for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)
+func (s *DevDataServer) saveDevData(r *entities.Request) {
 	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("DevDataServer: saveDevData(): storage connection hasn't been established: %s", err)
@@ -124,41 +124,26 @@ func (s *DevDataServer) saveDevData(ctx context.Context, r *entities.Request) {
 		return
 	}
 
-	go s.publishWS(ctx, r, "devWS")
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		}
-	}
+	//s.Log.Infof("save data for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)
+	go s.publishDevData(r, entities.DevDataChan)
 }
 
-func (s *DevDataServer) publishWS(ctx context.Context, r *entities.Request, roomID string) error {
+func (s *DevDataServer) publishDevData(r *entities.Request, channel string) error {
 	b, err := json.Marshal(r)
-	for err != nil {
-		errors.Wrap(err, "DevDataServer: publishWS(): Request marshalling has failed")
-		return err
+	if err != nil {
+		return errors.Wrap(err, "DevDataServer: publishDevData(): Request marshalling has failed")
 	}
 
 	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		errors.Wrap(err, "DevDataServer: publishWS(): storage connection hasn't been established")
-		return err
+		return errors.Wrap(err, "DevDataServer: publishDevData(): storage connection hasn't been established")
 	}
 	defer cn.CloseConn()
 
-	if _, err = cn.Publish(roomID, b); err != nil {
-		errors.Wrap(err, "DevDataServer: publishWS(): publishing has failed")
-		return err
+	if _, err = cn.Publish(channel, b); err != nil {
+		return errors.Wrap(err, "DevDataServer: publishDevData(): publishing has failed")
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		}
-	}
-
+	//s.Log.Infof("publish DevData for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)
 	return nil
 }

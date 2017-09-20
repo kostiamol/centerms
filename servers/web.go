@@ -190,5 +190,5 @@ func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request
 		s.Log.Errorf("WebServer: patchDevConfigHandler(): Publish() has failed: %s", err)
 		return
 	}
-	s.Log.Infof("publish config patch: %s for device %s", dc, dm)
+	//s.Log.Infof("publish config patch: %s for device with MAC [%s]", dc.Data, dc.MAC)
 }

@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	DevDataChan   = "devDataChan"
 	DevConfigChan = "devConfigChan"
 )
 

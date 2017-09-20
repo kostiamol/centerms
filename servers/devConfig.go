@@ -21,28 +21,28 @@ type ConnPool struct {
 	conn map[string]net.Conn
 }
 
-func (p *ConnPool) Init() {
-	p.Lock()
-	defer p.Unlock()
-	p.conn = make(map[string]net.Conn)
+func (cp *ConnPool) Init() {
+	cp.Lock()
+	defer cp.Unlock()
+	cp.conn = make(map[string]net.Conn)
 }
 
-func (p *ConnPool) AddConn(conn net.Conn, key string) {
-	p.Lock()
-	p.conn[key] = conn
-	defer p.Unlock()
+func (cp *ConnPool) AddConn(cn net.Conn, key string) {
+	cp.Lock()
+	defer cp.Unlock()
+	cp.conn[key] = cn
 }
 
-func (p *ConnPool) GetConn(key string) net.Conn {
-	p.Lock()
-	defer p.Unlock()
-	return p.conn[key]
+func (cp *ConnPool) GetConn(key string) net.Conn {
+	cp.Lock()
+	defer cp.Unlock()
+	return cp.conn[key]
 }
 
-func (p *ConnPool) RemoveConn(key string) {
-	p.Lock()
-	defer p.Unlock()
-	delete(p.conn, key)
+func (cp *ConnPool) RemoveConn(key string) {
+	cp.Lock()
+	defer cp.Unlock()
+	delete(cp.conn, key)
 }
 
 type DevConfigServer struct {
@@ -83,9 +83,9 @@ func (s *DevConfigServer) Run() {
 	go s.handleTermination()
 
 	s.ConnPool.Init()
-	go s.configSubscribe(ctx, entities.DevConfigChan, s.Messages)
+	go s.listenDevConfig(ctx, entities.DevConfigChan, s.Messages)
 
-	go s.listenForConnections(ctx)
+	go s.ListenConnections(ctx)
 }
 
 func (s *DevConfigServer) handleTermination() {
@@ -104,7 +104,7 @@ func (s *DevConfigServer) gracefulHalt() {
 	s.Controller.Terminate()
 }
 
-func (s *DevConfigServer) listenForConnections(ctx context.Context) {
+func (s *DevConfigServer) ListenConnections(ctx context.Context) {
 	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 	for err != nil {
 		for range s.Reconnect.C {
@@ -126,6 +126,8 @@ func (s *DevConfigServer) listenForConnections(ctx context.Context) {
 		if err != nil {
 			s.Log.Errorf("DevConfigServer: Run(): Accept() has failed: %s", err)
 		}
+		s.Log.Info("DevConfigServer: connection with device has been established")
+
 		go s.sendDefaultConfig(ctx, cn, &s.ConnPool)
 
 		select {
@@ -188,25 +190,25 @@ func (s *DevConfigServer) sendDefaultConfig(ctx context.Context, c net.Conn, cp 
 	}
 }
 
-func (s *DevConfigServer) configSubscribe(ctx context.Context, channel string, msg chan []string) {
+func (s *DevConfigServer) listenDevConfig(ctx context.Context, channel string, msg chan []string) {
 	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("DevConfigServer: configSubscribe(): storage connection hasn't been established: ", err)
+		s.Log.Errorf("DevConfigServer: listenDevConfig(): storage connection hasn't been established: ", err)
 		return
 	}
 	defer cn.CloseConn()
 
+	var dc entities.DevConfig
 	cn.Subscribe(msg, channel)
 	for {
-		var dc entities.DevConfig
 		select {
 		case msg := <-msg:
 			if msg[0] == "message" {
 				if err := json.Unmarshal([]byte(msg[2]), &dc); err != nil {
-					s.Log.Errorf("DevConfigServer: configSubscribe(): DevConfig unmarshalling has failed: ", err)
+					s.Log.Errorf("DevConfigServer: listenDevConfig(): DevConfig unmarshalling has failed: ", err)
 					return
 				}
-				go s.sendNewConfig(ctx, &dc)
+				go s.sendConfigPatch(ctx, &dc)
 			}
 		case <-ctx.Done():
 			return
@@ -214,18 +216,19 @@ func (s *DevConfigServer) configSubscribe(ctx context.Context, channel string, m
 	}
 }
 
-func (s *DevConfigServer) sendNewConfig(ctx context.Context, c *entities.DevConfig) {
+func (s *DevConfigServer) sendConfigPatch(ctx context.Context, c *entities.DevConfig) {
 	cn := s.ConnPool.GetConn(c.MAC)
 	if cn == nil {
-		s.Log.Errorf("DevConfigServer: sendNewConfig(): there isn't device connection with MAC [%s] in the pool", c.MAC)
+		s.Log.Errorf("DevConfigServer: sendConfigPatch(): there isn't device connection with MAC [%s] in the pool", c.MAC)
 		return
 	}
 
 	if _, err := cn.Write(c.Data); err != nil {
-		s.Log.Errorf("DevConfigServer: sendNewConfig(): DevConfig.Data writing has failed: %s", err)
+		s.Log.Errorf("DevConfigServer: sendConfigPatch(): DevConfig.Data writing has failed: %s", err)
 		s.ConnPool.RemoveConn(c.MAC)
 		return
 	}
+	s.Log.Infof("send config patch: %s for device with MAC %s", c.Data, c.MAC)
 
 	for {
 		select {
