@@ -23,26 +23,26 @@ type ConnPool struct {
 
 func (cp *ConnPool) Init() {
 	cp.Lock()
-	defer cp.Unlock()
 	cp.conn = make(map[string]net.Conn)
+	cp.Unlock()
 }
 
 func (cp *ConnPool) AddConn(cn net.Conn, key string) {
 	cp.Lock()
-	defer cp.Unlock()
 	cp.conn[key] = cn
+	cp.Unlock()
 }
 
 func (cp *ConnPool) GetConn(key string) net.Conn {
 	cp.Lock()
-	defer cp.Unlock()
+	cp.Unlock()
 	return cp.conn[key]
 }
 
 func (cp *ConnPool) RemoveConn(key string) {
 	cp.Lock()
-	defer cp.Unlock()
 	delete(cp.conn, key)
+	cp.Unlock()
 }
 
 type DevConfigServer struct {
@@ -128,7 +128,7 @@ func (s *DevConfigServer) ListenConnections(ctx context.Context) {
 		}
 		s.Log.Info("DevConfigServer: connection with device has been established")
 
-		go s.sendDefaultConfig(ctx, cn, &s.ConnPool)
+		go s.sendDefaultConfig(cn, &s.ConnPool)
 
 		select {
 		case <-ctx.Done():
@@ -137,7 +137,7 @@ func (s *DevConfigServer) ListenConnections(ctx context.Context) {
 	}
 }
 
-func (s *DevConfigServer) sendDefaultConfig(ctx context.Context, c net.Conn, cp *ConnPool) {
+func (s *DevConfigServer) sendDefaultConfig(c net.Conn, cp *ConnPool) {
 	var req entities.Request
 	if err := json.NewDecoder(c).Decode(&req); err != nil {
 		s.Log.Errorf("DevConfigServer: sendDefaultConfig(): Request marshalling has failed: %s", err)
@@ -181,13 +181,6 @@ func (s *DevConfigServer) sendDefaultConfig(ctx context.Context, c net.Conn, cp 
 		s.Log.Errorf("DevConfigServer: sendDefaultConfig(): DevConfig.Data writing has failed: %s", err)
 		return
 	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 func (s *DevConfigServer) listenDevConfig(ctx context.Context, channel string, msg chan []string) {
@@ -208,7 +201,7 @@ func (s *DevConfigServer) listenDevConfig(ctx context.Context, channel string, m
 					s.Log.Errorf("DevConfigServer: listenDevConfig(): DevConfig unmarshalling has failed: ", err)
 					return
 				}
-				go s.sendConfigPatch(ctx, &dc)
+				go s.sendConfigPatch(&dc)
 			}
 		case <-ctx.Done():
 			return
@@ -216,7 +209,7 @@ func (s *DevConfigServer) listenDevConfig(ctx context.Context, channel string, m
 	}
 }
 
-func (s *DevConfigServer) sendConfigPatch(ctx context.Context, c *entities.DevConfig) {
+func (s *DevConfigServer) sendConfigPatch(c *entities.DevConfig) {
 	cn := s.ConnPool.GetConn(c.MAC)
 	if cn == nil {
 		s.Log.Errorf("DevConfigServer: sendConfigPatch(): there isn't device connection with MAC [%s] in the pool", c.MAC)
@@ -229,11 +222,4 @@ func (s *DevConfigServer) sendConfigPatch(ctx context.Context, c *entities.DevCo
 		return
 	}
 	s.Log.Infof("send config patch: %s for device with MAC %s", c.Data, c.MAC)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		}
-	}
 }

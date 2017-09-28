@@ -45,10 +45,10 @@ func (s *WebServer) Run() {
 	go s.handleTermination()
 
 	r := mux.NewRouter()
-	r.HandleFunc("/devices", s.getDevsDataHandler).Methods(http.MethodGet)
-	r.HandleFunc("/devices/{id}/data", s.getDevDataHandler).Methods(http.MethodGet)
-	r.HandleFunc("/devices/{id}/config", s.getDevConfigHandler).Methods(http.MethodGet)
-	r.HandleFunc("/devices/{id}/config", s.patchDevConfigHandler).Methods(http.MethodPatch)
+	r.Handle("/devices", s.recoverWrap(s.getDevsDataHandler)).Methods(http.MethodGet)
+	r.Handle("/devices/{id}/data", s.recoverWrap(s.getDevDataHandler)).Methods(http.MethodGet)
+	r.Handle("/devices/{id}/config", s.recoverWrap(s.getDevConfigHandler)).Methods(http.MethodGet)
+	r.Handle("/devices/{id}/config", s.recoverWrap(s.patchDevConfigHandler)).Methods(http.MethodPatch)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./view/")))
 
 	port := fmt.Sprint(s.Server.Port)
@@ -77,6 +77,18 @@ func (s *WebServer) gracefulHalt() {
 	s.DevStorage.CloseConn()
 	s.Log.Infoln("WebServer has shut down")
 	s.Controller.Terminate()
+}
+
+func (s *WebServer) recoverWrap(h http.HandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if r := recover(); r != nil {
+				s.Log.Errorf("WebServer: panic: %s", r)
+				s.gracefulHalt()
+			}
+		}()
+		h.ServeHTTP(w, r)
+	})
 }
 
 func (s *WebServer) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
@@ -126,13 +138,6 @@ func (s *WebServer) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.Log.Errorf("WebServer: getDevConfigHandler(): panic: %s", r)
-			s.gracefulHalt()
-		}
-	}()
-
 	cn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("WebServer: getDevConfigHandler(): storage connection hasn't been established: %s", err)
@@ -152,7 +157,10 @@ func (s *WebServer) getDevConfigHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Write(dc.Data)
+	if _, err = w.Write(dc.Data); err != nil {
+		s.Log.Errorf("WebServer: getDevConfigHandler(): Write() has failed: %s", err)
+		return
+	}
 }
 
 func (s *WebServer) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {

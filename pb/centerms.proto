@@ -1,0 +1,36 @@
+syntax = "proto3";
+package pb;
+//protoc -I pb/ pb/centerms.proto --go_out=plugins=grpc:pb
+
+service DevService {
+    rpc GetDevsData(DevDataRequest) returns (DevDataResponse);
+}
+
+message DevConfigRequest {
+
+}
+
+message DevMetaRequest {
+
+}
+
+message DevDataRequest {
+
+}
+
+message DevConfigResponse {
+    string mac = 1;
+    repeated bytes data = 2;
+}
+
+message DevMetaResponse {
+    string type = 1;
+    string name = 2;
+    string mac = 3;
+}
+
+message DevDataResponse {
+    string site = 1;
+    DevMetaResponse meta = 2;
+    map<string, string> data = 3;
+}

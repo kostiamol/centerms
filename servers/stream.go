@@ -190,7 +190,6 @@ func (s *StreamServer) devDataStreamHandler(w http.ResponseWriter, r *http.Reque
 		s.Log.Errorf("StreamServer: devDataStreamHandler(): Upgrage() has failed: %s", err)
 		return
 	}
-
 	s.Conns.ConnMap[uri[2]].AddConn(cn)
 }
 
