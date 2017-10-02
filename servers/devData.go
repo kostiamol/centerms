@@ -8,9 +8,12 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	context "golang.org/x/net/context"
+
 	"github.com/giperboloid/centerms/entities"
+	"github.com/giperboloid/centerms/pb"
 	"github.com/pkg/errors"
-	"context"
+	"google.golang.org/grpc"
 )
 
 type DevDataServer struct {
@@ -59,6 +62,10 @@ func (s *DevDataServer) Run() {
 		}
 		s.Reconnect.Stop()
 	}
+
+	serv := grpc.NewServer()
+	pb.RegisterFridgeServiceServer(serv, s)
+	serv.Serve(ln)
 
 	for {
 		if cn, err := ln.Accept(); err == nil {
@@ -109,6 +116,11 @@ func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
 			}
 		}
 	}
+}
+
+func (s *DevDataServer) SaveFridgeData(ctx context.Context, r *pb.FridgeDataRequest) (*pb.FridgeDataResponse, error) {
+
+	return &pb.FridgeDataResponse{Status: "Data is here!"}, nil
 }
 
 func (s *DevDataServer) saveDevData(r *entities.Request) {

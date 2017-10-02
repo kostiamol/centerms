@@ -23,6 +23,10 @@ message DevConfigResponse {
     repeated bytes data = 2;
 }
 
+service FridgeService {
+    rpc SaveFridgeData(FridgeDataRequest) returns (FridgeDataResponse) {}
+}
+
 message DevMetaResponse {
     string type = 1;
     string name = 2;
@@ -33,4 +37,25 @@ message DevDataResponse {
     string site = 1;
     DevMetaResponse meta = 2;
     map<string, string> data = 3;
+}
+
+message DevMeta {
+    string type = 1;
+    string name = 2;
+    string mac = 3;
+}
+
+message FridgeData {
+    map<int64, float>TempCam1  = 1;
+    map<int64, float> TempCam2  = 2;
+}
+
+message FridgeDataRequest {
+    string action = 1;
+    int64 time = 2;
+    DevMeta meta = 3;
+    FridgeData data = 4;
+}
+message FridgeDataResponse {
+    string status = 1;
 }

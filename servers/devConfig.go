@@ -35,7 +35,7 @@ func (cp *ConnPool) AddConn(cn net.Conn, key string) {
 
 func (cp *ConnPool) GetConn(key string) net.Conn {
 	cp.Lock()
-	cp.Unlock()
+	defer cp.Unlock()
 	return cp.conn[key]
 }
 
@@ -137,41 +137,41 @@ func (s *DevConfigServer) ListenConnections(ctx context.Context) {
 	}
 }
 
-func (s *DevConfigServer) sendDefaultConfig(c net.Conn, cp *ConnPool) {
+func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *ConnPool) {
 	var req entities.Request
 	if err := json.NewDecoder(c).Decode(&req); err != nil {
 		s.Log.Errorf("DevConfigServer: sendDefaultConfig(): Request marshalling has failed: %s", err)
 		return
 	}
-	cp.AddConn(c, req.Meta.MAC)
+	p.AddConn(c, req.Meta.MAC)
 
-	cn, err := s.DevStorage.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("DevConfigServer: sendDefaultConfig(): storage connection hasn't been established: %s", err)
 		return
 	}
-	defer cn.CloseConn()
+	defer conn.CloseConn()
 
 	var dc *entities.DevConfig
-	if ok, err := cn.DevIsRegistered(&req.Meta); ok {
+	if ok, err := conn.DevIsRegistered(&req.Meta); ok {
 		if err != nil {
 			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): DevIsRegistered() has failed: %s", err)
 			return
 		}
 
-		dc, err = cn.GetDevConfig(&req.Meta)
+		dc, err = conn.GetDevConfig(&req.Meta)
 		if err != nil {
 			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): GetDevConfig() has failed: %s", err)
 			return
 		}
 	} else {
-		dc, err = cn.GetDevDefaultConfig(&req.Meta)
+		dc, err = conn.GetDevDefaultConfig(&req.Meta)
 		if err != nil {
 			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): GetDevDefaultConfig() has failed: %s", err)
 			return
 		}
 
-		if err = cn.SetDevConfig(&req.Meta, dc); err != nil {
+		if err = conn.SetDevConfig(&req.Meta, dc); err != nil {
 			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): SetDevConfig() has failed: %s", err)
 			return
 		}

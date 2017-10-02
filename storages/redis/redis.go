@@ -101,7 +101,7 @@ func (rds *RedisDevStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 	configKey := m.MAC + partialDevConfigKey
 	if ok, err := rds.Client.Exists(configKey); ok {
 		if err != nil {
-			errors.Wrap(err, "RedisDevStorage: GetDevsData(): Exists() has failed")
+			errors.Wrap(err, "RedisDevStorage: DevIsRegistered(): Exists() has failed")
 		}
 		return true, err
 	}
@@ -116,7 +116,7 @@ func (rds *RedisDevStorage) GetDevData(m *entities.DevMeta) (*entities.DevData, 
 	case "washer":
 		return rds.getWasherData(m)
 	default:
-		return &entities.DevData{}, errors.New("dev type is unknown")
+		return &entities.DevData{}, errors.New("RedisDevStorage: GetDevData(): dev type is unknown")
 	}
 }
 
@@ -127,7 +127,7 @@ func (rds *RedisDevStorage) SetDevData(r *entities.Request) error {
 	case "washer":
 		return rds.setWasherData(r)
 	default:
-		return errors.New("dev type is unknown")
+		return errors.New("RedisDevStorage: SetDevData(): dev type is unknown")
 	}
 }
 
@@ -138,7 +138,7 @@ func (rds *RedisDevStorage) GetDevConfig(m *entities.DevMeta) (*entities.DevConf
 	case "washer":
 		return rds.getWasherConfig(m)
 	default:
-		return &entities.DevConfig{}, errors.New("dev type is unknown")
+		return &entities.DevConfig{}, errors.New("RedisDevStorage: GetDevConfig(): dev type is unknown")
 	}
 }
 
@@ -149,7 +149,7 @@ func (rds *RedisDevStorage) SetDevConfig(m *entities.DevMeta, c *entities.DevCon
 	case "washer":
 		return rds.setWasherConfig(c)
 	default:
-		return errors.New("dev type is unknown")
+		return errors.New("RedisDevStorage: SetDevConfig(): dev type is unknown")
 	}
 }
 
@@ -160,7 +160,7 @@ func (rds *RedisDevStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.
 	case "washer":
 		return rds.getWasherDefaultConfig(m)
 	default:
-		return &entities.DevConfig{}, errors.New("dev type is unknown")
+		return &entities.DevConfig{}, errors.New("RedisDevStorage: GetDevDefaultConfig(): dev type is unknown")
 	}
 }
 
