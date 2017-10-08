@@ -165,12 +165,18 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *ConnPool) {
 			return
 		}
 	} else {
+		if err != nil {
+			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): DevIsRegistered() has failed: %s", err)
+			return
+		}
+
 		dc, err = conn.GetDevDefaultConfig(&req.Meta)
 		if err != nil {
 			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): GetDevDefaultConfig() has failed: %s", err)
 			return
 		}
 
+		s.Log.Printf("Meta: %+v, Config: %+v", req.Meta, dc)
 		if err = conn.SetDevConfig(&req.Meta, dc); err != nil {
 			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): SetDevConfig() has failed: %s", err)
 			return
@@ -210,13 +216,13 @@ func (s *DevConfigServer) listenDevConfig(ctx context.Context, channel string, m
 }
 
 func (s *DevConfigServer) sendConfigPatch(c *entities.DevConfig) {
-	cn := s.ConnPool.GetConn(c.MAC)
-	if cn == nil {
+	conn := s.ConnPool.GetConn(c.MAC)
+	if conn == nil {
 		s.Log.Errorf("DevConfigServer: sendConfigPatch(): there isn't device connection with MAC [%s] in the pool", c.MAC)
 		return
 	}
 
-	if _, err := cn.Write(c.Data); err != nil {
+	if _, err := conn.Write(c.Data); err != nil {
 		s.Log.Errorf("DevConfigServer: sendConfigPatch(): DevConfig.Data writing has failed: %s", err)
 		s.ConnPool.RemoveConn(c.MAC)
 		return

@@ -116,6 +116,7 @@ func (rds *RedisDevStorage) getFridgeConfig(m *entities.DevMeta) (*entities.DevC
 		errors.Wrap(err, "RedisDevStorage: getFridgeConfig(): TurnedOn field parsing has failed")
 		return nil, err
 	}
+
 	pcf, err := strconv.ParseInt(strings.Join(cf, " "), 10, 64)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getFridgeConfig(): CollectFreq field parsing has failed")
@@ -152,18 +153,28 @@ func (rds *RedisDevStorage) getFridgeConfig(m *entities.DevMeta) (*entities.DevC
 }
 
 func (rds *RedisDevStorage) setFridgeConfig(c *entities.DevConfig, m *entities.DevMeta) error {
-	cfc, err := rds.getFridgeConfig(m)
-	if err != nil {
-		errors.Wrap(err, "RedisDevStorage: setFridgeConfig(): getFridgeConfig() has failed")
-		return err
+	var cfc *entities.DevConfig
+	if ok, err := rds.DevIsRegistered(m); ok {
+		if err != nil {
+			errors.Wrapf(err,"RedisDevStorage: setFridgeConfig(): DevIsRegistered() has failed")
+			return err
+		}
+		cfc, err = rds.getFridgeConfig(m)
+	} else {
+		if err != nil {
+			errors.Wrapf(err,"RedisDevStorage: setFridgeConfig(): DevIsRegistered() has failed")
+			return err
+		}
+		cfc, err = rds.getFridgeDefaultConfig(m)
 	}
 
 	var fc entities.FridgeConfig
-	if err = json.Unmarshal(cfc.Data, &fc); err != nil {
+	if err := json.Unmarshal(cfc.Data, &fc); err != nil {
 		errors.Wrap(err, "RedisDevStorage: setFridgeConfig(): Unmarshal() has failed")
 		return err
 	}
-	if err = json.Unmarshal(c.Data, &fc); err != nil {
+
+	if err := json.Unmarshal(c.Data, &fc); err != nil {
 		errors.Wrap(err, "RedisDevStorage: setFridgeConfig(): Unmarshal() has failed")
 		return err
 	}
@@ -194,7 +205,7 @@ func (rds *RedisDevStorage) setFridgeConfig(c *entities.DevConfig, m *entities.D
 		rds.Client.Discard()
 		return err
 	}
-	_, err = rds.Client.Exec()
+	_, err := rds.Client.Exec()
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: setFridgeConfig(): Exec() has failed")
 		rds.Client.Discard()

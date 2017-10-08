@@ -3,7 +3,7 @@ package entities
 var (
 	DefaultFridgeConfig = FridgeConfig{
 		TurnedOn:    true,
-		StreamOn:    true,
+		StreamOn:    false,
 		CollectFreq: 1000,
 		SendFreq:    5000,
 	}
