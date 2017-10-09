@@ -18,7 +18,7 @@ type Notifier interface {
 type DevDataDriver interface {
 	GetDevsData() ([]DevData, error)
 	GetDevData(m *DevMeta) (*DevData, error)
-	SetDevData(r *Request) error
+	SaveDevData(r *Request) error
 }
 
 type DevConfigDriver interface {

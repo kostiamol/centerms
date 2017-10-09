@@ -1,30 +1,27 @@
 syntax = "proto3";
 package pb;
-//protoc -I pb/ pb/centerms.proto --go_out=plugins=grpc:pb
+
+// Run protoc -I pb/ pb/centerms.proto --go_out=plugins=grpc:pb
+// to generate centerms.pb.go
 
 service DevService {
-    rpc GetDevsData(DevDataRequest) returns (DevDataResponse);
+    rpc SaveDevData(SaveDevDataRequest) returns (SaveDevDataResponse) {}
 }
 
-message DevConfigRequest {
-
+message DevMeta {
+    string type = 1;
+    string name = 2;
+    string mac = 3;
 }
 
-message DevMetaRequest {
-
+message SaveDevDataRequest {
+    string action = 1;
+    int64 time = 2;
+    DevMeta meta = 3;
+    bytes data = 4;
 }
-
-message DevDataRequest {
-
-}
-
-message DevConfigResponse {
-    string mac = 1;
-    repeated bytes data = 2;
-}
-
-service FridgeService {
-    rpc SaveFridgeData(FridgeDataRequest) returns (FridgeDataResponse) {}
+message SaveDevDataResponse {
+    string status = 1;
 }
 
 message DevMetaResponse {
@@ -37,25 +34,4 @@ message DevDataResponse {
     string site = 1;
     DevMetaResponse meta = 2;
     map<string, string> data = 3;
-}
-
-message DevMeta {
-    string type = 1;
-    string name = 2;
-    string mac = 3;
-}
-
-message FridgeData {
-    map<int64, float>TempCam1  = 1;
-    map<int64, float> TempCam2  = 2;
-}
-
-message FridgeDataRequest {
-    string action = 1;
-    int64 time = 2;
-    DevMeta meta = 3;
-    FridgeData data = 4;
-}
-message FridgeDataResponse {
-    string status = 1;
 }

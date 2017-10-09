@@ -128,7 +128,7 @@ func (s *StreamServer) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamServer: Run(): panic leads to halt: %s", r)
+			s.Log.Errorf("StreamServer: Run(): panic(): %s", r)
 			cancel()
 			s.gracefulHalt()
 		}
@@ -172,7 +172,7 @@ func (s *StreamServer) handleTermination() {
 
 func (s *StreamServer) gracefulHalt() {
 	s.DevStorage.CloseConn()
-	s.Log.Infoln("StreamServer has shut down")
+	s.Log.Infoln("StreamServer is down")
 	s.Controller.Terminate()
 }
 

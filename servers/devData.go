@@ -8,7 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	context "golang.org/x/net/context"
+	"golang.org/x/net/context"
 
 	"github.com/giperboloid/centerms/entities"
 	"github.com/giperboloid/centerms/pb"
@@ -40,7 +40,7 @@ func (s *DevDataServer) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("DevDataServer: Run(): panic: %s", r)
+			s.Log.Errorf("DevDataServer: Run(): panic(): %s", r)
 			cancel()
 			s.gracefulHalt()
 		}
@@ -64,7 +64,7 @@ func (s *DevDataServer) Run() {
 	}
 
 	serv := grpc.NewServer()
-	pb.RegisterFridgeServiceServer(serv, s)
+	pb.RegisterDevServiceServer(serv, s)
 	serv.Serve(ln)
 
 	for {
@@ -87,7 +87,7 @@ func (s *DevDataServer) handleTermination() {
 
 func (s *DevDataServer) gracefulHalt() {
 	s.DevStorage.CloseConn()
-	s.Log.Infoln("DevDataServer has shut down")
+	s.Log.Infoln("DevDataServer is down")
 	s.Controller.Terminate()
 }
 
@@ -118,21 +118,31 @@ func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
 	}
 }
 
-func (s *DevDataServer) SaveFridgeData(ctx context.Context, r *pb.FridgeDataRequest) (*pb.FridgeDataResponse, error) {
-
-	return &pb.FridgeDataResponse{Status: "Data is here!"}, nil
+func (s *DevDataServer) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
+	req := entities.Request{
+		Action: r.Action,
+		Time:   r.Time,
+		Meta: entities.DevMeta{
+			Type: r.Meta.Type,
+			Name: r.Meta.Name,
+			MAC:  r.Meta.Mac,
+		},
+		Data: r.Data,
+	}
+	s.saveDevData(&req)
+	return &pb.SaveDevDataResponse{Status: "OK"}, nil
 }
 
 func (s *DevDataServer) saveDevData(r *entities.Request) {
-	cn, err := s.DevStorage.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("DevDataServer: saveDevData(): storage connection hasn't been established: %s", err)
 		return
 	}
-	defer cn.CloseConn()
+	defer conn.CloseConn()
 
-	if err = cn.SetDevData(r); err != nil {
-		s.Log.Errorf("DevDataServer: SetDevData() has failed: %s", err)
+	if err = conn.SaveDevData(r); err != nil {
+		s.Log.Errorf("DevDataServer: SaveDevData() has failed: %s", err)
 		return
 	}
 
@@ -146,13 +156,13 @@ func (s *DevDataServer) publishDevData(r *entities.Request, channel string) erro
 		return errors.Wrap(err, "DevDataServer: publishDevData(): Request marshalling has failed")
 	}
 
-	cn, err := s.DevStorage.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		return errors.Wrap(err, "DevDataServer: publishDevData(): storage connection hasn't been established")
 	}
-	defer cn.CloseConn()
+	defer conn.CloseConn()
 
-	if _, err = cn.Publish(channel, b); err != nil {
+	if _, err = conn.Publish(channel, b); err != nil {
 		return errors.Wrap(err, "DevDataServer: publishDevData(): publishing has failed")
 	}
 

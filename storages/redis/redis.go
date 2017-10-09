@@ -120,14 +120,14 @@ func (rds *RedisDevStorage) GetDevData(m *entities.DevMeta) (*entities.DevData, 
 	}
 }
 
-func (rds *RedisDevStorage) SetDevData(r *entities.Request) error {
+func (rds *RedisDevStorage) SaveDevData(r *entities.Request) error {
 	switch r.Meta.Type {
 	case "fridge":
-		return rds.setFridgeData(r)
+		return rds.saveFridgeData(r)
 	case "washer":
-		return rds.setWasherData(r)
+		return rds.saveWasherData(r)
 	default:
-		return errors.New("RedisDevStorage: SetDevData(): dev type is unknown")
+		return errors.New("RedisDevStorage: SaveDevData(): dev type is unknown")
 	}
 }
 

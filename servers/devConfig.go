@@ -74,7 +74,7 @@ func (s *DevConfigServer) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("DevConfigServer: Run(): panic: %s", r)
+			s.Log.Errorf("DevConfigServer: Run(): panic(): %s", r)
 			cancel()
 			s.gracefulHalt()
 		}

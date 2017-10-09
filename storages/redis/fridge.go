@@ -35,10 +35,10 @@ func (rds *RedisDevStorage) getFridgeData(m *entities.DevMeta) (*entities.DevDat
 	return &dd, err
 }
 
-func (rds *RedisDevStorage) setFridgeData(r *entities.Request) error {
+func (rds *RedisDevStorage) saveFridgeData(r *entities.Request) error {
 	var fd entities.FridgeData
 	if err := json.Unmarshal([]byte(r.Data), &fd); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setFridgeData(): FridgeData unmarshalling has failed")
+		errors.Wrap(err, "RedisDevStorage: saveFridgeData(): FridgeData unmarshalling has failed")
 		return err
 	}
 
@@ -46,17 +46,17 @@ func (rds *RedisDevStorage) setFridgeData(r *entities.Request) error {
 	paramsKey := devKey + partialDevParamsKey
 
 	if _, err := rds.Client.SAdd("devParamsKeys", paramsKey); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setFridgeData(): SAdd() has failed")
+		errors.Wrap(err, "RedisDevStorage: saveFridgeData(): SAdd() has failed")
 		rds.Client.Discard()
 		return err
 	}
 	if _, err := rds.Client.HMSet(devKey, "ReqTime", r.Time); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setFridgeData(): HMSet() has failed")
+		errors.Wrap(err, "RedisDevStorage: saveFridgeData(): HMSet() has failed")
 		rds.Client.Discard()
 		return err
 	}
 	if _, err := rds.Client.SAdd(paramsKey, "TempCam1", "TempCam2"); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setFridgeData(): SAdd() has failed")
+		errors.Wrap(err, "RedisDevStorage: saveFridgeData(): SAdd() has failed")
 		rds.Client.Discard()
 		return err
 	}
@@ -66,7 +66,7 @@ func (rds *RedisDevStorage) setFridgeData(r *entities.Request) error {
 		return err
 	}
 	if err := rds.setFridgeCameraData(fd.TempCam2, paramsKey+":"+"TempCam2"); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setFridgeData(): setFridgeCameraData() has failed")
+		errors.Wrap(err, "RedisDevStorage: saveFridgeData(): setFridgeCameraData() has failed")
 		rds.Client.Discard()
 		return err
 	}

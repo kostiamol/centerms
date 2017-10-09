@@ -35,10 +35,10 @@ func (rds *RedisDevStorage) getWasherData(m *entities.DevMeta) (*entities.DevDat
 	return &dd, err
 }
 
-func (rds *RedisDevStorage) setWasherData(r *entities.Request) error {
+func (rds *RedisDevStorage) saveWasherData(r *entities.Request) error {
 	var wd entities.WasherData
 	if err := json.NewDecoder(bytes.NewBuffer(r.Data)).Decode(&wd); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setWasherData(): WasherData decoding has failed")
+		errors.Wrap(err, "RedisDevStorage: saveWasherData(): WasherData decoding has failed")
 		return err
 	}
 
@@ -46,22 +46,22 @@ func (rds *RedisDevStorage) setWasherData(r *entities.Request) error {
 	paramsKey := devKey + partialDevParamsKey
 
 	if _, err := rds.Client.Multi(); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setWasherData(): Multi() has failed")
+		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Multi() has failed")
 		rds.Client.Discard()
 		return err
 	}
 	if err := rds.setTurnoversData(wd.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setWasherData(): setTurnoversData() has failed")
+		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setTurnoversData() has failed")
 		rds.Client.Discard()
 		return err
 	}
 	if err := rds.setWaterTempData(wd.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setWasherData(): setWaterTempData() has failed")
+		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setWaterTempData() has failed")
 		rds.Client.Discard()
 		return err
 	}
 	if _, err := rds.Client.Exec(); err != nil {
-		errors.Wrap(err, "RedisDevStorage: setWasherData(): Exec() has failed")
+		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Exec() has failed")
 		rds.Client.Discard()
 		return err
 	}
