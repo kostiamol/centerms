@@ -21,28 +21,28 @@ type ConnPool struct {
 	conn map[string]net.Conn
 }
 
-func (cp *ConnPool) Init() {
-	cp.Lock()
-	cp.conn = make(map[string]net.Conn)
-	cp.Unlock()
+func (p *ConnPool) Init() {
+	p.Lock()
+	p.conn = make(map[string]net.Conn)
+	p.Unlock()
 }
 
-func (cp *ConnPool) AddConn(cn net.Conn, key string) {
-	cp.Lock()
-	cp.conn[key] = cn
-	cp.Unlock()
+func (p *ConnPool) AddConn(cn net.Conn, key string) {
+	p.Lock()
+	p.conn[key] = cn
+	p.Unlock()
 }
 
-func (cp *ConnPool) GetConn(key string) net.Conn {
-	cp.Lock()
-	defer cp.Unlock()
-	return cp.conn[key]
+func (p *ConnPool) GetConn(key string) net.Conn {
+	p.Lock()
+	defer p.Unlock()
+	return p.conn[key]
 }
 
-func (cp *ConnPool) RemoveConn(key string) {
-	cp.Lock()
-	delete(cp.conn, key)
-	cp.Unlock()
+func (p *ConnPool) RemoveConn(key string) {
+	p.Lock()
+	delete(p.conn, key)
+	p.Unlock()
 }
 
 type DevConfigServer struct {
@@ -76,37 +76,36 @@ func (s *DevConfigServer) Run() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("DevConfigServer: Run(): panic(): %s", r)
 			cancel()
-			s.gracefulHalt()
+			s.handleTermination()
 		}
 	}()
 
-	go s.handleTermination()
+	go s.listenTermination()
 
 	s.ConnPool.Init()
-	go s.listenDevConfig(ctx, entities.DevConfigChan, s.Messages)
-
-	go s.ListenConnections(ctx)
+	go s.listenConfig(ctx, entities.DevConfigChan, s.Messages)
+	go s.listenConn(ctx)
 }
 
-func (s *DevConfigServer) handleTermination() {
+func (s *DevConfigServer) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
-			s.gracefulHalt()
+			s.handleTermination()
 			return
 		}
 	}
 }
 
-func (s *DevConfigServer) gracefulHalt() {
+func (s *DevConfigServer) handleTermination() {
 	s.DevStorage.CloseConn()
-	s.Log.Infoln("DevConfigServer has shut down")
+	s.Log.Infoln("DevConfigServer is down")
 	s.Controller.Terminate()
 }
 
-func (s *DevConfigServer) ListenConnections(ctx context.Context) {
-	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
-	for err != nil {
+func (s *DevConfigServer) listenConn(ctx context.Context) {
+	ln, _ := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
+	/*for err != nil {
 		for range s.Reconnect.C {
 			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 			if err != nil {
@@ -114,21 +113,21 @@ func (s *DevConfigServer) ListenConnections(ctx context.Context) {
 			}
 		}
 		s.Reconnect.Stop()
-
 		select {
 		case <-ctx.Done():
 			return
 		}
-	}
+	}*/
+	defer ln.Close()
 
 	for {
-		cn, err := ln.Accept()
+		conn, err := ln.Accept()
 		if err != nil {
 			s.Log.Errorf("DevConfigServer: Run(): Accept() has failed: %s", err)
 		}
 		s.Log.Info("DevConfigServer: connection with device has been established")
 
-		go s.sendDefaultConfig(cn, &s.ConnPool)
+		go s.sendDefaultConfig(conn, &s.ConnPool)
 
 		select {
 		case <-ctx.Done():
@@ -176,7 +175,7 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *ConnPool) {
 			return
 		}
 
-		s.Log.Printf("Meta: %+v, Config: %+v", req.Meta, dc)
+		s.Log.Printf("new device: Meta: %+v, DevConfig: %+v", req.Meta, dc)
 		if err = conn.SetDevConfig(&req.Meta, dc); err != nil {
 			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): SetDevConfig() has failed: %s", err)
 			return
@@ -189,22 +188,22 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *ConnPool) {
 	}
 }
 
-func (s *DevConfigServer) listenDevConfig(ctx context.Context, channel string, msg chan []string) {
-	cn, err := s.DevStorage.CreateConn()
+func (s *DevConfigServer) listenConfig(ctx context.Context, channel string, msg chan []string) {
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("DevConfigServer: listenDevConfig(): storage connection hasn't been established: ", err)
+		s.Log.Errorf("DevConfigServer: listenConfig(): storage connection hasn't been established: ", err)
 		return
 	}
-	defer cn.CloseConn()
+	defer conn.CloseConn()
 
 	var dc entities.DevConfig
-	cn.Subscribe(msg, channel)
+	conn.Subscribe(msg, channel)
 	for {
 		select {
 		case msg := <-msg:
 			if msg[0] == "message" {
 				if err := json.Unmarshal([]byte(msg[2]), &dc); err != nil {
-					s.Log.Errorf("DevConfigServer: listenDevConfig(): DevConfig unmarshalling has failed: ", err)
+					s.Log.Errorf("DevConfigServer: listenConfig(): DevConfig unmarshalling has failed: ", err)
 					return
 				}
 				go s.sendConfigPatch(&dc)

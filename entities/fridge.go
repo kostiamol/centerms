@@ -5,7 +5,7 @@ var (
 		TurnedOn:    true,
 		StreamOn:    false,
 		CollectFreq: 1000,
-		SendFreq:    5000,
+		SendFreq:    2000,
 	}
 )
 

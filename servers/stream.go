@@ -130,11 +130,11 @@ func (s *StreamServer) Run() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("StreamServer: Run(): panic(): %s", r)
 			cancel()
-			s.gracefulHalt()
+			s.handleTermination()
 		}
 	}()
 
-	go s.handleTermination()
+	go s.listenTermination()
 
 	cnn, err := s.DevStorage.CreateConn()
 	if err != nil {
@@ -160,17 +160,17 @@ func (s *StreamServer) Run() {
 	go s.Log.Fatal(srv.ListenAndServe())
 }
 
-func (s *StreamServer) handleTermination() {
+func (s *StreamServer) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
-			s.gracefulHalt()
+			s.handleTermination()
 			return
 		}
 	}
 }
 
-func (s *StreamServer) gracefulHalt() {
+func (s *StreamServer) handleTermination() {
 	s.DevStorage.CloseConn()
 	s.Log.Infoln("StreamServer is down")
 	s.Controller.Terminate()

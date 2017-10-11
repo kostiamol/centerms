@@ -38,11 +38,11 @@ func (s *WebServer) Run() {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("WebServer: Run(): panic: %s", r)
-			s.gracefulHalt()
+			s.handleTermination()
 		}
 	}()
 
-	go s.handleTermination()
+	go s.listenTermination()
 
 	r := mux.NewRouter()
 	r.Handle("/devices", s.recoverWrap(s.getDevsDataHandler)).Methods(http.MethodGet)
@@ -63,17 +63,17 @@ func (s *WebServer) Run() {
 	go s.Log.Fatal(srv.ListenAndServe())
 }
 
-func (s *WebServer) handleTermination() {
+func (s *WebServer) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
-			s.gracefulHalt()
+			s.handleTermination()
 			return
 		}
 	}
 }
 
-func (s *WebServer) gracefulHalt() {
+func (s *WebServer) handleTermination() {
 	s.DevStorage.CloseConn()
 	s.Log.Infoln("WebServer has shut down")
 	s.Controller.Terminate()
@@ -84,7 +84,7 @@ func (s *WebServer) recoverWrap(h http.HandlerFunc) http.Handler {
 		defer func() {
 			if r := recover(); r != nil {
 				s.Log.Errorf("WebServer: panic: %s", r)
-				s.gracefulHalt()
+				s.handleTermination()
 			}
 		}()
 		h.ServeHTTP(w, r)

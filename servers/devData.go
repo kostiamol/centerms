@@ -37,16 +37,16 @@ func NewDevDataServer(s entities.Server, ds entities.DevStorage, c entities.Serv
 
 func (s *DevDataServer) Run() {
 	s.Log.Infof("DevDataServer has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("DevDataServer: Run(): panic(): %s", r)
 			cancel()
-			s.gracefulHalt()
+			s.handleTermination()
 		}
 	}()
 
-	go s.handleTermination()
+	go s.listenTermination()
 
 	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 	if err != nil {
@@ -63,59 +63,25 @@ func (s *DevDataServer) Run() {
 		s.Reconnect.Stop()
 	}
 
-	serv := grpc.NewServer()
-	pb.RegisterDevServiceServer(serv, s)
-	serv.Serve(ln)
+	gs := grpc.NewServer()
+	pb.RegisterDevServiceServer(gs, s)
+	gs.Serve(ln)
+}
 
+func (s *DevDataServer) listenTermination() {
 	for {
-		if cn, err := ln.Accept(); err == nil {
-			s.Log.Info("DevDataServer: connection with device has been established")
-			go s.devDataHandler(ctx, cn)
+		select {
+		case <-s.Controller.StopChan:
+			s.handleTermination()
+			return
 		}
 	}
 }
 
 func (s *DevDataServer) handleTermination() {
-	for {
-		select {
-		case <-s.Controller.StopChan:
-			s.gracefulHalt()
-			return
-		}
-	}
-}
-
-func (s *DevDataServer) gracefulHalt() {
 	s.DevStorage.CloseConn()
 	s.Log.Infoln("DevDataServer is down")
 	s.Controller.Terminate()
-}
-
-func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
-	var req entities.Request
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			if err := json.NewDecoder(c).Decode(&req); err != nil {
-				s.Log.Errorf("DevDataServer: devDataHandler(): Request decoding has failed: %s", err)
-				return
-			}
-
-			go s.saveDevData(&req)
-
-			resp := entities.Response{
-				Status: 200,
-				Descr:  "DevData has been delivered",
-			}
-
-			if err := json.NewEncoder(c).Encode(&resp); err != nil {
-				s.Log.Errorf("DevDataServer: devDataHandler(): Response encoding has failed: %s", err)
-				return
-			}
-		}
-	}
 }
 
 func (s *DevDataServer) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
@@ -169,3 +135,32 @@ func (s *DevDataServer) publishDevData(r *entities.Request, channel string) erro
 	//s.Log.Infof("publish DevData for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)
 	return nil
 }
+
+/*
+func (s *DevDataServer) devDataHandler(ctx context.Context, c net.Conn) {
+	var req entities.Request
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			s.Log.Info("HELLO")
+			if err := json.NewDecoder(c).Decode(&req); err != nil {
+				s.Log.Errorf("DevDataServer: devDataHandler(): Request decoding has failed: %s", err)
+				return
+			}
+
+			go s.saveDevData(&req)
+
+			resp := entities.Response{
+				Status: 200,
+				Descr:  "DevData has been delivered",
+			}
+
+			if err := json.NewEncoder(c).Encode(&resp); err != nil {
+				s.Log.Errorf("DevDataServer: devDataHandler(): Response encoding has failed: %s", err)
+				return
+			}
+		}
+	}
+}*/

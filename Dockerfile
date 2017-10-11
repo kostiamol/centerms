@@ -1,5 +1,5 @@
 FROM alpine
-MAINTAINER giperboloid (kostyamol@gmail.com)
+MAINTAINER Molchanov Kostiantyn (kostyamol@gmail.com)
 
 EXPOSE 6379 3030 3000 8100 2540
 
