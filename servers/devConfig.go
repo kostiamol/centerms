@@ -14,6 +14,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/giperboloid/centerms/entities"
+	"google.golang.org/grpc"
+	"github.com/giperboloid/centerms/pb"
 )
 
 type ConnPool struct {
@@ -84,7 +86,25 @@ func (s *DevConfigServer) Run() {
 
 	s.ConnPool.Init()
 	go s.listenConfig(ctx, entities.DevConfigChan, s.Messages)
-	go s.listenConn(ctx)
+
+	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
+	if err != nil {
+		s.Log.Errorf("DevDataServer: Run(): Listen() has failed: %s", err)
+	}
+
+	for err != nil {
+		for range s.Reconnect.C {
+			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
+			if err != nil {
+				s.Log.Errorf("DevDataServer: Run(): Listen() has failed: %s", err)
+			}
+		}
+		s.Reconnect.Stop()
+	}
+
+	gs := grpc.NewServer()
+	pb.RegisterDevServiceServer(gs, s)
+	gs.Serve(ln)
 }
 
 func (s *DevConfigServer) listenTermination() {
@@ -103,50 +123,17 @@ func (s *DevConfigServer) handleTermination() {
 	s.Controller.Terminate()
 }
 
-func (s *DevConfigServer) listenConn(ctx context.Context) {
-	ln, _ := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
-	/*for err != nil {
-		for range s.Reconnect.C {
-			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
-			if err != nil {
-				s.Log.Errorf("DevConfigServer: Run(): Listen() has failed: %s", err)
-			}
-		}
-		s.Reconnect.Stop()
-		select {
-		case <-ctx.Done():
-			return
-		}
-	}*/
-	defer ln.Close()
-
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			s.Log.Errorf("DevConfigServer: Run(): Accept() has failed: %s", err)
-		}
-		s.Log.Info("DevConfigServer: connection with device has been established")
-
-		go s.sendDefaultConfig(conn, &s.ConnPool)
-
-		select {
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *ConnPool) {
+func (s *DevConfigServer) sendInitConfig(c net.Conn) {
 	var req entities.Request
 	if err := json.NewDecoder(c).Decode(&req); err != nil {
-		s.Log.Errorf("DevConfigServer: sendDefaultConfig(): Request marshalling has failed: %s", err)
+		s.Log.Errorf("DevConfigServer: sendInitConfig(): Request marshalling has failed: %s", err)
 		return
 	}
-	p.AddConn(c, req.Meta.MAC)
+	s.ConnPool.AddConn(c, req.Meta.MAC)
 
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("DevConfigServer: sendDefaultConfig(): storage connection hasn't been established: %s", err)
+		s.Log.Errorf("DevConfigServer: sendInitConfig(): storage connection hasn't been established: %s", err)
 		return
 	}
 	defer conn.CloseConn()
@@ -154,36 +141,36 @@ func (s *DevConfigServer) sendDefaultConfig(c net.Conn, p *ConnPool) {
 	var dc *entities.DevConfig
 	if ok, err := conn.DevIsRegistered(&req.Meta); ok {
 		if err != nil {
-			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): DevIsRegistered() has failed: %s", err)
+			s.Log.Errorf("DevConfigServer: sendInitConfig(): DevIsRegistered() has failed: %s", err)
 			return
 		}
 
 		dc, err = conn.GetDevConfig(&req.Meta)
 		if err != nil {
-			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): GetDevConfig() has failed: %s", err)
+			s.Log.Errorf("DevConfigServer: sendInitConfig(): GetDevConfig() has failed: %s", err)
 			return
 		}
 	} else {
 		if err != nil {
-			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): DevIsRegistered() has failed: %s", err)
+			s.Log.Errorf("DevConfigServer: sendInitConfig(): DevIsRegistered() has failed: %s", err)
 			return
 		}
 
 		dc, err = conn.GetDevDefaultConfig(&req.Meta)
 		if err != nil {
-			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): GetDevDefaultConfig() has failed: %s", err)
+			s.Log.Errorf("DevConfigServer: sendInitConfig(): GetDevDefaultConfig() has failed: %s", err)
 			return
 		}
 
 		s.Log.Printf("new device: Meta: %+v, DevConfig: %+v", req.Meta, dc)
 		if err = conn.SetDevConfig(&req.Meta, dc); err != nil {
-			s.Log.Errorf("DevConfigServer: sendDefaultConfig(): SetDevConfig() has failed: %s", err)
+			s.Log.Errorf("DevConfigServer: sendInitConfig(): SetDevConfig() has failed: %s", err)
 			return
 		}
 	}
 
 	if _, err = c.Write(dc.Data); err != nil {
-		s.Log.Errorf("DevConfigServer: sendDefaultConfig(): DevConfig.Data writing has failed: %s", err)
+		s.Log.Errorf("DevConfigServer: sendInitConfig(): DevConfig.Data writing has failed: %s", err)
 		return
 	}
 }
