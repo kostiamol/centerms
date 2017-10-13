@@ -203,7 +203,7 @@ func (s *DevConfigService) listenConfig(ctx context.Context, channel string, msg
 	}
 }
 
-func (s *DevConfigService) sendConfigPatch(c *entities.DevConfig) {
+func (s *DevConfigService) etalon(c *entities.DevConfig) {
 	conn := s.ConnPool.GetConn(c.MAC)
 	if conn == nil {
 		s.Log.Errorf("DevConfigService: sendConfigPatch(): there isn't device connection with MAC [%s] in the pool", c.MAC)
@@ -216,4 +216,39 @@ func (s *DevConfigService) sendConfigPatch(c *entities.DevConfig) {
 		return
 	}
 	s.Log.Infof("send config patch: %s for device with MAC %s", c.Data, c.MAC)
+}
+
+func (s *DevConfigService) sendConfigPatch(c *entities.DevConfig) {
+	pbcp := pb.PatchDevConfigRequest{
+		Config: c.Data,
+	}
+	conn := s.dialDevice()
+	defer conn.Close()
+
+	client := pb.NewDevServiceClient(conn)
+
+	r, err := client.PatchDevConfig(context.Background(), &pbcp)
+	if err != nil {
+		s.Log.Error("sendConfigPatch(): PatchDevConfig() has failed: ", err)
+	}
+
+	s.Log.Infof("centerms has received data with status: %s", r.Status)
+}
+
+func (s *DevConfigService) dialDevice() *grpc.ClientConn {
+	var count int
+	conn, err := grpc.Dial(s.Server.Host+":"+"4000", grpc.WithInsecure())
+	for err != nil {
+		if count >= 5 {
+			panic("dialDevice(): can't connect to the devicems")
+		}
+		time.Sleep(time.Second)
+		conn, err = grpc.Dial("127.0.0.1"+":"+"4000", grpc.WithInsecure())
+		if err != nil {
+			s.Log.Errorf("getDial(): %s", err)
+		}
+		count++
+		s.Log.Infof("reconnect count: %d", count)
+	}
+	return conn
 }

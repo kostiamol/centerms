@@ -13,7 +13,7 @@ func main() {
 	var (
 		st        = &storages.RedisStorage{}
 		ctrl      = entities.ServicesController{StopChan: make(chan struct{})}
-		reconnect = time.NewTicker(time.Second * 1)
+		reconnect = time.NewTicker(time.Second * 3)
 	)
 	st.SetServer(&StorageServer)
 
