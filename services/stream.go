@@ -1,4 +1,4 @@
-package servers
+package services
 
 import (
 	"encoding/json"
@@ -90,17 +90,17 @@ func NewPubSub(roomIDForWSPubSub string, subWSChannel chan []string) *PubSub {
 	}
 }
 
-type StreamServer struct {
+type StreamService struct {
 	Server     entities.Server
 	DevStorage entities.DevStorage
-	Controller entities.ServersController
+	Controller entities.ServicesController
 	Log        *logrus.Logger
 	Conns      StreamConns
 	PubSub     PubSub
 	Upgrader   websocket.Upgrader
 }
 
-func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.ServersController, l *logrus.Logger) *StreamServer {
+func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.ServicesController, l *logrus.Logger) *StreamService {
 	u := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -112,7 +112,7 @@ func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.Serve
 		},
 	}
 
-	return &StreamServer{
+	return &StreamService{
 		Server:     s,
 		DevStorage: st,
 		Controller: c,
@@ -123,12 +123,12 @@ func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.Serve
 	}
 }
 
-func (s *StreamServer) Run() {
-	s.Log.Infof("StreamServer has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
+func (s *StreamService) Run() {
+	s.Log.Infof("StreamService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamServer: Run(): panic(): %s", r)
+			s.Log.Errorf("StreamService: Run(): panic(): %s", r)
 			cancel()
 			s.handleTermination()
 		}
@@ -138,7 +138,7 @@ func (s *StreamServer) Run() {
 
 	cnn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("StreamServer: Run(): storage connection hasn't been established: %s", err)
+		s.Log.Errorf("StreamService: Run(): storage connection hasn't been established: %s", err)
 		return
 	}
 	defer cnn.CloseConn()
@@ -160,7 +160,7 @@ func (s *StreamServer) Run() {
 	go s.Log.Fatal(srv.ListenAndServe())
 }
 
-func (s *StreamServer) listenTermination() {
+func (s *StreamService) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
@@ -170,13 +170,13 @@ func (s *StreamServer) listenTermination() {
 	}
 }
 
-func (s *StreamServer) handleTermination() {
+func (s *StreamService) handleTermination() {
 	s.DevStorage.CloseConn()
-	s.Log.Infoln("StreamServer is down")
+	s.Log.Infoln("StreamService is down")
 	s.Controller.Terminate()
 }
 
-func (s *StreamServer) devDataStreamHandler(w http.ResponseWriter, r *http.Request) {
+func (s *StreamService) devDataStreamHandler(w http.ResponseWriter, r *http.Request) {
 	uri := strings.Split(r.URL.String(), "/")
 
 	s.Conns.Lock()
@@ -187,13 +187,13 @@ func (s *StreamServer) devDataStreamHandler(w http.ResponseWriter, r *http.Reque
 
 	cn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		s.Log.Errorf("StreamServer: devDataStreamHandler(): Upgrage() has failed: %s", err)
+		s.Log.Errorf("StreamService: devDataStreamHandler(): Upgrage() has failed: %s", err)
 		return
 	}
 	s.Conns.ConnMap[uri[2]].AddConn(cn)
 }
 
-func (s *StreamServer) Subscribe(ctx context.Context, st entities.DevStorage) {
+func (s *StreamService) Subscribe(ctx context.Context, st entities.DevStorage) {
 	st.Subscribe(s.PubSub.SubWSChann, s.PubSub.RoomIDForWSPubSub)
 	for {
 		select {
@@ -207,7 +207,7 @@ func (s *StreamServer) Subscribe(ctx context.Context, st entities.DevStorage) {
 	}
 }
 
-func (s *StreamServer) Unsubscribe(ctx context.Context) {
+func (s *StreamService) Unsubscribe(ctx context.Context) {
 	for {
 		select {
 		case connAddr := <-s.Conns.ConnChanCloseWS:
@@ -223,10 +223,10 @@ func (s *StreamServer) Unsubscribe(ctx context.Context) {
 	}
 }
 
-func (s *StreamServer) Publish(msgs []string) error {
+func (s *StreamService) Publish(msgs []string) error {
 	var req entities.Request
 	if err := json.Unmarshal([]byte(msgs[2]), &req); err != nil {
-		errors.Wrap(err, "StreamServer: Publish(): Request unmarshalling has failed")
+		errors.Wrap(err, "StreamService: Publish(): Request unmarshalling has failed")
 		return err
 	}
 
@@ -234,7 +234,7 @@ func (s *StreamServer) Publish(msgs []string) error {
 		s.Conns.ConnMap[req.Meta.MAC].Lock()
 		for _, val := range s.Conns.ConnMap[req.Meta.MAC].Conns {
 			if err := val.WriteMessage(1, []byte(msgs[2])); err != nil {
-				errors.Errorf("StreamServer: Publish(): connection %v has been closed", val.RemoteAddr())
+				errors.Errorf("StreamService: Publish(): connection %v has been closed", val.RemoteAddr())
 				s.Conns.ConnChanCloseWS <- val
 				return err
 			}

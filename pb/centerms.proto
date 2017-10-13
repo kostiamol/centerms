@@ -4,9 +4,9 @@ package pb;
 // Run protoc -I pb/ pb/centerms.proto --go_out=plugins=grpc:pb
 // to generate centerms.pb.go
 
-service DevService {
+service CenterService {
+    rpc SetDevInitConfig(SetDevInitConfigRequest) returns (SetDevInitConfigResponse) {}
     rpc SaveDevData(SaveDevDataRequest) returns (SaveDevDataResponse) {}
-    rpc SetInitConfig(SetInitConfigRequest) returns (SetInitConfigResponse) {}
 }
 
 message DevMeta {
@@ -15,20 +15,30 @@ message DevMeta {
     string mac = 3;
 }
 
+message SetDevInitConfigRequest {
+    int64 time = 1;
+    DevMeta meta = 2;
+}
+message SetDevInitConfigResponse {
+    bytes config = 1;
+}
+
 message SaveDevDataRequest {
-    int64 time = 2;
-    DevMeta meta = 3;
-    bytes data = 4;
+    int64 time = 1;
+    DevMeta meta = 2;
+    bytes data = 3;
 }
 message SaveDevDataResponse {
     string status = 1;
 }
 
-message SetInitConfigRequest {
-    int64 time = 1;
-    DevMeta meta = 2;
+service DevService {
+    rpc PatchDevConfig(PatchDevConfigRequest) returns (PatchDevConfigResponse) {}
 }
 
-message SetInitConfigResponse {
+message PatchDevConfigRequest {
+    bytes config = 1;
+}
+message PatchDevConfigResponse {
     string status = 1;
 }

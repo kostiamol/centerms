@@ -52,11 +52,6 @@ type Request struct {
 	Data   json.RawMessage `json:"data"`
 }
 
-type Response struct {
-	Status int    `json:"status"`
-	Descr  string `json:"descr"`
-}
-
 type DevConfig struct {
 	MAC  string          `json:"mac"`
 	Data json.RawMessage `json:"data"`
@@ -74,16 +69,16 @@ type DevData struct {
 	Data map[string][]string `json:"data"`
 }
 
-type ServersController struct {
+type ServicesController struct {
 	StopChan chan struct{}
 }
 
-func (c *ServersController) Wait() {
+func (c *ServicesController) Wait() {
 	<-c.StopChan
 	<-time.NewTimer(time.Second * 3).C
 }
 
-func (c *ServersController) Terminate() {
+func (c *ServicesController) Terminate() {
 	select {
 	case <-c.StopChan:
 	default:

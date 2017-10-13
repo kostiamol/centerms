@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (rds *RedisDevStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, error) {
+func (rds *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	devParamsKey := devKey + partialDevParamsKey
 
@@ -35,7 +35,7 @@ func (rds *RedisDevStorage) getWasherData(m *entities.DevMeta) (*entities.DevDat
 	return &dd, err
 }
 
-func (rds *RedisDevStorage) saveWasherData(r *entities.Request) error {
+func (rds *RedisStorage) saveWasherData(r *entities.Request) error {
 	var wd entities.WasherData
 	if err := json.NewDecoder(bytes.NewBuffer(r.Data)).Decode(&wd); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): WasherData decoding has failed")
@@ -69,7 +69,7 @@ func (rds *RedisDevStorage) saveWasherData(r *entities.Request) error {
 	return nil
 }
 
-func (rds *RedisDevStorage) setTurnoversData(TempCam map[int64]int64, key string) error {
+func (rds *RedisStorage) setTurnoversData(TempCam map[int64]int64, key string) error {
 	for t, v := range TempCam {
 		_, err := rds.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+strconv.FormatInt(int64(v), 10))
@@ -82,7 +82,7 @@ func (rds *RedisDevStorage) setTurnoversData(TempCam map[int64]int64, key string
 	return nil
 }
 
-func (rds *RedisDevStorage) setWaterTempData(TempCam map[int64]float32, key string) error {
+func (rds *RedisStorage) setWaterTempData(TempCam map[int64]float32, key string) error {
 	for t, v := range TempCam {
 		_, err := rds.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+
@@ -96,7 +96,7 @@ func (rds *RedisDevStorage) setWaterTempData(TempCam map[int64]float32, key stri
 	return nil
 }
 
-func (rds *RedisDevStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (rds *RedisStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	config, err := rds.getWasherDefaultConfig(m)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherConfig(): getWasherDefaultConfig() has failed")
@@ -123,7 +123,7 @@ func (rds *RedisDevStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevC
 	return config, err
 }
 
-func (rds *RedisDevStorage) setWasherConfig(c *entities.DevConfig) error {
+func (rds *RedisStorage) setWasherConfig(c *entities.DevConfig) error {
 	var tm *entities.TimerMode
 	err := json.NewDecoder(bytes.NewBuffer(c.Data)).Decode(&tm)
 	if err != nil {
@@ -139,7 +139,7 @@ func (rds *RedisDevStorage) setWasherConfig(c *entities.DevConfig) error {
 	return err
 }
 
-func (rds *RedisDevStorage) getWasherDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (rds *RedisStorage) getWasherDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	b, err := json.Marshal(entities.StandardMode)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherDefaultConfig(): WasherConfig marshalling has failed")
