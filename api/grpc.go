@@ -3,6 +3,6 @@ package api
 import "github.com/giperboloid/centerms/services"
 
 type API struct {
-	Config services.DevConfigService
-	Data services.DevDataService
+	Config services.ConfigService
+	Data services.DataService
 }

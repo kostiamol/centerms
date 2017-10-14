@@ -17,19 +17,19 @@ func main() {
 	)
 	st.SetServer(&StorageServer)
 
-	ws := services.NewWebServer(entities.Server{Host: localhost, Port: webPort}, st, ctrl, logrus.New())
-	go ws.Run()
+	cs := services.NewConfigServer(entities.Server{Host: localhost, Port: devConfigPort}, st, ctrl, logrus.New(),
+		reconnect, make(chan []string))
+	go cs.Run()
+
+	ds := services.NewDataService(entities.Server{Host: localhost, Port: devDataPort}, st, ctrl, logrus.New(),
+		reconnect)
+	go ds.Run()
 
 	ss := services.NewStreamServer(entities.Server{Host: localhost, Port: streamPort}, st, ctrl, logrus.New())
 	go ss.Run()
 
-	dds := services.NewDevDataService(entities.Server{Host: localhost, Port: devDataPort}, st, ctrl, logrus.New(),
-		reconnect)
-	go dds.Run()
-
-	dcs := services.NewDevConfigServer(entities.Server{Host: localhost, Port: devConfigPort}, st, ctrl, logrus.New(),
-		reconnect, make(chan []string))
-	go dcs.Run()
+	ws := services.NewWebServer(entities.Server{Host: localhost, Port: webPort}, st, ctrl, logrus.New())
+	go ws.Run()
 
 	ctrl.Wait()
 	logrus.Info("centerms is down")

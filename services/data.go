@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-type DevDataService struct {
+type DataService struct {
 	Server     entities.Server
 	DevStorage entities.DevStorage
 	Controller entities.ServicesController
@@ -24,9 +24,9 @@ type DevDataService struct {
 	Reconnect  *time.Ticker
 }
 
-func NewDevDataService(s entities.Server, ds entities.DevStorage, c entities.ServicesController,
-	l *logrus.Logger, r *time.Ticker) *DevDataService {
-	return &DevDataService{
+func NewDataService(s entities.Server, ds entities.DevStorage, c entities.ServicesController,
+	l *logrus.Logger, r *time.Ticker) *DataService {
+	return &DataService{
 		Server:     s,
 		DevStorage: ds,
 		Controller: c,
@@ -35,12 +35,12 @@ func NewDevDataService(s entities.Server, ds entities.DevStorage, c entities.Ser
 	}
 }
 
-func (s *DevDataService) Run() {
-	s.Log.Infof("DevDataService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
+func (s *DataService) Run() {
+	s.Log.Infof("DataService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
 	_, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("DevDataService: Run(): panic(): %s", r)
+			s.Log.Errorf("DataService: Run(): panic(): %s", r)
 			cancel()
 			s.handleTermination()
 		}
@@ -50,14 +50,14 @@ func (s *DevDataService) Run() {
 
 	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 	if err != nil {
-		s.Log.Errorf("DevDataService: Run(): Listen() has failed: %s", err)
+		s.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
 	}
 
 	for err != nil {
 		for range s.Reconnect.C {
 			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 			if err != nil {
-				s.Log.Errorf("DevDataService: Run(): Listen() has failed: %s", err)
+				s.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
 			}
 		}
 		s.Reconnect.Stop()
@@ -68,7 +68,7 @@ func (s *DevDataService) Run() {
 	gs.Serve(ln)
 }
 
-func (s *DevDataService) listenTermination() {
+func (s *DataService) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
@@ -78,13 +78,13 @@ func (s *DevDataService) listenTermination() {
 	}
 }
 
-func (s *DevDataService) handleTermination() {
+func (s *DataService) handleTermination() {
 	s.DevStorage.CloseConn()
-	s.Log.Infoln("DevDataService is down")
+	s.Log.Infoln("DataService is down")
 	s.Controller.Terminate()
 }
 
-func (s *DevDataService) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
+func (s *DataService) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
 	req := entities.Request{
 		Time:   r.Time,
 		Meta: entities.DevMeta{
@@ -98,20 +98,20 @@ func (s *DevDataService) SaveDevData(ctx context.Context, r *pb.SaveDevDataReque
 	return &pb.SaveDevDataResponse{Status: "OK"}, nil
 }
 
-func (s *DevDataService) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigRequest) (*pb.SetDevInitConfigResponse, error) {
+func (s *DataService) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigRequest) (*pb.SetDevInitConfigResponse, error) {
 	return nil, nil
 }
 
-func (s *DevDataService) saveDevData(r *entities.Request) {
+func (s *DataService) saveDevData(r *entities.Request) {
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("DevDataService: saveDevData(): storage connection hasn't been established: %s", err)
+		s.Log.Errorf("DataService: saveDevData(): storage connection hasn't been established: %s", err)
 		return
 	}
 	defer conn.CloseConn()
 
 	if err = conn.SaveDevData(r); err != nil {
-		s.Log.Errorf("DevDataService: SaveDevData() has failed: %s", err)
+		s.Log.Errorf("DataService: SaveDevData() has failed: %s", err)
 		return
 	}
 
@@ -119,20 +119,20 @@ func (s *DevDataService) saveDevData(r *entities.Request) {
 	go s.publishDevData(r, entities.DevDataChan)
 }
 
-func (s *DevDataService) publishDevData(r *entities.Request, channel string) error {
+func (s *DataService) publishDevData(r *entities.Request, channel string) error {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return errors.Wrap(err, "DevDataService: publishDevData(): Request marshalling has failed")
+		return errors.Wrap(err, "DataService: publishDevData(): Request marshalling has failed")
 	}
 
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		return errors.Wrap(err, "DevDataService: publishDevData(): storage connection hasn't been established")
+		return errors.Wrap(err, "DataService: publishDevData(): storage connection hasn't been established")
 	}
 	defer conn.CloseConn()
 
 	if _, err = conn.Publish(channel, b); err != nil {
-		return errors.Wrap(err, "DevDataService: publishDevData(): publishing has failed")
+		return errors.Wrap(err, "DataService: publishDevData(): publishing has failed")
 	}
 
 	//s.Log.Infof("publish DevData for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)

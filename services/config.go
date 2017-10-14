@@ -47,7 +47,7 @@ func (p *ConnPool) RemoveConn(key string) {
 	p.Unlock()
 }
 
-type DevConfigService struct {
+type ConfigService struct {
 	Server     entities.Server
 	DevStorage entities.DevStorage
 	Controller entities.ServicesController
@@ -57,11 +57,11 @@ type DevConfigService struct {
 	Messages   chan []string
 }
 
-func NewDevConfigServer(s entities.Server, ds entities.DevStorage, c entities.ServicesController, l *logrus.Logger,
-	r *time.Ticker, msgs chan []string) *DevConfigService {
+func NewConfigServer(s entities.Server, ds entities.DevStorage, c entities.ServicesController, l *logrus.Logger,
+	r *time.Ticker, msgs chan []string) *ConfigService {
 	l.Out = os.Stdout
 
-	return &DevConfigService{
+	return &ConfigService{
 		Server:     s,
 		DevStorage: ds,
 		Controller: c,
@@ -71,12 +71,12 @@ func NewDevConfigServer(s entities.Server, ds entities.DevStorage, c entities.Se
 	}
 }
 
-func (s *DevConfigService) Run() {
-	s.Log.Infof("DevConfigService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
+func (s *ConfigService) Run() {
+	s.Log.Infof("ConfigService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("DevConfigService: Run(): panic(): %s", r)
+			s.Log.Errorf("ConfigService: Run(): panic(): %s", r)
 			cancel()
 			s.handleTermination()
 		}
@@ -89,14 +89,14 @@ func (s *DevConfigService) Run() {
 
 	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 	if err != nil {
-		s.Log.Errorf("DevDataService: Run(): Listen() has failed: %s", err)
+		s.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
 	}
 
 	for err != nil {
 		for range s.Reconnect.C {
 			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
 			if err != nil {
-				s.Log.Errorf("DevDataService: Run(): Listen() has failed: %s", err)
+				s.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
 			}
 		}
 		s.Reconnect.Stop()
@@ -107,7 +107,7 @@ func (s *DevConfigService) Run() {
 	gs.Serve(ln)
 }
 
-func (s *DevConfigService) listenTermination() {
+func (s *ConfigService) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
@@ -117,16 +117,16 @@ func (s *DevConfigService) listenTermination() {
 	}
 }
 
-func (s *DevConfigService) handleTermination() {
+func (s *ConfigService) handleTermination() {
 	s.DevStorage.CloseConn()
-	s.Log.Infoln("DevConfigService is down")
+	s.Log.Infoln("ConfigService is down")
 	s.Controller.Terminate()
 }
 
-func (s *DevConfigService) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigRequest) (*pb.SetDevInitConfigResponse, error) {
+func (s *ConfigService) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigRequest) (*pb.SetDevInitConfigResponse, error) {
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("DevConfigService: sendInitConfig(): storage connection hasn't been established: %s", err)
+		s.Log.Errorf("ConfigService: sendInitConfig(): storage connection hasn't been established: %s", err)
 		return nil, err
 	}
 	defer conn.CloseConn()
@@ -140,30 +140,30 @@ func (s *DevConfigService) SetDevInitConfig(ctx context.Context, r *pb.SetDevIni
 	var dc *entities.DevConfig
 	if ok, err := conn.DevIsRegistered(&req); ok {
 		if err != nil {
-			s.Log.Errorf("DevConfigService: sendInitConfig(): DevIsRegistered() has failed: %s", err)
+			s.Log.Errorf("ConfigService: sendInitConfig(): DevIsRegistered() has failed: %s", err)
 			return nil, err
 		}
 
 		dc, err = conn.GetDevConfig(&req)
 		if err != nil {
-			s.Log.Errorf("DevConfigService: sendInitConfig(): GetDevConfig() has failed: %s", err)
+			s.Log.Errorf("ConfigService: sendInitConfig(): GetDevConfig() has failed: %s", err)
 			return nil, err
 		}
 	} else {
 		if err != nil {
-			s.Log.Errorf("DevConfigService: sendInitConfig(): DevIsRegistered() has failed: %s", err)
+			s.Log.Errorf("ConfigService: sendInitConfig(): DevIsRegistered() has failed: %s", err)
 			return nil, err
 		}
 
 		dc, err = conn.GetDevDefaultConfig(&req)
 		if err != nil {
-			s.Log.Errorf("DevConfigService: sendInitConfig(): GetDevDefaultConfig() has failed: %s", err)
+			s.Log.Errorf("ConfigService: sendInitConfig(): GetDevDefaultConfig() has failed: %s", err)
 			return nil, err
 		}
 
 		s.Log.Printf("new device: Meta: %+v, DevConfig: %+v", req, dc)
 		if err = conn.SetDevConfig(&req, dc); err != nil {
-			s.Log.Errorf("DevConfigService: sendInitConfig(): SetDevConfig() has failed: %s", err)
+			s.Log.Errorf("ConfigService: sendInitConfig(): SetDevConfig() has failed: %s", err)
 			return nil, err
 		}
 	}
@@ -173,14 +173,14 @@ func (s *DevConfigService) SetDevInitConfig(ctx context.Context, r *pb.SetDevIni
 	}, nil
 }
 
-func (s *DevConfigService) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
+func (s *ConfigService) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
 	return nil, nil
 }
 
-func (s *DevConfigService) listenConfig(ctx context.Context, channel string, msg chan []string) {
+func (s *ConfigService) listenConfig(ctx context.Context, channel string, msg chan []string) {
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("DevConfigService: listenConfig(): storage connection hasn't been established: ", err)
+		s.Log.Errorf("ConfigService: listenConfig(): storage connection hasn't been established: ", err)
 		return
 	}
 	defer conn.CloseConn()
@@ -192,7 +192,7 @@ func (s *DevConfigService) listenConfig(ctx context.Context, channel string, msg
 		case msg := <-msg:
 			if msg[0] == "message" {
 				if err := json.Unmarshal([]byte(msg[2]), &dc); err != nil {
-					s.Log.Errorf("DevConfigService: listenConfig(): DevConfig unmarshalling has failed: ", err)
+					s.Log.Errorf("ConfigService: listenConfig(): DevConfig unmarshalling has failed: ", err)
 					return
 				}
 				go s.sendConfigPatch(&dc)
@@ -203,22 +203,22 @@ func (s *DevConfigService) listenConfig(ctx context.Context, channel string, msg
 	}
 }
 
-func (s *DevConfigService) etalon(c *entities.DevConfig) {
+func (s *ConfigService) etalon(c *entities.DevConfig) {
 	conn := s.ConnPool.GetConn(c.MAC)
 	if conn == nil {
-		s.Log.Errorf("DevConfigService: sendConfigPatch(): there isn't device connection with MAC [%s] in the pool", c.MAC)
+		s.Log.Errorf("ConfigService: sendConfigPatch(): there isn't device connection with MAC [%s] in the pool", c.MAC)
 		return
 	}
 
 	if _, err := conn.Write(c.Data); err != nil {
-		s.Log.Errorf("DevConfigService: sendConfigPatch(): DevConfig.Data writing has failed: %s", err)
+		s.Log.Errorf("ConfigService: sendConfigPatch(): DevConfig.Data writing has failed: %s", err)
 		s.ConnPool.RemoveConn(c.MAC)
 		return
 	}
 	s.Log.Infof("send config patch: %s for device with MAC %s", c.Data, c.MAC)
 }
 
-func (s *DevConfigService) sendConfigPatch(c *entities.DevConfig) {
+func (s *ConfigService) sendConfigPatch(c *entities.DevConfig) {
 	pbcp := pb.PatchDevConfigRequest{
 		Config: c.Data,
 	}
@@ -235,7 +235,7 @@ func (s *DevConfigService) sendConfigPatch(c *entities.DevConfig) {
 	s.Log.Infof("centerms has received data with status: %s", r.Status)
 }
 
-func (s *DevConfigService) dialDevice() *grpc.ClientConn {
+func (s *ConfigService) dialDevice() *grpc.ClientConn {
 	var count int
 	conn, err := grpc.Dial(s.Server.Host+":"+"4000", grpc.WithInsecure())
 	for err != nil {
