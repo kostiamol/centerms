@@ -24,7 +24,6 @@ type WebService struct {
 
 func NewWebServer(s entities.Server, ds entities.DevStorage, sc entities.ServicesController, l *logrus.Logger) *WebService {
 	l.Out = os.Stdout
-
 	return &WebService{
 		Server:     s,
 		DevStorage: ds,

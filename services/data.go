@@ -14,6 +14,7 @@ import (
 	"github.com/giperboloid/centerms/pb"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"os"
 )
 
 type DataService struct {
@@ -26,6 +27,7 @@ type DataService struct {
 
 func NewDataService(s entities.Server, ds entities.DevStorage, c entities.ServicesController,
 	l *logrus.Logger, r *time.Ticker) *DataService {
+	l.Out = os.Stdout
 	return &DataService{
 		Server:     s,
 		DevStorage: ds,
@@ -86,7 +88,7 @@ func (s *DataService) handleTermination() {
 
 func (s *DataService) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
 	req := entities.Request{
-		Time:   r.Time,
+		Time: r.Time,
 		Meta: entities.DevMeta{
 			Type: r.Meta.Type,
 			Name: r.Meta.Name,
@@ -138,4 +140,3 @@ func (s *DataService) publishDevData(r *entities.Request, channel string) error 
 	//s.Log.Infof("publish DevData for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)
 	return nil
 }
-

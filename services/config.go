@@ -60,7 +60,6 @@ type ConfigService struct {
 func NewConfigServer(s entities.Server, ds entities.DevStorage, c entities.ServicesController, l *logrus.Logger,
 	r *time.Ticker, msgs chan []string) *ConfigService {
 	l.Out = os.Stdout
-
 	return &ConfigService{
 		Server:     s,
 		DevStorage: ds,

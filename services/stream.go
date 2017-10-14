@@ -17,6 +17,7 @@ import (
 
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
+	"os"
 )
 
 type ConnList struct {
@@ -112,6 +113,7 @@ func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.Servi
 		},
 	}
 
+	l.Out = os.Stdout
 	return &StreamService{
 		Server:     s,
 		DevStorage: st,
