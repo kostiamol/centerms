@@ -228,7 +228,7 @@ func (s *ConfigService) sendConfigPatch(c *entities.DevConfig) {
 
 	r, err := client.PatchDevConfig(context.Background(), &pbcp)
 	if err != nil {
-		s.Log.Error("sendConfigPatch(): PatchDevConfig() has failed: ", err)
+		s.Log.Error("ConfigService: sendConfigPatch(): PatchDevConfig() has failed: ", err)
 	}
 
 	s.Log.Infof("centerms has received data with status: %s", r.Status)
@@ -236,13 +236,13 @@ func (s *ConfigService) sendConfigPatch(c *entities.DevConfig) {
 
 func (s *ConfigService) dialDevice() *grpc.ClientConn {
 	var count int
-	conn, err := grpc.Dial(s.Server.Host+":"+"4000", grpc.WithInsecure())
+	conn, err := grpc.Dial(s.Server.Host+":"+"4040", grpc.WithInsecure())
 	for err != nil {
 		if count >= 5 {
-			panic("dialDevice(): can't connect to the devicems")
+			panic("ConfigService: dialDevice(): can't connect to the devicems")
 		}
 		time.Sleep(time.Second)
-		conn, err = grpc.Dial("127.0.0.1"+":"+"4000", grpc.WithInsecure())
+		conn, err = grpc.Dial("127.0.0.1"+":"+"4040", grpc.WithInsecure())
 		if err != nil {
 			s.Log.Errorf("getDial(): %s", err)
 		}

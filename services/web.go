@@ -44,10 +44,10 @@ func (s *WebService) Run() {
 	go s.listenTermination()
 
 	r := mux.NewRouter()
-	r.Handle("/devices", s.recoverWrap(s.getDevsDataHandler)).Methods(http.MethodGet)
-	r.Handle("/devices/{id}/data", s.recoverWrap(s.getDevDataHandler)).Methods(http.MethodGet)
-	r.Handle("/devices/{id}/config", s.recoverWrap(s.getDevConfigHandler)).Methods(http.MethodGet)
-	r.Handle("/devices/{id}/config", s.recoverWrap(s.patchDevConfigHandler)).Methods(http.MethodPatch)
+	r.Handle("/devices", Adapt(s.getDevsDataHandler, s.recoveryAdapter)).Methods(http.MethodGet)
+	r.Handle("/devices/{id}/data", Adapt(s.getDevDataHandler, s.recoveryAdapter)).Methods(http.MethodGet)
+	r.Handle("/devices/{id}/config", Adapt(s.getDevConfigHandler, s.recoveryAdapter)).Methods(http.MethodGet)
+	r.Handle("/devices/{id}/config", Adapt(s.patchDevConfigHandler, s.recoveryAdapter)).Methods(http.MethodPatch)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./view/")))
 
 	port := fmt.Sprint(s.Server.Port)
@@ -78,7 +78,17 @@ func (s *WebService) handleTermination() {
 	s.Controller.Terminate()
 }
 
-func (s *WebService) recoverWrap(h http.HandlerFunc) http.Handler {
+// https://medium.com/@matryer/writing-middleware-in-golang-and-how-go-makes-it-so-much-fun-4375c1246e81
+type Adapter func(handlerFunc http.HandlerFunc) http.HandlerFunc
+
+func Adapt(h http.HandlerFunc, adapters ...Adapter) http.Handler {
+	for _, adapter := range adapters {
+		h = adapter(h)
+	}
+	return h
+}
+
+func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if r := recover(); r != nil {
