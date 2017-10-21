@@ -36,7 +36,7 @@ func (s *WebService) Run() {
 	s.Log.Infof("WebService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("WebService: Run(): panic: %s", r)
+			s.Log.Errorf("WebService: Run(): panic(): %s", r)
 			s.handleTermination()
 		}
 	}()
@@ -92,7 +92,7 @@ func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if r := recover(); r != nil {
-				s.Log.Errorf("WebService: panic: %s", r)
+				s.Log.Errorf("WebService: panic(): %s", r)
 				s.handleTermination()
 			}
 		}()
@@ -173,12 +173,12 @@ func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	cn, err := s.DevStorage.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("WebService: patchDevConfigHandler(): storage connection hasn't been established: %s")
 		return
 	}
-	defer cn.CloseConn()
+	defer conn.CloseConn()
 
 	dm := entities.DevMeta{
 		Type: r.FormValue("type"),
@@ -192,7 +192,7 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err = cn.SetDevConfig(&dm, &dc); err != nil {
+	if err = conn.SetDevConfig(&dm, &dc); err != nil {
 		s.Log.Errorf("WebService: patchDevConfigHandler(): DevConfig setting has failed: %s", err)
 		return
 	}
@@ -203,9 +203,9 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if _, err = cn.Publish(entities.DevConfigChan, b); err != nil {
+	if _, err = conn.Publish(entities.DevConfigChan, b); err != nil {
 		s.Log.Errorf("WebService: patchDevConfigHandler(): Publish() has failed: %s", err)
 		return
 	}
-	//s.Log.Infof("publish config patch: %s for device with MAC [%s]", dc.Data, dc.MAC)
+	s.Log.Infof("publish config patch: %s for device with MAC [%s]", dc.Data, dc.MAC)
 }

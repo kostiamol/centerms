@@ -2,19 +2,16 @@ package services
 
 import (
 	"encoding/json"
-	"fmt"
-	"net"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 
 	"golang.org/x/net/context"
 
-	"github.com/giperboloid/centerms/entities"
-	"github.com/giperboloid/centerms/pb"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 	"os"
+
+	"github.com/giperboloid/centerms/entities"
+	"github.com/pkg/errors"
 )
 
 type DataService struct {
@@ -49,25 +46,6 @@ func (s *DataService) Run() {
 	}()
 
 	go s.listenTermination()
-
-	ln, err := net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
-	if err != nil {
-		s.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
-	}
-
-	for err != nil {
-		for range s.Reconnect.C {
-			ln, err = net.Listen("tcp", s.Server.Host+":"+fmt.Sprint(s.Server.Port))
-			if err != nil {
-				s.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
-			}
-		}
-		s.Reconnect.Stop()
-	}
-
-	gs := grpc.NewServer()
-	pb.RegisterCenterServiceServer(gs, s)
-	gs.Serve(ln)
 }
 
 func (s *DataService) listenTermination() {
@@ -86,25 +64,7 @@ func (s *DataService) handleTermination() {
 	s.Controller.Terminate()
 }
 
-func (s *DataService) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
-	req := entities.Request{
-		Time: r.Time,
-		Meta: entities.DevMeta{
-			Type: r.Meta.Type,
-			Name: r.Meta.Name,
-			MAC:  r.Meta.Mac,
-		},
-		Data: r.Data,
-	}
-	s.saveDevData(&req)
-	return &pb.SaveDevDataResponse{Status: "OK"}, nil
-}
-
-func (s *DataService) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigRequest) (*pb.SetDevInitConfigResponse, error) {
-	return nil, nil
-}
-
-func (s *DataService) saveDevData(r *entities.Request) {
+func (s *DataService) SaveDevData(r *entities.Request) {
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("DataService: saveDevData(): storage connection hasn't been established: %s", err)

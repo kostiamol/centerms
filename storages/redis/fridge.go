@@ -153,23 +153,23 @@ func (rds *RedisStorage) getFridgeConfig(m *entities.DevMeta) (*entities.DevConf
 }
 
 func (rds *RedisStorage) setFridgeConfig(c *entities.DevConfig, m *entities.DevMeta) error {
-	var cfc *entities.DevConfig
+	var dc *entities.DevConfig
 	if ok, err := rds.DevIsRegistered(m); ok {
 		if err != nil {
 			errors.Wrapf(err,"RedisStorage: setFridgeConfig(): DevIsRegistered() has failed")
 			return err
 		}
-		cfc, err = rds.getFridgeConfig(m)
+		dc, err = rds.getFridgeConfig(m)
 	} else {
 		if err != nil {
 			errors.Wrapf(err,"RedisStorage: setFridgeConfig(): DevIsRegistered() has failed")
 			return err
 		}
-		cfc, err = rds.getFridgeDefaultConfig(m)
+		dc, err = rds.getFridgeDefaultConfig(m)
 	}
 
 	var fc entities.FridgeConfig
-	if err := json.Unmarshal(cfc.Data, &fc); err != nil {
+	if err := json.Unmarshal(dc.Data, &fc); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): Unmarshal() has failed")
 		return err
 	}
