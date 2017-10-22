@@ -13,10 +13,9 @@ import (
 )
 
 type GRPCConfig struct {
-	ConfigService services.ConfigService
-	DataService   services.DataService
+	ConfigService *services.ConfigService
+	DataService   *services.DataService
 	Reconnect     *time.Ticker
-	Server        entities.Server
 }
 
 func Init(c GRPCConfig) {
@@ -27,10 +26,9 @@ func Init(c GRPCConfig) {
 
 func newCenterServiceGRPC(c GRPCConfig) *API {
 	return &API{
-		Config:    c.ConfigService,
-		Data:      c.DataService,
+		Config:    *c.ConfigService,
+		Data:      *c.DataService,
 		Reconnect: c.Reconnect,
-		Server:    c.Server,
 	}
 }
 
@@ -38,7 +36,6 @@ type API struct {
 	Config    services.ConfigService
 	Data      services.DataService
 	Reconnect *time.Ticker
-	Server    entities.Server
 }
 
 func (a *API) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigRequest) (*pb.SetDevInitConfigResponse, error) {

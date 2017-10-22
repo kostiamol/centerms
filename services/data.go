@@ -35,7 +35,7 @@ func NewDataService(s entities.Server, ds entities.DevStorage, c entities.Servic
 }
 
 func (s *DataService) Run() {
-	s.Log.Infof("DataService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
+	s.Log.Infof("DataService   has started on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
 	_, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {

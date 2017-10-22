@@ -101,7 +101,7 @@ type StreamService struct {
 	Upgrader   websocket.Upgrader
 }
 
-func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.ServicesController, l *logrus.Logger) *StreamService {
+func NewStreamService(s entities.Server, st entities.DevStorage, c entities.ServicesController, l *logrus.Logger) *StreamService {
 	u := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -126,7 +126,7 @@ func NewStreamServer(s entities.Server, st entities.DevStorage, c entities.Servi
 }
 
 func (s *StreamService) Run() {
-	s.Log.Infof("StreamService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
+	s.Log.Infof("StreamService has started on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {

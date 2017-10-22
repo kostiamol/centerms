@@ -7,6 +7,7 @@ import (
 	"github.com/giperboloid/centerms/entities"
 	"github.com/giperboloid/centerms/services"
 	"github.com/giperboloid/centerms/storages/redis"
+	"github.com/giperboloid/centerms/api/grpcsvc"
 )
 
 func main() {
@@ -17,20 +18,58 @@ func main() {
 	)
 	st.SetServer(&StorageServer)
 
-	cs := services.NewConfigServer(entities.Server{Host: localhost, Port: devConfigPort}, st, ctrl, logrus.New(),
-		reconnect, make(chan []string))
+	cs := services.NewConfigService(
+		entities.Server{
+			Host: localhost,
+			Port: devConfigPort,
+		},
+		st,
+		ctrl,
+		logrus.New(),
+		reconnect,
+	)
 	go cs.Run()
 
-	ds := services.NewDataService(entities.Server{Host: localhost, Port: devDataPort}, st, ctrl, logrus.New(),
-		reconnect)
+	ds := services.NewDataService(
+		entities.Server{
+			Host: localhost,
+			Port: devDataPort,
+			},
+		st,
+		ctrl,
+		logrus.New(),
+		reconnect,
+	)
 	go ds.Run()
 
-	ss := services.NewStreamServer(entities.Server{Host: localhost, Port: streamPort}, st, ctrl, logrus.New())
+	grpcsvc.Init(grpcsvc.GRPCConfig{
+		ConfigService: cs,
+		DataService: ds,
+		Reconnect: time.NewTicker(time.Second * 3),
+	})
+
+	ss := services.NewStreamService(
+		entities.Server{
+			Host: localhost,
+			Port: streamPort,
+		},
+		st,
+		ctrl,
+		logrus.New(),
+	)
 	go ss.Run()
 
-	ws := services.NewWebServer(entities.Server{Host: localhost, Port: webPort}, st, ctrl, logrus.New())
+	ws := services.NewWebService(
+		entities.Server{
+			Host: localhost,
+			Port: webPort,
+		},
+		st,
+		ctrl,
+		logrus.New(),
+	)
 	go ws.Run()
 
 	ctrl.Wait()
-	logrus.Info("centerms is down")
+	logrus.Info("center is down")
 }

@@ -56,8 +56,8 @@ type ConfigService struct {
 	Messages   chan []string
 }
 
-func NewConfigServer(s entities.Server, ds entities.DevStorage, c entities.ServicesController, l *logrus.Logger,
-	r *time.Ticker, msgs chan []string) *ConfigService {
+func NewConfigService(s entities.Server, ds entities.DevStorage, c entities.ServicesController, l *logrus.Logger,
+	r *time.Ticker) *ConfigService {
 	l.Out = os.Stdout
 	return &ConfigService{
 		Server:     s,
@@ -65,12 +65,12 @@ func NewConfigServer(s entities.Server, ds entities.DevStorage, c entities.Servi
 		Controller: c,
 		Log:        l,
 		Reconnect:  r,
-		Messages:   msgs,
+		Messages:   make(chan []string),
 	}
 }
 
 func (s *ConfigService) Run() {
-	s.Log.Infof("ConfigService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
+	s.Log.Infof("ConfigService has started on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {

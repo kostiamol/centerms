@@ -12,8 +12,8 @@ COPY ./cmd/centerms .
 COPY ./view ../view
 
 RUN \  
-    chown daemon center-smart-house && \
-    chmod +x center-smart-house
+    chown daemon centerms && \
+    chmod +x centerms
   
 USER daemon
 ENTRYPOINT ["./centerms"]

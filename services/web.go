@@ -22,7 +22,7 @@ type WebService struct {
 	Log        *logrus.Logger
 }
 
-func NewWebServer(s entities.Server, ds entities.DevStorage, sc entities.ServicesController, l *logrus.Logger) *WebService {
+func NewWebService(s entities.Server, ds entities.DevStorage, sc entities.ServicesController, l *logrus.Logger) *WebService {
 	l.Out = os.Stdout
 	return &WebService{
 		Server:     s,
@@ -33,7 +33,7 @@ func NewWebServer(s entities.Server, ds entities.DevStorage, sc entities.Service
 }
 
 func (s *WebService) Run() {
-	s.Log.Infof("WebService has started on host: %s, port: %d", s.Server.Host, s.Server.Port)
+	s.Log.Infof("WebService    has started on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("WebService: Run(): panic(): %s", r)
