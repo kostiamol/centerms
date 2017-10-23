@@ -14,7 +14,14 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/giperboloid/centerms/entities"
 	"github.com/giperboloid/centerms/pb"
-	"google.golang.org/grpc"
+	"github.com/golang/protobuf/proto"
+	"github.com/nats-io/go-nats"
+	"github.com/satori/go.uuid"
+)
+
+const (
+	aggregate = "Config"
+	event     = "ConfigPatched"
 )
 
 type ConnPool struct {
@@ -70,7 +77,7 @@ func NewConfigService(s entities.Server, ds entities.DevStorage, c entities.Serv
 }
 
 func (s *ConfigService) Run() {
-	s.Log.Infof("ConfigService has started on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
+	s.Log.Infof("ConfigService is running on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
@@ -83,7 +90,7 @@ func (s *ConfigService) Run() {
 	go s.listenTermination()
 
 	s.ConnPool.Init()
-	go s.listenConfig(ctx, entities.DevConfigChan, s.Messages)
+	go s.listenConfigPatch(ctx, entities.DevConfigChan, s.Messages)
 }
 
 func (s *ConfigService) listenTermination() {
@@ -144,10 +151,10 @@ func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConf
 	return dc, err
 }
 
-func (s *ConfigService) listenConfig(ctx context.Context, channel string, msg chan []string) {
+func (s *ConfigService) listenConfigPatch(ctx context.Context, channel string, msg chan []string) {
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("ConfigService: listenConfig(): storage connection hasn't been established: ", err)
+		s.Log.Errorf("ConfigService: listenConfigPatch(): storage connection hasn't been established: ", err)
 		return
 	}
 	defer conn.CloseConn()
@@ -159,10 +166,10 @@ func (s *ConfigService) listenConfig(ctx context.Context, channel string, msg ch
 		case msg := <-msg:
 			if msg[0] == "message" {
 				if err := json.Unmarshal([]byte(msg[2]), &dc); err != nil {
-					s.Log.Errorf("ConfigService: listenConfig(): DevConfig unmarshalling has failed: ", err)
+					s.Log.Errorf("ConfigService: listenConfigPatch(): DevConfig unmarshalling has failed: ", err)
 					return
 				}
-				go s.sendConfigPatch(&dc)
+				go s.publishConfigPatch(&dc)
 			}
 		case <-ctx.Done():
 			return
@@ -170,52 +177,21 @@ func (s *ConfigService) listenConfig(ctx context.Context, channel string, msg ch
 	}
 }
 
-func (s *ConfigService) etalon(c *entities.DevConfig) {
-	conn := s.ConnPool.GetConn(c.MAC)
-	if conn == nil {
-		s.Log.Errorf("ConfigService: sendConfigPatch(): there isn't device connection with MAC [%s] in the pool", c.MAC)
-		return
-	}
-
-	if _, err := conn.Write(c.Data); err != nil {
-		s.Log.Errorf("ConfigService: sendConfigPatch(): DevConfig.Data writing has failed: %s", err)
-		s.ConnPool.RemoveConn(c.MAC)
-		return
-	}
-	s.Log.Infof("send config patch: %s for device with MAC %s", c.Data, c.MAC)
-}
-
-func (s *ConfigService) sendConfigPatch(c *entities.DevConfig) {
-	pbcp := pb.PatchDevConfigRequest{
-		Config: c.Data,
-	}
-	conn := s.dialDevice()
+func (s *ConfigService) publishConfigPatch(dc *entities.DevConfig) {
+	conn, _ := nats.Connect(nats.DefaultURL)
 	defer conn.Close()
+	s.Log.Println("Connected to " + nats.DefaultURL)
 
-	client := pb.NewDevServiceClient(conn)
-
-	r, err := client.PatchDevConfig(context.Background(), &pbcp)
-	if err != nil {
-		s.Log.Errorf("ConfigService: sendConfigPatch(): PatchDevConfig() has failed: %s", err)
+	event := pb.EventStore{
+		AggregateId:   dc.MAC,
+		AggregateType: aggregate,
+		EventId:       uuid.NewV4().String(),
+		EventType:     event,
+		EventData:     string(dc.Data),
 	}
+	subject := "Config.Patch." + dc.MAC
+	data, _ := proto.Marshal(&event)
 
-	s.Log.Infof("device has received patched config with status: %s", r.Status)
-}
-
-func (s *ConfigService) dialDevice() *grpc.ClientConn {
-	var count int
-	conn, err := grpc.Dial(s.Server.Host+":"+"4040", grpc.WithInsecure())
-	for err != nil {
-		if count >= 5 {
-			panic("ConfigService: dialDevice(): can't connect to the devicems")
-		}
-		time.Sleep(time.Second)
-		conn, err = grpc.Dial("127.0.0.1"+":"+"4040", grpc.WithInsecure())
-		if err != nil {
-			s.Log.Errorf("getDial(): %s", err)
-		}
-		count++
-		s.Log.Infof("reconnect count: %d", count)
-	}
-	return conn
+	conn.Publish(subject, data)
+	s.Log.Println("Published message on subject " + subject)
 }

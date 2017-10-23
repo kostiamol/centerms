@@ -33,7 +33,7 @@ func NewWebService(s entities.Server, ds entities.DevStorage, sc entities.Servic
 }
 
 func (s *WebService) Run() {
-	s.Log.Infof("WebService    has started on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
+	s.Log.Infof("WebService    is running on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("WebService: Run(): panic(): %s", r)
