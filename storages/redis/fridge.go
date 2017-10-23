@@ -35,7 +35,7 @@ func (rds *RedisStorage) getFridgeData(m *entities.DevMeta) (*entities.DevData, 
 	return &dd, err
 }
 
-func (rds *RedisStorage) saveFridgeData(r *entities.Request) error {
+func (rds *RedisStorage) saveFridgeData(r *entities.SaveDevDataRequest) error {
 	var fd entities.FridgeData
 	if err := json.Unmarshal([]byte(r.Data), &fd); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): FridgeData unmarshalling has failed")
@@ -55,22 +55,21 @@ func (rds *RedisStorage) saveFridgeData(r *entities.Request) error {
 		rds.Client.Discard()
 		return err
 	}
-	if _, err := rds.Client.SAdd(paramsKey, "TempCam1", "TempCam2"); err != nil {
+	if _, err := rds.Client.SAdd(paramsKey, "TempTopCompart", "TempBotCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): SAdd() has failed")
 		rds.Client.Discard()
 		return err
 	}
-	if err := rds.setFridgeCameraData(fd.TempCam1, paramsKey+":"+"TempCam1"); err != nil {
+	if err := rds.setFridgeCameraData(fd.TempTopCompart, paramsKey+":"+"TempTopCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeCameraData(): Multi() has failed")
 		rds.Client.Discard()
 		return err
 	}
-	if err := rds.setFridgeCameraData(fd.TempCam2, paramsKey+":"+"TempCam2"); err != nil {
+	if err := rds.setFridgeCameraData(fd.TempBotCompart, paramsKey+":"+"TempBotCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): setFridgeCameraData() has failed")
 		rds.Client.Discard()
 		return err
 	}
-
 	return nil
 }
 
@@ -83,7 +82,6 @@ func (rds *RedisStorage) setFridgeCameraData(tempCam map[int64]float32, key stri
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -156,13 +154,13 @@ func (rds *RedisStorage) setFridgeConfig(c *entities.DevConfig, m *entities.DevM
 	var dc *entities.DevConfig
 	if ok, err := rds.DevIsRegistered(m); ok {
 		if err != nil {
-			errors.Wrapf(err,"RedisStorage: setFridgeConfig(): DevIsRegistered() has failed")
+			errors.Wrapf(err, "RedisStorage: setFridgeConfig(): DevIsRegistered() has failed")
 			return err
 		}
 		dc, err = rds.getFridgeConfig(m)
 	} else {
 		if err != nil {
-			errors.Wrapf(err,"RedisStorage: setFridgeConfig(): DevIsRegistered() has failed")
+			errors.Wrapf(err, "RedisStorage: setFridgeConfig(): DevIsRegistered() has failed")
 			return err
 		}
 		dc, err = rds.getFridgeDefaultConfig(m)

@@ -64,7 +64,7 @@ func (s *DataService) handleTermination() {
 	s.Controller.Terminate()
 }
 
-func (s *DataService) SaveDevData(r *entities.Request) {
+func (s *DataService) SaveDevData(r *entities.SaveDevDataRequest) {
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("DataService: saveDevData(): storage connection hasn't been established: %s", err)
@@ -81,7 +81,7 @@ func (s *DataService) SaveDevData(r *entities.Request) {
 	go s.publishDevData(r, entities.DevDataChan)
 }
 
-func (s *DataService) publishDevData(r *entities.Request, channel string) error {
+func (s *DataService) publishDevData(r *entities.SaveDevDataRequest, channel string) error {
 	b, err := json.Marshal(r)
 	if err != nil {
 		return errors.Wrap(err, "DataService: publishDevData(): Request marshalling has failed")

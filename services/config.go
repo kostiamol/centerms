@@ -134,7 +134,7 @@ func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConf
 			return nil, err
 		}
 
-		s.Log.Printf("new device: Meta: %+v, DevConfig: %+v", m, dc)
+		s.Log.Printf("new device: %+v", m)
 		if err = conn.SetDevConfig(m, dc); err != nil {
 			s.Log.Errorf("ConfigService: sendInitConfig(): SetDevConfig() has failed: %s", err)
 			return nil, err

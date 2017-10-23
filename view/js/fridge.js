@@ -127,14 +127,14 @@ function printFridgeChart(obj) {
                     var seriesTemCam2 = this.series[1];
                     var timerForRepaint = 50;
                     var repaint = function (fridge) {
-                        for (key in fridge.data.tempCam2) {
+                        for (key in fridge.data.tempBotCompart) {
                             var x = parseInt(key);
-                            var y = parseFloat(fridge.data.tempCam2[key]);
+                            var y = parseFloat(fridge.data.tempBotCompart[key]);
                             seriesTemCam2.addPoint([x, y], true, true);
                         }
-                        for (key in fridge.data.tempCam1) {
+                        for (key in fridge.data.tempTopCompart) {
                             var x = parseInt(key);
-                            var y = parseFloat(fridge.data.tempCam1[key]);
+                            var y = parseFloat(fridge.data.tempTopCompart[key]);
                             seriesTemCam1.addPoint([x, y], true, true);
                         }
                     };
@@ -173,25 +173,25 @@ function printFridgeChart(obj) {
         },
 
         series: [{
-            name: 'TempCam1',
+            name: 'TempTopCompart',
             data: (function () {
                 var data = [];
-                for (var i = 0; i < obj["data"]["TempCam1"].length; ++i) {
+                for (var i = 0; i < obj["data"]["TempTopCompart"].length; ++i) {
                     data.push({
-                        x: parseInt(obj["data"]["TempCam1"][i].split(':')[0]),
-                        y: parseFloat(obj["data"]["TempCam1"][i].split(':')[1])
+                        x: parseInt(obj["data"]["TempTopCompart"][i].split(':')[0]),
+                        y: parseFloat(obj["data"]["TempTopCompart"][i].split(':')[1])
                     });
                 }
                 return data;
             }())
         }, {
-            name: 'TempCam2',
+            name: 'TempBotCompart',
             data: (function () {
                 var data = [];
-                for (var i = 0; i < obj["data"]["TempCam2"].length; ++i) {
+                for (var i = 0; i < obj["data"]["TempBotCompart"].length; ++i) {
                     data.push({
-                        x: parseInt(obj["data"]["TempCam2"][i].split(':')[0]),
-                        y: parseFloat(obj["data"]["TempCam2"][i].split(':')[1])
+                        x: parseInt(obj["data"]["TempBotCompart"][i].split(':')[0]),
+                        y: parseFloat(obj["data"]["TempBotCompart"][i].split(':')[1])
                     });
                 }
                 return data;

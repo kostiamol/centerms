@@ -27,8 +27,8 @@ $(document).ready(function () {
 
             var device_data = obj[data_length - 1]["data"];
 
-            var dateAndValueCam1 = device_data.TempCam1[device_data.TempCam1.length - 1].split(':');
-            var dateAndValueCam2 = device_data.TempCam2[device_data.TempCam2.length - 1].split(':');
+            var dateAndValueCam1 = device_data.TempTopCompart[device_data.TempTopCompart.length - 1].split(':');
+            var dateAndValueCam2 = device_data.TempBotCompart[device_data.TempBotCompart.length - 1].split(':');
 
             $("#" + back).append('<p>' +
                 "Cam1Time: " + new Date(parseInt(dateAndValueCam1[0])).toLocaleString() + '<br>' +

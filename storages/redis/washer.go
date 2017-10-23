@@ -35,7 +35,7 @@ func (rds *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, 
 	return &dd, err
 }
 
-func (rds *RedisStorage) saveWasherData(r *entities.Request) error {
+func (rds *RedisStorage) saveWasherData(r *entities.SaveDevDataRequest) error {
 	var wd entities.WasherData
 	if err := json.NewDecoder(bytes.NewBuffer(r.Data)).Decode(&wd); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): WasherData decoding has failed")

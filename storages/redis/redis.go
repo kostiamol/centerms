@@ -120,7 +120,7 @@ func (rds *RedisStorage) GetDevData(m *entities.DevMeta) (*entities.DevData, err
 	}
 }
 
-func (rds *RedisStorage) SaveDevData(r *entities.Request) error {
+func (rds *RedisStorage) SaveDevData(r *entities.SaveDevDataRequest) error {
 	switch r.Meta.Type {
 	case "fridge":
 		return rds.saveFridgeData(r)

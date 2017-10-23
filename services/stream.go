@@ -226,7 +226,7 @@ func (s *StreamService) Unsubscribe(ctx context.Context) {
 }
 
 func (s *StreamService) Publish(msgs []string) error {
-	var req entities.Request
+	var req entities.SaveDevDataRequest
 	if err := json.Unmarshal([]byte(msgs[2]), &req); err != nil {
 		errors.Wrap(err, "StreamService: Publish(): Request unmarshalling has failed")
 		return err

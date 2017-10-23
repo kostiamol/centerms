@@ -18,7 +18,7 @@ type Notifier interface {
 type DevDataDriver interface {
 	GetDevsData() ([]DevData, error)
 	GetDevData(m *DevMeta) (*DevData, error)
-	SaveDevData(r *Request) error
+	SaveDevData(r *SaveDevDataRequest) error
 }
 
 type DevConfigDriver interface {
@@ -45,8 +45,7 @@ type Server struct {
 	Port uint
 }
 
-type Request struct {
-	Action string          `json:"action"`
+type SaveDevDataRequest struct {
 	Time   int64           `json:"time"`
 	Meta   DevMeta         `json:"meta"`
 	Data   json.RawMessage `json:"data"`
