@@ -37,8 +37,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-// Run protoc -I pb/ pb/centerms.proto --go_out=plugins=grpc:pb
-// to generate centerms.pb.go
 type EventStore struct {
 	AggregateId   string `protobuf:"bytes,1,opt,name=aggregate_id,json=aggregateId" json:"aggregate_id,omitempty"`
 	AggregateType string `protobuf:"bytes,2,opt,name=aggregate_type,json=aggregateType" json:"aggregate_type,omitempty"`

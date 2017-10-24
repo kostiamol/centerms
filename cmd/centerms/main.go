@@ -15,8 +15,12 @@ func main() {
 		st        = &storages.RedisStorage{}
 		ctrl      = entities.ServicesController{StopChan: make(chan struct{})}
 		reconnect = time.NewTicker(time.Second * 3)
+		storageServer = entities.Server{
+			Host: storageHost,
+			Port: storagePort,
+		}
 	)
-	st.SetServer(&StorageServer)
+	st.SetServer(&storageServer)
 
 	cs := services.NewConfigService(
 		entities.Server{
@@ -34,7 +38,7 @@ func main() {
 		entities.Server{
 			Host: localhost,
 			Port: devDataPort,
-			},
+		},
 		st,
 		ctrl,
 		logrus.New(),

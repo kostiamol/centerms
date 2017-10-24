@@ -2,7 +2,6 @@ package services
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -33,7 +32,7 @@ func NewWebService(s entities.Server, ds entities.DevStorage, sc entities.Servic
 }
 
 func (s *WebService) Run() {
-	s.Log.Infof("WebService    is running on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
+	s.Log.Infof("WebService    is running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("WebService: Run(): panic(): %s", r)
@@ -50,15 +49,14 @@ func (s *WebService) Run() {
 	r.Handle("/devices/{id}/config", Adapt(s.patchDevConfigHandler, s.recoveryAdapter)).Methods(http.MethodPatch)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./view/")))
 
-	port := fmt.Sprint(s.Server.Port)
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         s.Server.Host + ":" + port,
+		Addr:         s.Server.Host + ":" + s.Server.Port,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 
-	http.ListenAndServe(s.Server.Host+":"+port, handlers.CORS()(r))
+	http.ListenAndServe(s.Server.Host+":"+s.Server.Port, handlers.CORS()(r))
 	go s.Log.Fatal(srv.ListenAndServe())
 }
 
@@ -147,12 +145,12 @@ func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	cn, err := s.DevStorage.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("WebService: getDevConfigHandler(): storage connection hasn't been established: %s", err)
 		return
 	}
-	defer cn.CloseConn()
+	defer conn.CloseConn()
 
 	dm := entities.DevMeta{
 		Type: r.FormValue("type"),
@@ -160,7 +158,7 @@ func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request)
 		MAC:  r.FormValue("mac"),
 	}
 
-	dc, err := cn.GetDevConfig(&dm)
+	dc, err := conn.GetDevConfig(&dm)
 	if err != nil {
 		s.Log.Errorf("WebService: getDevConfigHandler(): DevConfig extraction has failed: %s", err)
 		return
@@ -207,5 +205,4 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 		s.Log.Errorf("WebService: patchDevConfigHandler(): Publish() has failed: %s", err)
 		return
 	}
-	s.Log.Infof("publish config patch: %s for device with MAC [%s]", dc.Data, dc.MAC)
 }

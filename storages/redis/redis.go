@@ -5,6 +5,8 @@ import (
 
 	"time"
 
+	"strconv"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
@@ -26,7 +28,7 @@ func (rds *RedisStorage) SetServer(s *entities.Server) error {
 	var err error
 	if s.Host == "" {
 		err = errors.New("RedisStorage: SetServer(): store server'rds host is empty")
-	} else if s.Port == 0 {
+	} else if s.Port == "" {
 		err = errors.Wrap(err, "RedisStorage: SetServer(): store server'rds port is empty")
 	}
 	rds.DbServer = *s
@@ -40,11 +42,17 @@ func (rds *RedisStorage) CreateConn() (entities.DevStorage, error) {
 		DbServer: rds.DbServer,
 	}
 
-	err := nrc.Client.Connect(nrc.DbServer.Host, nrc.DbServer.Port)
+	parsedPort, err := strconv.ParseUint(nrc.DbServer.Port, 10, 64)
+	if err != nil {
+		errors.New("RedisStorage: CreateConn(): ParseUint() has failed")
+	}
+	port := uint(parsedPort)
+
+	err = nrc.Client.Connect(nrc.DbServer.Host, port)
 	for err != nil {
 		log.Errorln("RedisStorage: CreateConn(): Connect() has failed")
 		time.Sleep(3 * time.Second)
-		err = nrc.Client.Connect(nrc.DbServer.Host, nrc.DbServer.Port)
+		err = nrc.Client.Connect(nrc.DbServer.Host, port)
 	}
 
 	return &nrc, err

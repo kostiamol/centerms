@@ -10,14 +10,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"fmt"
 	"sync"
 
 	"context"
 
+	"os"
+
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
-	"os"
 )
 
 type ConnList struct {
@@ -106,7 +106,7 @@ func NewStreamService(s entities.Server, st entities.DevStorage, c entities.Serv
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
-			if r.Host == s.Host+":"+fmt.Sprint(s.Port) {
+			if r.Host == s.Host+":"+s.Port {
 				return true
 			}
 			return true
@@ -126,7 +126,7 @@ func NewStreamService(s entities.Server, st entities.DevStorage, c entities.Serv
 }
 
 func (s *StreamService) Run() {
-	s.Log.Infof("StreamService is running on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
+	s.Log.Infof("StreamService is running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
@@ -138,14 +138,14 @@ func (s *StreamService) Run() {
 
 	go s.listenTermination()
 
-	cnn, err := s.DevStorage.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("StreamService: Run(): storage connection hasn't been established: %s", err)
 		return
 	}
-	defer cnn.CloseConn()
+	defer conn.CloseConn()
 
-	go s.Subscribe(ctx, cnn)
+	go s.Subscribe(ctx, conn)
 	go s.Unsubscribe(ctx)
 	go s.Conns.MapCollector(ctx)
 
@@ -154,7 +154,7 @@ func (s *StreamService) Run() {
 
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         s.Server.Host + ":" + fmt.Sprint(s.Server.Port),
+		Addr:         s.Server.Host + ":" + s.Server.Port,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
@@ -187,12 +187,12 @@ func (s *StreamService) devDataStreamHandler(w http.ResponseWriter, r *http.Requ
 		s.Conns.ConnMap[uri[2]] = new(ConnList)
 	}
 
-	cn, err := s.Upgrader.Upgrade(w, r, nil)
+	conn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		s.Log.Errorf("StreamService: devDataStreamHandler(): Upgrage() has failed: %s", err)
 		return
 	}
-	s.Conns.ConnMap[uri[2]].AddConn(cn)
+	s.Conns.ConnMap[uri[2]].AddConn(conn)
 }
 
 func (s *StreamService) Subscribe(ctx context.Context, st entities.DevStorage) {

@@ -35,9 +35,9 @@ func (p *ConnPool) Init() {
 	p.Unlock()
 }
 
-func (p *ConnPool) AddConn(cn net.Conn, key string) {
+func (p *ConnPool) AddConn(conn net.Conn, key string) {
 	p.Lock()
-	p.conn[key] = cn
+	p.conn[key] = conn
 	p.Unlock()
 }
 
@@ -77,7 +77,7 @@ func NewConfigService(s entities.Server, ds entities.DevStorage, c entities.Serv
 }
 
 func (s *ConfigService) Run() {
-	s.Log.Infof("ConfigService is running on host: [%s], port: [%d]", s.Server.Host, s.Server.Port)
+	s.Log.Infof("ConfigService is running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
@@ -141,7 +141,7 @@ func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConf
 			return nil, err
 		}
 
-		s.Log.Printf("new device: %+v", m)
+		s.Log.Infof("new device is registered: %+v", m)
 		if err = conn.SetDevConfig(m, dc); err != nil {
 			s.Log.Errorf("ConfigService: sendInitConfig(): SetDevConfig() has failed: %s", err)
 			return nil, err
@@ -180,7 +180,6 @@ func (s *ConfigService) listenConfigPatch(ctx context.Context, channel string, m
 func (s *ConfigService) publishConfigPatch(dc *entities.DevConfig) {
 	conn, _ := nats.Connect(nats.DefaultURL)
 	defer conn.Close()
-	s.Log.Println("Connected to " + nats.DefaultURL)
 
 	event := pb.EventStore{
 		AggregateId:   dc.MAC,
@@ -193,5 +192,5 @@ func (s *ConfigService) publishConfigPatch(dc *entities.DevConfig) {
 	data, _ := proto.Marshal(&event)
 
 	conn.Publish(subject, data)
-	s.Log.Println("Published message on subject " + subject)
+	s.Log.Infof("publish config patch: %s for device with MAC [%s]", dc.Data, dc.MAC)
 }

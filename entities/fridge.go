@@ -16,8 +16,8 @@ type Fridge struct {
 }
 
 type FridgeData struct {
-	TempTopCompart map[int64]float32 `json:"tempTopCompart"`
-	TempBotCompart map[int64]float32 `json:"tempBotCompart"`
+	TopCompart map[int64]float32 `json:"topCompart"`
+	BotCompart map[int64]float32 `json:"botCompart"`
 }
 
 type FridgeConfig struct {

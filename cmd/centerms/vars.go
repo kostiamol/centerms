@@ -1,44 +1,76 @@
 package main
 
 import (
-	"github.com/giperboloid/centerms/entities"
 	"os"
-	"strconv"
-	"github.com/pkg/errors"
+)
+
+const (
+	defaultDevConfigPort = "3092"
+	defaultDevDataPort   = "3126"
+	defaultWebPort       = "3301"
+	defaultStreamPort    = "3546"
+
+	defaultStoragePort    = defaultRedisPort
+	defaultRedisPort      = "6379"
+	defaultPostgreSQLPort = "5432"
+
+	defaultStorageHost = "127.0.0.1"
+	localhost          = "0.0.0.0"
 )
 
 var (
-	StorageServer = entities.Server{
-		Host: getEnvStorageHost("REDIS_PORT_6379_TCP_ADDR"),
-		Port: getEnvStoragePort("REDIS_PORT_6379_TCP_PORT"),
-	}
-
-	localhost     = "0.0.0.0"
-	streamPort    = uint(2540)
-	devDataPort   = uint(3030)
-	devConfigPort = uint(3000)
-	webPort       = uint(8100)
+	storageHost   = getEnvStorageHost("STORAGE_TCP_ADDR")
+	storagePort   = getEnvStoragePort("STORAGE_TCP_PORT")
+	devConfigPort = getEnvConfigPort("DEV_CONFIG_TCP_PORT")
+	devDataPort   = getEnvDataPort("DEV_DATA_TCP_PORT")
+	webPort       = getEnvWebPort("DEV_WEB_TCP_PORT")
+	streamPort    = getEnvStreamPort("DEV_STREAM_TCP_PORT")
 )
-
-func getEnvStoragePort(key string) uint {
-	parsed, err := strconv.ParseUint(os.Getenv(key), 10, 64)
-	if err != nil {
-		errors.New("main: getEnvStoragePort(): ParseUint() has failed")
-	}
-
-	port := uint(parsed)
-	if port == 0 {
-		return uint(6379)
-	}
-
-	return port
-}
 
 func getEnvStorageHost(key string) string {
 	host := os.Getenv(key)
 	if len(host) == 0 {
-		return "127.0.0.1"
+		return defaultStorageHost
 	}
-
 	return host
+}
+
+func getEnvStoragePort(key string) string {
+	port := os.Getenv(key)
+	if len(port) == 0 {
+		return defaultStoragePort
+	}
+	return port
+}
+
+func getEnvConfigPort(key string) string {
+	port := os.Getenv(key)
+	if len(port) == 0 {
+		return defaultDevConfigPort
+	}
+	return port
+}
+
+func getEnvDataPort(key string) string {
+	port := os.Getenv(key)
+	if len(port) == 0 {
+		return defaultDevDataPort
+	}
+	return port
+}
+
+func getEnvWebPort(key string) string {
+	port := os.Getenv(key)
+	if len(port) == 0 {
+		return defaultWebPort
+	}
+	return port
+}
+
+func getEnvStreamPort(key string) string {
+	port := os.Getenv(key)
+	if len(port) == 0 {
+		return defaultStreamPort
+	}
+	return port
 }

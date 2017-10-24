@@ -127,14 +127,14 @@ function printFridgeChart(obj) {
                     var seriesTemCam2 = this.series[1];
                     var timerForRepaint = 50;
                     var repaint = function (fridge) {
-                        for (key in fridge.data.tempBotCompart) {
+                        for (key in fridge.data.botCompart) {
                             var x = parseInt(key);
-                            var y = parseFloat(fridge.data.tempBotCompart[key]);
+                            var y = parseFloat(fridge.data.botCompart[key]);
                             seriesTemCam2.addPoint([x, y], true, true);
                         }
-                        for (key in fridge.data.tempTopCompart) {
+                        for (key in fridge.data.topCompart) {
                             var x = parseInt(key);
-                            var y = parseFloat(fridge.data.tempTopCompart[key]);
+                            var y = parseFloat(fridge.data.topCompart[key]);
                             seriesTemCam1.addPoint([x, y], true, true);
                         }
                     };
@@ -173,25 +173,25 @@ function printFridgeChart(obj) {
         },
 
         series: [{
-            name: 'TempTopCompart',
+            name: 'TopCompart',
             data: (function () {
                 var data = [];
-                for (var i = 0; i < obj["data"]["TempTopCompart"].length; ++i) {
+                for (var i = 0; i < obj["data"]["TopCompart"].length; ++i) {
                     data.push({
-                        x: parseInt(obj["data"]["TempTopCompart"][i].split(':')[0]),
-                        y: parseFloat(obj["data"]["TempTopCompart"][i].split(':')[1])
+                        x: parseInt(obj["data"]["TopCompart"][i].split(':')[0]),
+                        y: parseFloat(obj["data"]["TopCompart"][i].split(':')[1])
                     });
                 }
                 return data;
             }())
         }, {
-            name: 'TempBotCompart',
+            name: 'BotCompart',
             data: (function () {
                 var data = [];
-                for (var i = 0; i < obj["data"]["TempBotCompart"].length; ++i) {
+                for (var i = 0; i < obj["data"]["BotCompart"].length; ++i) {
                     data.push({
-                        x: parseInt(obj["data"]["TempBotCompart"][i].split(':')[0]),
-                        y: parseFloat(obj["data"]["TempBotCompart"][i].split(':')[1])
+                        x: parseInt(obj["data"]["BotCompart"][i].split(':')[0]),
+                        y: parseFloat(obj["data"]["BotCompart"][i].split(':')[1])
                     });
                 }
                 return data;
@@ -207,7 +207,7 @@ var domen = url[2].split(":");
 var showDataFromWS = true;
 var fridges = [];
 console.dir(String(urlParams["mac"]))
-var socket = new WebSocket("ws://" + domen[0] + ":2540" + "/devices/" + String(urlParams["mac"]));
+var socket = new WebSocket("ws://" + domen[0] + ":3546" + "/devices/" + String(urlParams["mac"]));
 socket.onmessage = function (event) {
     var incomingMessage = event.data;
     var fridge = JSON.parse(incomingMessage)

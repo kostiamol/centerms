@@ -37,12 +37,9 @@ type DevStorage interface {
 	CloseConn() error
 }
 
-type Device interface {
-}
-
 type Server struct {
 	Host string
-	Port uint
+	Port string
 }
 
 type SaveDevDataRequest struct {

@@ -55,17 +55,17 @@ func (rds *RedisStorage) saveFridgeData(r *entities.SaveDevDataRequest) error {
 		rds.Client.Discard()
 		return err
 	}
-	if _, err := rds.Client.SAdd(paramsKey, "TempTopCompart", "TempBotCompart"); err != nil {
+	if _, err := rds.Client.SAdd(paramsKey, "TopCompart", "BotCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): SAdd() has failed")
 		rds.Client.Discard()
 		return err
 	}
-	if err := rds.setFridgeCameraData(fd.TempTopCompart, paramsKey+":"+"TempTopCompart"); err != nil {
+	if err := rds.setFridgeCameraData(fd.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeCameraData(): Multi() has failed")
 		rds.Client.Discard()
 		return err
 	}
-	if err := rds.setFridgeCameraData(fd.TempBotCompart, paramsKey+":"+"TempBotCompart"); err != nil {
+	if err := rds.setFridgeCameraData(fd.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): setFridgeCameraData() has failed")
 		rds.Client.Discard()
 		return err
