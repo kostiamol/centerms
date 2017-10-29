@@ -2,7 +2,6 @@ package services
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 
@@ -19,18 +18,17 @@ type DataService struct {
 	DevStorage entities.DevStorage
 	Controller entities.ServicesController
 	Log        *logrus.Logger
-	Reconnect  *time.Ticker
 }
 
 func NewDataService(s entities.Server, ds entities.DevStorage, c entities.ServicesController,
-	l *logrus.Logger, r *time.Ticker) *DataService {
+	l *logrus.Logger) *DataService {
+
 	l.Out = os.Stdout
 	return &DataService{
 		Server:     s,
 		DevStorage: ds,
 		Controller: c,
 		Log:        l,
-		Reconnect:  r,
 	}
 }
 
@@ -41,7 +39,7 @@ func (s *DataService) Run() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("DataService: Run(): panic(): %s", r)
 			cancel()
-			s.handleTermination()
+			s.terminate()
 		}
 	}()
 
@@ -52,13 +50,20 @@ func (s *DataService) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
-			s.handleTermination()
+			s.terminate()
 			return
 		}
 	}
 }
 
-func (s *DataService) handleTermination() {
+func (s *DataService) terminate() {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("DataService: terminate(): panic(): %s", r)
+			s.Controller.Terminate()
+		}
+	}()
+
 	s.DevStorage.CloseConn()
 	s.Log.Infoln("DataService is down")
 	s.Controller.Terminate()
@@ -82,6 +87,13 @@ func (s *DataService) SaveDevData(r *entities.SaveDevDataRequest) {
 }
 
 func (s *DataService) publishDevData(r *entities.SaveDevDataRequest, channel string) error {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("DataService: publishDevData(): panic(): %s", r)
+			s.terminate()
+		}
+	}()
+
 	b, err := json.Marshal(r)
 	if err != nil {
 		return errors.Wrap(err, "DataService: publishDevData(): Request marshalling has failed")

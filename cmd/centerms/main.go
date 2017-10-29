@@ -1,26 +1,23 @@
 package main
 
 import (
-	"time"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/giperboloid/centerms/api/grpcsvc"
 	"github.com/giperboloid/centerms/entities"
 	"github.com/giperboloid/centerms/services"
 	"github.com/giperboloid/centerms/storages/redis"
-	"github.com/giperboloid/centerms/api/grpcsvc"
 )
 
 func main() {
 	var (
-		st        = &storages.RedisStorage{}
-		ctrl      = entities.ServicesController{StopChan: make(chan struct{})}
-		reconnect = time.NewTicker(time.Second * 3)
+		st            = &storages.RedisStorage{RetryInterval: retryInterval}
+		ctrl          = entities.ServicesController{StopChan: make(chan struct{})}
 		storageServer = entities.Server{
 			Host: storageHost,
 			Port: storagePort,
 		}
 	)
-	st.SetServer(&storageServer)
+	st.SetServer(storageServer)
 
 	cs := services.NewConfigService(
 		entities.Server{
@@ -30,7 +27,6 @@ func main() {
 		st,
 		ctrl,
 		logrus.New(),
-		reconnect,
 	)
 	go cs.Run()
 
@@ -42,14 +38,13 @@ func main() {
 		st,
 		ctrl,
 		logrus.New(),
-		reconnect,
 	)
 	go ds.Run()
 
 	grpcsvc.Init(grpcsvc.GRPCConfig{
 		ConfigService: cs,
-		DataService: ds,
-		Reconnect: time.NewTicker(time.Second * 3),
+		DataService:   ds,
+		RetryInterval: retryInterval,
 	})
 
 	ss := services.NewStreamService(
@@ -65,7 +60,7 @@ func main() {
 
 	ws := services.NewWebService(
 		entities.Server{
-			Host: localhost,
+			Host: webHost,
 			Port: webPort,
 		},
 		st,

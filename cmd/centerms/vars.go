@@ -2,75 +2,41 @@ package main
 
 import (
 	"os"
+	"time"
 )
 
 const (
+	localhost            = "127.0.0.1"
+	webHost              = "0.0.0.0"
+
 	defaultDevConfigPort = "3092"
 	defaultDevDataPort   = "3126"
 	defaultWebPort       = "3301"
 	defaultStreamPort    = "3546"
 
+	defaultStorageHost    = "127.0.0.1"
 	defaultStoragePort    = defaultRedisPort
 	defaultRedisPort      = "6379"
 	defaultPostgreSQLPort = "5432"
 
-	defaultStorageHost = "127.0.0.1"
-	localhost          = "0.0.0.0"
+	retryInterval           = time.Second * 10
 )
 
 var (
-	storageHost   = getEnvStorageHost("STORAGE_TCP_ADDR")
-	storagePort   = getEnvStoragePort("STORAGE_TCP_PORT")
-	devConfigPort = getEnvConfigPort("DEV_CONFIG_TCP_PORT")
-	devDataPort   = getEnvDataPort("DEV_DATA_TCP_PORT")
-	webPort       = getEnvWebPort("DEV_WEB_TCP_PORT")
-	streamPort    = getEnvStreamPort("DEV_STREAM_TCP_PORT")
+	storageHost   = getEnvVar("STORAGE_TCP_ADDR", defaultStorageHost)
+	storagePort   = getEnvVar("STORAGE_TCP_PORT", defaultStoragePort)
+	devConfigPort = getEnvVar("CENTER_CONFIG_TCP_PORT", defaultDevConfigPort)
+	devDataPort   = getEnvVar("CENTER_DATA_TCP_PORT", defaultDevDataPort)
+	webPort       = getEnvVar("WEB_TCP_PORT", defaultWebPort)
+	streamPort    = getEnvVar("STREAM_TCP_PORT", defaultStreamPort)
 )
 
-func getEnvStorageHost(key string) string {
-	host := os.Getenv(key)
-	if len(host) == 0 {
-		return defaultStorageHost
+// getEnvVar checks whether environmental variable with name 'key' was specified.
+// It returns that variable if it was set and defaultVal otherwise.
+func getEnvVar(key string, defaultVal string) string {
+	val := os.Getenv(key)
+	if len(val) == 0 {
+		return defaultVal
 	}
-	return host
-}
-
-func getEnvStoragePort(key string) string {
-	port := os.Getenv(key)
-	if len(port) == 0 {
-		return defaultStoragePort
-	}
-	return port
-}
-
-func getEnvConfigPort(key string) string {
-	port := os.Getenv(key)
-	if len(port) == 0 {
-		return defaultDevConfigPort
-	}
-	return port
-}
-
-func getEnvDataPort(key string) string {
-	port := os.Getenv(key)
-	if len(port) == 0 {
-		return defaultDevDataPort
-	}
-	return port
-}
-
-func getEnvWebPort(key string) string {
-	port := os.Getenv(key)
-	if len(port) == 0 {
-		return defaultWebPort
-	}
-	return port
-}
-
-func getEnvStreamPort(key string) string {
-	port := os.Getenv(key)
-	if len(port) == 0 {
-		return defaultStreamPort
-	}
-	return port
+	return val
 }

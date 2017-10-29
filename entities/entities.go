@@ -32,7 +32,7 @@ type DevStorage interface {
 	Notifier
 	DevDataDriver
 	DevConfigDriver
-	SetServer(s *Server) error
+	SetServer(s Server) error
 	CreateConn() (DevStorage, error)
 	CloseConn() error
 }

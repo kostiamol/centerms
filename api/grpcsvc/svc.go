@@ -1,21 +1,23 @@
 package grpcsvc
 
 import (
+	"math/rand"
 	"time"
 
-	"github.com/giperboloid/centerms/entities"
-	"github.com/giperboloid/centerms/services"
-	"net"
 	"fmt"
-	"google.golang.org/grpc"
+	"net"
+
+	"github.com/giperboloid/centerms/entities"
 	"github.com/giperboloid/centerms/pb"
+	"github.com/giperboloid/centerms/services"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 type GRPCConfig struct {
 	ConfigService *services.ConfigService
 	DataService   *services.DataService
-	Reconnect     *time.Ticker
+	RetryInterval time.Duration
 }
 
 func Init(c GRPCConfig) {
@@ -26,16 +28,16 @@ func Init(c GRPCConfig) {
 
 func newCenterServiceGRPC(c GRPCConfig) *API {
 	return &API{
-		Config:    *c.ConfigService,
-		Data:      *c.DataService,
-		Reconnect: c.Reconnect,
+		Config:        *c.ConfigService,
+		Data:          *c.DataService,
+		RetryInterval: c.RetryInterval,
 	}
 }
 
 type API struct {
-	Config    services.ConfigService
-	Data      services.DataService
-	Reconnect *time.Ticker
+	Config        services.ConfigService
+	Data          services.DataService
+	RetryInterval time.Duration
 }
 
 func (a *API) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigRequest) (*pb.SetDevInitConfigResponse, error) {
@@ -45,7 +47,7 @@ func (a *API) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigReques
 		MAC:  r.Meta.Mac,
 	}
 
-	dc,_ := a.Config.SetDevInitConfig(&dm)
+	dc, _ := a.Config.SetDevInitConfig(&dm)
 
 	return &pb.SetDevInitConfigResponse{
 		Config: dc.Data,
@@ -71,19 +73,19 @@ func (a *API) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.Sa
 }
 
 func (a *API) listenConfig() {
-	ln, err := net.Listen("tcp", a.Config.Server.Host+":"+fmt.Sprint(a.Config.Server.Port))
-	if err != nil {
-		a.Config.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
-	}
-
-	for err != nil {
-		for range a.Reconnect.C {
-			ln, err = net.Listen("tcp", a.Config.Server.Host+":"+fmt.Sprint(a.Config.Server.Port))
-			if err != nil {
-				a.Config.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
-			}
+	defer func() {
+		if r := recover(); r != nil {
+			a.Config.Log.Errorf("API: listenConfig(): panic(): %s", r)
+			a.Config.Controller.StopChan <- struct{}{}
 		}
-		a.Reconnect.Stop()
+	}()
+
+	ln, err := net.Listen("tcp", a.Config.Server.Host+":"+fmt.Sprint(a.Config.Server.Port))
+	for err != nil {
+		a.Config.Log.Errorf("API: listenConfig(): Listen() has failed: %s", err)
+		duration := time.Duration(rand.Intn(int(a.RetryInterval.Seconds())))
+		time.Sleep(time.Second*duration + 1)
+		ln, err = net.Listen("tcp", a.Config.Server.Host+":"+fmt.Sprint(a.Config.Server.Port))
 	}
 
 	gs := grpc.NewServer()
@@ -92,19 +94,20 @@ func (a *API) listenConfig() {
 }
 
 func (a *API) listenData() {
+	defer func() {
+		if r := recover(); r != nil {
+			a.Data.Log.Errorf("API: listenData(): panic(): %s", r)
+			a.Data.Controller.StopChan <- struct{}{}
+		}
+	}()
+
 	ln, err := net.Listen("tcp", a.Data.Server.Host+":"+fmt.Sprint(a.Data.Server.Port))
-	if err != nil {
-		a.Data.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
-	}
 
 	for err != nil {
-		for range a.Reconnect.C {
-			ln, err = net.Listen("tcp", a.Data.Server.Host+":"+fmt.Sprint(a.Data.Server.Port))
-			if err != nil {
-				a.Data.Log.Errorf("DataService: Run(): Listen() has failed: %s", err)
-			}
-		}
-		a.Reconnect.Stop()
+		a.Config.Log.Errorf("API: listenData(): Listen() has failed: %s", err)
+		duration := time.Duration(rand.Intn(int(a.RetryInterval.Seconds())))
+		time.Sleep(time.Second*duration + 1)
+		ln, err = net.Listen("tcp", a.Data.Server.Host+":"+fmt.Sprint(a.Data.Server.Port))
 	}
 
 	gs := grpc.NewServer()

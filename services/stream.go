@@ -112,8 +112,8 @@ func NewStreamService(s entities.Server, st entities.DevStorage, c entities.Serv
 			return true
 		},
 	}
-
 	l.Out = os.Stdout
+
 	return &StreamService{
 		Server:     s,
 		DevStorage: st,
@@ -132,7 +132,7 @@ func (s *StreamService) Run() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("StreamService: Run(): panic(): %s", r)
 			cancel()
-			s.handleTermination()
+			s.terminate()
 		}
 	}()
 
@@ -159,22 +159,29 @@ func (s *StreamService) Run() {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	go s.Log.Fatal(srv.ListenAndServe())
+	s.Log.Fatal(srv.ListenAndServe())
 }
 
 func (s *StreamService) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
-			s.handleTermination()
+			s.terminate()
 			return
 		}
 	}
 }
 
-func (s *StreamService) handleTermination() {
+func (s *StreamService) terminate() {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("StreamService: terminate(): panic(): %s", r)
+			s.terminate()
+		}
+	}()
+
 	s.DevStorage.CloseConn()
-	s.Log.Infoln("StreamService is down")
+	s.Log.Info("StreamService is down")
 	s.Controller.Terminate()
 }
 
@@ -196,12 +203,19 @@ func (s *StreamService) devDataStreamHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *StreamService) Subscribe(ctx context.Context, st entities.DevStorage) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("StreamService: Subscribe(): panic(): %s", r)
+			s.terminate()
+		}
+	}()
+
 	st.Subscribe(s.PubSub.SubWSChann, s.PubSub.RoomIDForWSPubSub)
 	for {
 		select {
 		case msg := <-s.PubSub.SubWSChann:
 			if msg[0] == "message" {
-				go s.Publish(msg)
+				go s.Publish(ctx, msg)
 			}
 		case <-ctx.Done():
 			return
@@ -210,6 +224,13 @@ func (s *StreamService) Subscribe(ctx context.Context, st entities.DevStorage) {
 }
 
 func (s *StreamService) Unsubscribe(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("StreamService: Unsubscribe(): panic(): %s", r)
+			s.terminate()
+		}
+	}()
+
 	for {
 		select {
 		case connAddr := <-s.Conns.ConnChanCloseWS:
@@ -225,7 +246,14 @@ func (s *StreamService) Unsubscribe(ctx context.Context) {
 	}
 }
 
-func (s *StreamService) Publish(msgs []string) error {
+func (s *StreamService) Publish(ctx context.Context, msgs []string) error {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("StreamService: Publish(): panic(): %s", r)
+			s.terminate()
+		}
+	}()
+
 	var req entities.SaveDevDataRequest
 	if err := json.Unmarshal([]byte(msgs[2]), &req); err != nil {
 		errors.Wrap(err, "StreamService: Publish(): Request unmarshalling has failed")
@@ -235,10 +263,15 @@ func (s *StreamService) Publish(msgs []string) error {
 	if _, ok := s.Conns.ConnMap[req.Meta.MAC]; ok {
 		s.Conns.ConnMap[req.Meta.MAC].Lock()
 		for _, val := range s.Conns.ConnMap[req.Meta.MAC].Conns {
-			if err := val.WriteMessage(1, []byte(msgs[2])); err != nil {
-				errors.Errorf("StreamService: Publish(): connection %v has been closed", val.RemoteAddr())
-				s.Conns.ConnChanCloseWS <- val
-				return err
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				if err := val.WriteMessage(1, []byte(msgs[2])); err != nil {
+					errors.Errorf("StreamService: Publish(): connection %v has been closed", val.RemoteAddr())
+					s.Conns.ConnChanCloseWS <- val
+					return err
+				}
 			}
 		}
 		s.Conns.ConnMap[req.Meta.MAC].Unlock()

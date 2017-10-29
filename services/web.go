@@ -36,7 +36,7 @@ func (s *WebService) Run() {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("WebService: Run(): panic(): %s", r)
-			s.handleTermination()
+			s.terminate()
 		}
 	}()
 
@@ -57,20 +57,27 @@ func (s *WebService) Run() {
 	}
 
 	http.ListenAndServe(s.Server.Host+":"+s.Server.Port, handlers.CORS()(r))
-	go s.Log.Fatal(srv.ListenAndServe())
+	s.Log.Fatal(srv.ListenAndServe())
 }
 
 func (s *WebService) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
-			s.handleTermination()
+			s.terminate()
 			return
 		}
 	}
 }
 
-func (s *WebService) handleTermination() {
+func (s *WebService) terminate() {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("WebService: terminate(): panic(): %s", r)
+			s.Controller.Terminate()
+		}
+	}()
+
 	s.DevStorage.CloseConn()
 	s.Log.Infoln("WebService has shut down")
 	s.Controller.Terminate()
@@ -79,11 +86,11 @@ func (s *WebService) handleTermination() {
 // https://medium.com/@matryer/writing-middleware-in-golang-and-how-go-makes-it-so-much-fun-4375c1246e81
 type Adapter func(handlerFunc http.HandlerFunc) http.HandlerFunc
 
-func Adapt(h http.HandlerFunc, adapters ...Adapter) http.Handler {
+func Adapt(hf http.HandlerFunc, adapters ...Adapter) http.Handler {
 	for _, adapter := range adapters {
-		h = adapter(h)
+		hf = adapter(hf)
 	}
-	return h
+	return hf
 }
 
 func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
@@ -91,7 +98,7 @@ func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 		defer func() {
 			if r := recover(); r != nil {
 				s.Log.Errorf("WebService: panic(): %s", r)
-				s.handleTermination()
+				s.terminate()
 			}
 		}()
 		h.ServeHTTP(w, r)
@@ -99,14 +106,14 @@ func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func (s *WebService) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
-	cn, err := s.DevStorage.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("WebService: getDevicesHandler(): storage connection hasn't been established: %s", err)
 		return
 	}
-	defer cn.CloseConn()
+	defer conn.CloseConn()
 
-	ds, err := cn.GetDevsData()
+	ds, err := conn.GetDevsData()
 	if err != nil {
 		s.Log.Errorf("WebService: getDevicesHandler(): devices data extraction has failed: %s", err)
 		return
@@ -119,12 +126,12 @@ func (s *WebService) getDevsDataHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
-	cn, err := s.DevStorage.CreateConn()
+	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("WebService: getDevDataHandler(): storage connection hasn't been established: %s", err)
 		return
 	}
-	defer cn.CloseConn()
+	defer conn.CloseConn()
 
 	dm := entities.DevMeta{
 		Type: r.FormValue("type"),
@@ -132,7 +139,7 @@ func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 		MAC:  r.FormValue("mac"),
 	}
 
-	dd, err := cn.GetDevData(&dm)
+	dd, err := conn.GetDevData(&dm)
 	if err != nil {
 		s.Log.Errorf("WebService: getDevDataHandler(): DevData extraction has failed: %s", err)
 		return

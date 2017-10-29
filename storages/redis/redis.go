@@ -1,13 +1,14 @@
 package storages
 
 import (
+	"math/rand"
 	"strings"
 
 	"time"
 
 	"strconv"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/giperboloid/centerms/entities"
 	"github.com/pkg/errors"
 	"menteslibres.net/gosexy/redis"
@@ -20,18 +21,19 @@ const (
 )
 
 type RedisStorage struct {
-	Client   *redis.Client
-	DbServer entities.Server
+	Client        *redis.Client
+	DbServer      entities.Server
+	RetryInterval time.Duration
 }
 
-func (rds *RedisStorage) SetServer(s *entities.Server) error {
+func (rds *RedisStorage) SetServer(s entities.Server) error {
 	var err error
 	if s.Host == "" {
 		err = errors.New("RedisStorage: SetServer(): store server'rds host is empty")
 	} else if s.Port == "" {
 		err = errors.Wrap(err, "RedisStorage: SetServer(): store server'rds port is empty")
 	}
-	rds.DbServer = *s
+	rds.DbServer = s
 
 	return err
 }
@@ -50,8 +52,9 @@ func (rds *RedisStorage) CreateConn() (entities.DevStorage, error) {
 
 	err = nrc.Client.Connect(nrc.DbServer.Host, port)
 	for err != nil {
-		log.Errorln("RedisStorage: CreateConn(): Connect() has failed")
-		time.Sleep(3 * time.Second)
+		logrus.Errorf("RedisStorage: CreateConn(): Connect() has failed: %s", err)
+		duration := time.Duration(rand.Intn(int(rds.RetryInterval.Seconds())))
+		time.Sleep(time.Second*duration + 1)
 		err = nrc.Client.Connect(nrc.DbServer.Host, port)
 	}
 

@@ -3,7 +3,6 @@ package services
 import (
 	"encoding/json"
 	"net"
-	"time"
 
 	"os"
 
@@ -58,20 +57,19 @@ type ConfigService struct {
 	DevStorage entities.DevStorage
 	Controller entities.ServicesController
 	Log        *logrus.Logger
-	Reconnect  *time.Ticker
 	ConnPool   ConnPool
 	Messages   chan []string
 }
 
-func NewConfigService(s entities.Server, ds entities.DevStorage, c entities.ServicesController, l *logrus.Logger,
-	r *time.Ticker) *ConfigService {
+func NewConfigService(s entities.Server, ds entities.DevStorage, c entities.ServicesController,
+	l *logrus.Logger) *ConfigService {
+
 	l.Out = os.Stdout
 	return &ConfigService{
 		Server:     s,
 		DevStorage: ds,
 		Controller: c,
 		Log:        l,
-		Reconnect:  r,
 		Messages:   make(chan []string),
 	}
 }
@@ -83,7 +81,7 @@ func (s *ConfigService) Run() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("ConfigService: Run(): panic(): %s", r)
 			cancel()
-			s.handleTermination()
+			s.terminate()
 		}
 	}()
 
@@ -97,13 +95,20 @@ func (s *ConfigService) listenTermination() {
 	for {
 		select {
 		case <-s.Controller.StopChan:
-			s.handleTermination()
+			s.terminate()
 			return
 		}
 	}
 }
 
-func (s *ConfigService) handleTermination() {
+func (s *ConfigService) terminate() {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("ConfigService: terminate(): panic(): %s", r)
+			s.Controller.Terminate()
+		}
+	}()
+
 	s.DevStorage.CloseConn()
 	s.Log.Infoln("ConfigService is down")
 	s.Controller.Terminate()
@@ -152,6 +157,13 @@ func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConf
 }
 
 func (s *ConfigService) listenConfigPatch(ctx context.Context, channel string, msg chan []string) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("ConfigService: listenConfigPatch(): panic(): %s", r)
+			s.terminate()
+		}
+	}()
+
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("ConfigService: listenConfigPatch(): storage connection hasn't been established: ", err)
@@ -178,6 +190,13 @@ func (s *ConfigService) listenConfigPatch(ctx context.Context, channel string, m
 }
 
 func (s *ConfigService) publishConfigPatch(dc *entities.DevConfig) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("ConfigService: publishConfigPatch(): panic(): %s", r)
+			s.terminate()
+		}
+	}()
+
 	conn, _ := nats.Connect(nats.DefaultURL)
 	defer conn.Close()
 
