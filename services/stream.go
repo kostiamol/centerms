@@ -27,15 +27,15 @@ type ConnList struct {
 
 func (l *ConnList) AddConn(conn *websocket.Conn) {
 	l.Lock()
-	defer l.Unlock()
 	l.Conns = append(l.Conns, conn)
+	l.Unlock()
 }
 
 func (l *ConnList) RemoveConn(conn *websocket.Conn) bool {
 	l.Lock()
 	defer l.Unlock()
-	for i, v := range l.Conns {
-		if v == conn {
+	for i, c := range l.Conns {
+		if c == conn {
 			l.Conns = append(l.Conns[:i], l.Conns[i+1:]...)
 			return true
 		}
@@ -58,10 +58,10 @@ func NewStreamConns() *StreamConns {
 	}
 }
 
-func (c *StreamConns) RemoveConn(mac string) {
+func (c *StreamConns) RemoveMACConn(mac string) {
 	c.Lock()
-	defer c.Unlock()
 	delete(c.ConnMap, mac)
+	c.Unlock()
 }
 
 func (c *StreamConns) MapCollector(ctx context.Context) {
@@ -79,15 +79,15 @@ func (c *StreamConns) MapCollector(ctx context.Context) {
 	}
 }
 
-type PubSub struct {
-	SubWSChann        chan []string
-	RoomIDForWSPubSub string
+type Subscription struct {
+	Subject string
+	Channel chan []string
 }
 
-func NewPubSub(roomIDForWSPubSub string, subWSChannel chan []string) *PubSub {
-	return &PubSub{
-		RoomIDForWSPubSub: roomIDForWSPubSub,
-		SubWSChann:        subWSChannel,
+func NewSubscription(subject string, channel chan []string) *Subscription {
+	return &Subscription{
+		Subject: subject,
+		Channel: channel,
 	}
 }
 
@@ -97,7 +97,7 @@ type StreamService struct {
 	Controller entities.ServicesController
 	Log        *logrus.Logger
 	Conns      StreamConns
-	PubSub     PubSub
+	DevDataSub Subscription
 	Upgrader   websocket.Upgrader
 }
 
@@ -120,7 +120,7 @@ func NewStreamService(s entities.Server, st entities.DevStorage, c entities.Serv
 		Controller: c,
 		Log:        l,
 		Conns:      *NewStreamConns(),
-		PubSub:     *NewPubSub(entities.DevDataChan, make(chan []string)),
+		DevDataSub: *NewSubscription(entities.DevDataChan, make(chan []string)),
 		Upgrader:   u,
 	}
 }
@@ -138,15 +138,8 @@ func (s *StreamService) Run() {
 
 	go s.listenTermination()
 
-	conn, err := s.DevStorage.CreateConn()
-	if err != nil {
-		s.Log.Errorf("StreamService: Run(): storage connection hasn't been established: %s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	go s.Subscribe(ctx, conn)
-	go s.Unsubscribe(ctx)
+	go s.subscribe(ctx)
+	go s.unsubscribe(ctx)
 	go s.Conns.MapCollector(ctx)
 
 	r := mux.NewRouter()
@@ -158,7 +151,6 @@ func (s *StreamService) Run() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-
 	s.Log.Fatal(srv.ListenAndServe())
 }
 
@@ -190,32 +182,41 @@ func (s *StreamService) devDataStreamHandler(w http.ResponseWriter, r *http.Requ
 
 	s.Conns.Lock()
 	defer s.Conns.Unlock()
+
 	if _, ok := s.Conns.ConnMap[uri[2]]; !ok {
 		s.Conns.ConnMap[uri[2]] = new(ConnList)
 	}
 
 	conn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		s.Log.Errorf("StreamService: devDataStreamHandler(): Upgrage() has failed: %s", err)
+		s.Log.Errorf("StreamService: devDataStreamHandler(): Upgrade() has failed: %s", err)
 		return
 	}
 	s.Conns.ConnMap[uri[2]].AddConn(conn)
 }
 
-func (s *StreamService) Subscribe(ctx context.Context, st entities.DevStorage) {
+func (s *StreamService) subscribe(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: Subscribe(): panic(): %s", r)
+			s.Log.Errorf("StreamService: subscribe(): panic(): %s", r)
 			s.terminate()
 		}
 	}()
 
-	st.Subscribe(s.PubSub.SubWSChann, s.PubSub.RoomIDForWSPubSub)
+	conn, err := s.DevStorage.CreateConn()
+	if err != nil {
+		s.Log.Errorf("StreamService: subscribe(): storage connection hasn't been established: %s", err)
+		return
+	}
+	defer conn.CloseConn()
+
+	conn.Subscribe(s.DevDataSub.Channel, s.DevDataSub.Subject)
+
 	for {
 		select {
-		case msg := <-s.PubSub.SubWSChann:
+		case msg := <-s.DevDataSub.Channel:
 			if msg[0] == "message" {
-				go s.Publish(ctx, msg)
+				go s.streamDevData(ctx, msg)
 			}
 		case <-ctx.Done():
 			return
@@ -223,53 +224,30 @@ func (s *StreamService) Subscribe(ctx context.Context, st entities.DevStorage) {
 	}
 }
 
-func (s *StreamService) Unsubscribe(ctx context.Context) {
+func (s *StreamService) streamDevData(ctx context.Context, msgs []string) error {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: Unsubscribe(): panic(): %s", r)
-			s.terminate()
-		}
-	}()
-
-	for {
-		select {
-		case connAddr := <-s.Conns.ConnChanCloseWS:
-			for k, v := range s.Conns.ConnMap {
-				if ok := v.RemoveConn(connAddr); ok {
-					s.Conns.MACChan <- k
-					break
-				}
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (s *StreamService) Publish(ctx context.Context, msgs []string) error {
-	defer func() {
-		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: Publish(): panic(): %s", r)
+			s.Log.Errorf("StreamService: streamDevData(): panic(): %s", r)
 			s.terminate()
 		}
 	}()
 
 	var req entities.SaveDevDataRequest
 	if err := json.Unmarshal([]byte(msgs[2]), &req); err != nil {
-		errors.Wrap(err, "StreamService: Publish(): Request unmarshalling has failed")
+		errors.Wrap(err, "StreamService: streamDevData(): Request unmarshalling has failed")
 		return err
 	}
 
 	if _, ok := s.Conns.ConnMap[req.Meta.MAC]; ok {
 		s.Conns.ConnMap[req.Meta.MAC].Lock()
-		for _, val := range s.Conns.ConnMap[req.Meta.MAC].Conns {
+		for _, с := range s.Conns.ConnMap[req.Meta.MAC].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				if err := val.WriteMessage(1, []byte(msgs[2])); err != nil {
-					errors.Errorf("StreamService: Publish(): connection %v has been closed", val.RemoteAddr())
-					s.Conns.ConnChanCloseWS <- val
+				if err := с.WriteMessage(1, []byte(msgs[2])); err != nil {
+					errors.Errorf("StreamService: streamDevData(): connection %v has been closed", с.RemoteAddr())
+					s.Conns.ConnChanCloseWS <- с
 					return err
 				}
 			}
@@ -278,4 +256,27 @@ func (s *StreamService) Publish(ctx context.Context, msgs []string) error {
 		return nil
 	}
 	return nil
+}
+
+func (s *StreamService) unsubscribe(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("StreamService: unsubscribe(): panic(): %s", r)
+			s.terminate()
+		}
+	}()
+
+	for {
+		select {
+		case conn := <-s.Conns.ConnChanCloseWS:
+			for k, v := range s.Conns.ConnMap {
+				if ok := v.RemoveConn(conn); ok {
+					s.Conns.MACChan <- k
+					break
+				}
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }

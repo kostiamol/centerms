@@ -36,8 +36,6 @@ function sendDevConfigFreq(id, collectFreq, sendFreq) {
     var xhr = new XMLHttpRequest();
     requestHandler(id, xhr);
 
-    console.dir(id[0]);
-
     var config = JSON.stringify(
         {
             "mac": id[0],
@@ -54,8 +52,6 @@ function sendDevConfigTurnedOn(id, turnedOn) {
     var xhr = new XMLHttpRequest();
     requestHandler(id, xhr);
 
-    console.dir(id[0]);
-
     var config = JSON.stringify(
         {
             "mac": id[0],
@@ -70,8 +66,6 @@ function sendDevConfigTurnedOn(id, turnedOn) {
 function sendDevConfigStreamOn(id, streamOn) {
     var xhr = new XMLHttpRequest();
     requestHandler(id, xhr);
-
-    console.dir(id[0]);
 
     var config = JSON.stringify(
         {
@@ -127,14 +121,14 @@ function printFridgeChart(obj) {
                     var seriesTemCam2 = this.series[1];
                     var timerForRepaint = 50;
                     var repaint = function (fridge) {
-                        for (key in fridge.data.botCompart) {
+                        for (key in fridge.data.BotCompart) {
                             var x = parseInt(key);
-                            var y = parseFloat(fridge.data.botCompart[key]);
+                            var y = parseFloat(fridge.data.BotCompart[key]);
                             seriesTemCam2.addPoint([x, y], true, true);
                         }
-                        for (key in fridge.data.topCompart) {
+                        for (key in fridge.data.TopCompart) {
                             var x = parseInt(key);
-                            var y = parseFloat(fridge.data.topCompart[key]);
+                            var y = parseFloat(fridge.data.TopCompart[key]);
                             seriesTemCam1.addPoint([x, y], true, true);
                         }
                     };
@@ -206,11 +200,11 @@ var domen = url[2].split(":");
 
 var showDataFromWS = true;
 var fridges = [];
-console.dir(String(urlParams["mac"]))
 var socket = new WebSocket("ws://" + domen[0] + ":3546" + "/devices/" + String(urlParams["mac"]));
 socket.onmessage = function (event) {
     var incomingMessage = event.data;
-    var fridge = JSON.parse(incomingMessage)
+    var fridge = JSON.parse(incomingMessage);
+    console.dir(fridge);
     fridges.push(fridge);
 };
 
@@ -277,5 +271,3 @@ $(document).ready(function () {
         }
     };
 });
-
-

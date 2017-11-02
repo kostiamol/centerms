@@ -69,7 +69,7 @@ func (s *DataService) terminate() {
 	s.Controller.Terminate()
 }
 
-func (s *DataService) SaveDevData(r *entities.SaveDevDataRequest) {
+func (s *DataService) SaveDevData(req *entities.SaveDevDataRequest) {
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("DataService: saveDevData(): storage connection hasn't been established: %s", err)
@@ -77,16 +77,16 @@ func (s *DataService) SaveDevData(r *entities.SaveDevDataRequest) {
 	}
 	defer conn.CloseConn()
 
-	if err = conn.SaveDevData(r); err != nil {
+	if err = conn.SaveDevData(req); err != nil {
 		s.Log.Errorf("DataService: SaveDevData() has failed: %s", err)
 		return
 	}
 
-	//s.Log.Infof("save data for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)
-	go s.publishDevData(r, entities.DevDataChan)
+	//s.Log.Infof("save data for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", req.Meta.Type, req.Meta.Name, req.Meta.MAC)
+	go s.publishDevData(req, entities.DevDataChan)
 }
 
-func (s *DataService) publishDevData(r *entities.SaveDevDataRequest, channel string) error {
+func (s *DataService) publishDevData(req *entities.SaveDevDataRequest, subject string) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("DataService: publishDevData(): panic(): %s", r)
@@ -94,21 +94,21 @@ func (s *DataService) publishDevData(r *entities.SaveDevDataRequest, channel str
 		}
 	}()
 
-	b, err := json.Marshal(r)
-	if err != nil {
-		return errors.Wrap(err, "DataService: publishDevData(): Request marshalling has failed")
-	}
-
 	conn, err := s.DevStorage.CreateConn()
 	if err != nil {
 		return errors.Wrap(err, "DataService: publishDevData(): storage connection hasn't been established")
 	}
 	defer conn.CloseConn()
 
-	if _, err = conn.Publish(channel, b); err != nil {
+	b, err := json.Marshal(req)
+	if err != nil {
+		return errors.Wrap(err, "DataService: publishDevData(): Request marshalling has failed")
+	}
+
+	if _, err = conn.Publish(subject, b); err != nil {
 		return errors.Wrap(err, "DataService: publishDevData(): publishing has failed")
 	}
 
-	//s.Log.Infof("publish DevData for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", r.Meta.Type, r.Meta.Name, r.Meta.MAC)
+	//s.Log.Infof("publish DevData for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", req.Meta.Type, req.Meta.Name, req.Meta.MAC)
 	return nil
 }

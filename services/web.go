@@ -209,7 +209,7 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	if _, err = conn.Publish(entities.DevConfigChan, b); err != nil {
-		s.Log.Errorf("WebService: patchDevConfigHandler(): Publish() has failed: %s", err)
+		s.Log.Errorf("WebService: patchDevConfigHandler(): streamDevData() has failed: %s", err)
 		return
 	}
 }

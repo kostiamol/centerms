@@ -49,7 +49,7 @@ func main() {
 
 	ss := services.NewStreamService(
 		entities.Server{
-			Host: localhost,
+			Host: webHost,
 			Port: streamPort,
 		},
 		st,
