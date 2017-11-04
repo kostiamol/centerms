@@ -3,7 +3,6 @@ package entities
 var (
 	DefaultFridgeConfig = FridgeConfig{
 		TurnedOn:    true,
-		StreamOn:    false,
 		CollectFreq: 1000,
 		SendFreq:    2000,
 	}
@@ -22,7 +21,6 @@ type FridgeData struct {
 
 type FridgeConfig struct {
 	TurnedOn    bool  `json:"turnedOn"`
-	StreamOn    bool  `json:"streamOn"`
 	CollectFreq int64 `json:"collectFreq"`
 	SendFreq    int64 `json:"sendFreq"`
 }

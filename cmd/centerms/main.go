@@ -11,7 +11,7 @@ import (
 func main() {
 	var (
 		st            = &storages.RedisStorage{RetryInterval: retryInterval}
-		ctrl          = entities.ServicesController{StopChan: make(chan struct{})}
+		ctrl          = entities.ServiceController{StopChan: make(chan struct{})}
 		storageServer = entities.Server{
 			Host: storageHost,
 			Port: storagePort,
@@ -27,6 +27,8 @@ func main() {
 		st,
 		ctrl,
 		logrus.New(),
+		retryInterval,
+		entities.DevConfigSubject,
 	)
 	go cs.Run()
 
@@ -55,6 +57,7 @@ func main() {
 		st,
 		ctrl,
 		logrus.New(),
+		entities.DevDataSubject,
 	)
 	go ss.Run()
 

@@ -4,8 +4,8 @@ $(document).ready(function () {
         var obj = JSON.parse(data);
         var data_length = obj.length;
 
-        $("#result").append('<div id="container" class="container">'); // Open container
-        $("#container").append('<div id="row" class="row">'); // Open raw
+        $("#result").append('<div id="container" class="container">');
+        $("#container").append('<div id="row" class="row">');
 
         while (data_length > 0) {
             var info_card = "info-card" + data_length;
@@ -13,13 +13,13 @@ $(document).ready(function () {
             var back = "back" + data_length;
 
             // Front Side
-            $("#row").append('<div id="' + info_card + '" class="info-card">'); // Open info-card
-            $("#" + info_card).append('<div id="' + front + '"class="front">'); // Open front
-            $('#' + front).append('<img class="card-image" src="img/Fridge.ico" />'); // Image Front
+            $("#row").append('<div id="' + info_card + '" class="info-card">');
+            $("#" + info_card).append('<div id="' + front + '"class="front">');
+            $('#' + front).append('<img class="card-image" src="img/fridge.ico" />');
             $('#' + front).append('</div'); // Close front
 
             // Back side
-            $("#" + info_card).append('<div id="' + back + '"class="back">'); // Open back
+            $("#" + info_card).append('<div id="' + back + '"class="back">');
 
             // Device Info
             $("#" + back).append('<p> Type: ' + obj[data_length - 1]["meta"]["type"] + '</p>');

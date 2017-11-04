@@ -45,32 +45,26 @@ func (l *ConnList) RemoveConn(conn *websocket.Conn) bool {
 
 type StreamConns struct {
 	sync.Mutex
-	ConnChanCloseWS chan *websocket.Conn
-	MACChan         chan string
-	ConnMap         map[string]*ConnList
+	ClosedConns   chan *websocket.Conn
+	CheckMACConns chan string
+	MACConns      map[string]*ConnList
 }
 
 func NewStreamConns() *StreamConns {
 	return &StreamConns{
-		ConnChanCloseWS: make(chan *websocket.Conn),
-		ConnMap:         make(map[string]*ConnList),
-		MACChan:         make(chan string),
+		ClosedConns:   make(chan *websocket.Conn),
+		MACConns:      make(map[string]*ConnList),
+		CheckMACConns: make(chan string),
 	}
 }
 
-func (c *StreamConns) RemoveMACConn(mac string) {
-	c.Lock()
-	delete(c.ConnMap, mac)
-	c.Unlock()
-}
-
-func (c *StreamConns) MapCollector(ctx context.Context) {
+func (c *StreamConns) checkMACConns(ctx context.Context) {
 	for {
 		select {
-		case mac := <-c.MACChan:
+		case mac := <-c.CheckMACConns:
 			c.Lock()
-			if len(c.ConnMap[mac].Conns) == 0 {
-				delete(c.ConnMap, mac)
+			if len(c.MACConns[mac].Conns) == 0 {
+				delete(c.MACConns, mac)
 			}
 			c.Unlock()
 		case <-ctx.Done():
@@ -79,34 +73,23 @@ func (c *StreamConns) MapCollector(ctx context.Context) {
 	}
 }
 
-type Subscription struct {
-	Subject string
-	Channel chan []string
-}
-
-func NewSubscription(subject string, channel chan []string) *Subscription {
-	return &Subscription{
-		Subject: subject,
-		Channel: channel,
-	}
-}
-
 type StreamService struct {
-	Server     entities.Server
-	DevStorage entities.DevStorage
-	Controller entities.ServicesController
-	Log        *logrus.Logger
-	Conns      StreamConns
-	DevDataSub Subscription
-	Upgrader   websocket.Upgrader
+	Server   entities.Server
+	Storage  entities.Storage
+	Ctrl     entities.ServiceController
+	Log      *logrus.Logger
+	Conns    StreamConns
+	Sub      entities.Subscription
+	Upgrader websocket.Upgrader
 }
 
-func NewStreamService(s entities.Server, st entities.DevStorage, c entities.ServicesController, l *logrus.Logger) *StreamService {
+func NewStreamService(srv entities.Server, st entities.Storage, c entities.ServiceController, l *logrus.Logger,
+	subject string) *StreamService {
 	u := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
-			if r.Host == s.Host+":"+s.Port {
+			if r.Host == srv.Host+":"+srv.Port {
 				return true
 			}
 			return true
@@ -115,13 +98,16 @@ func NewStreamService(s entities.Server, st entities.DevStorage, c entities.Serv
 	l.Out = os.Stdout
 
 	return &StreamService{
-		Server:     s,
-		DevStorage: st,
-		Controller: c,
-		Log:        l,
-		Conns:      *NewStreamConns(),
-		DevDataSub: *NewSubscription(entities.DevDataChan, make(chan []string)),
-		Upgrader:   u,
+		Server:  srv,
+		Storage: st,
+		Ctrl:    c,
+		Log:     l,
+		Conns:   *NewStreamConns(),
+		Sub: entities.Subscription{
+			Subject: subject,
+			Channel: make(chan []string),
+		},
+		Upgrader: u,
 	}
 }
 
@@ -137,13 +123,12 @@ func (s *StreamService) Run() {
 	}()
 
 	go s.listenTermination()
-
-	go s.subscribe(ctx)
-	go s.unsubscribe(ctx)
-	go s.Conns.MapCollector(ctx)
+	go s.listenPublications(ctx)
+	go s.listenClosedConns(ctx)
+	go s.Conns.checkMACConns(ctx)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/devices/{id}", s.devDataStreamHandler)
+	r.HandleFunc("/devices/{id}", s.addConnHandler)
 
 	srv := &http.Server{
 		Handler:      r,
@@ -157,7 +142,7 @@ func (s *StreamService) Run() {
 func (s *StreamService) listenTermination() {
 	for {
 		select {
-		case <-s.Controller.StopChan:
+		case <-s.Ctrl.StopChan:
 			s.terminate()
 			return
 		}
@@ -172,51 +157,60 @@ func (s *StreamService) terminate() {
 		}
 	}()
 
-	s.DevStorage.CloseConn()
+	s.Storage.CloseConn()
 	s.Log.Info("StreamService is down")
-	s.Controller.Terminate()
+	s.Ctrl.Terminate()
 }
 
-func (s *StreamService) devDataStreamHandler(w http.ResponseWriter, r *http.Request) {
-	uri := strings.Split(r.URL.String(), "/")
-
-	s.Conns.Lock()
-	defer s.Conns.Unlock()
-
-	if _, ok := s.Conns.ConnMap[uri[2]]; !ok {
-		s.Conns.ConnMap[uri[2]] = new(ConnList)
-	}
-
-	conn, err := s.Upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		s.Log.Errorf("StreamService: devDataStreamHandler(): Upgrade() has failed: %s", err)
-		return
-	}
-	s.Conns.ConnMap[uri[2]].AddConn(conn)
-}
-
-func (s *StreamService) subscribe(ctx context.Context) {
+func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: subscribe(): panic(): %s", r)
+			s.Log.Errorf("StreamService: addConnHandler(): panic(): %s", r)
 			s.terminate()
 		}
 	}()
 
-	conn, err := s.DevStorage.CreateConn()
+	uri := strings.Split(r.URL.String(), "/")
+	mac := uri[2]
+
+	s.Conns.Lock()
+	if _, ok := s.Conns.MACConns[mac]; !ok {
+		s.Conns.MACConns[mac] = new(ConnList)
+	}
+	s.Conns.Unlock()
+
+	s.Log.Info("conn req from 1")
+	conn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		s.Log.Errorf("StreamService: subscribe(): storage connection hasn't been established: %s", err)
+		s.Log.Errorf("StreamService: addConnHandler(): Upgrade() has failed: %s", err)
+		return
+	}
+	s.Log.Info("conn req from 2")
+	s.Conns.MACConns[mac].AddConn(conn)
+	s.Log.Infof("StreamService(): addConnHandler(): conn with %v has been added", conn.RemoteAddr())
+}
+
+func (s *StreamService) listenPublications(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Log.Errorf("StreamService: listenPublications(): panic(): %s", r)
+			s.terminate()
+		}
+	}()
+
+	conn, err := s.Storage.CreateConn()
+	if err != nil {
+		s.Log.Errorf("StreamService: listenPublications(): storage connection hasn't been established: %s", err)
 		return
 	}
 	defer conn.CloseConn()
-
-	conn.Subscribe(s.DevDataSub.Channel, s.DevDataSub.Subject)
+	conn.Subscribe(s.Sub.Channel, s.Sub.Subject)
 
 	for {
 		select {
-		case msg := <-s.DevDataSub.Channel:
-			if msg[0] == "message" {
-				go s.streamDevData(ctx, msg)
+		case message := <-s.Sub.Channel:
+			if message[0] == "message" {
+				go s.stream(ctx, message)
 			}
 		case <-ctx.Done():
 			return
@@ -224,57 +218,63 @@ func (s *StreamService) subscribe(ctx context.Context) {
 	}
 }
 
-func (s *StreamService) streamDevData(ctx context.Context, msgs []string) error {
+func (s *StreamService) stream(ctx context.Context, message []string) error {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: streamDevData(): panic(): %s", r)
+			s.Log.Errorf("StreamService: stream(): panic(): %s", r)
 			s.terminate()
 		}
 	}()
 
 	var req entities.SaveDevDataRequest
-	if err := json.Unmarshal([]byte(msgs[2]), &req); err != nil {
-		errors.Wrap(err, "StreamService: streamDevData(): Request unmarshalling has failed")
+	if err := json.Unmarshal([]byte(message[2]), &req); err != nil {
+		errors.Wrap(err, "StreamService: stream(): Request unmarshalling has failed")
 		return err
 	}
 
-	if _, ok := s.Conns.ConnMap[req.Meta.MAC]; ok {
-		s.Conns.ConnMap[req.Meta.MAC].Lock()
-		for _, с := range s.Conns.ConnMap[req.Meta.MAC].Conns {
+	s.Conns.Lock()
+	if _, ok := s.Conns.MACConns[req.Meta.MAC]; ok {
+		s.Conns.Unlock()
+		s.Conns.MACConns[req.Meta.MAC].Lock()
+		for _, conn := range s.Conns.MACConns[req.Meta.MAC].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				if err := с.WriteMessage(1, []byte(msgs[2])); err != nil {
-					errors.Errorf("StreamService: streamDevData(): connection %v has been closed", с.RemoteAddr())
-					s.Conns.ConnChanCloseWS <- с
+				if err := conn.WriteMessage(1, []byte(message[2])); err != nil {
+					s.Log.Infof("StreamService: stream(): conn with %v has been closed", conn.RemoteAddr())
+					s.Conns.ClosedConns <- conn
 					return err
 				}
 			}
 		}
-		s.Conns.ConnMap[req.Meta.MAC].Unlock()
+		s.Conns.MACConns[req.Meta.MAC].Unlock()
 		return nil
 	}
+	s.Conns.Unlock()
+
 	return nil
 }
 
-func (s *StreamService) unsubscribe(ctx context.Context) {
+func (s *StreamService) listenClosedConns(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: unsubscribe(): panic(): %s", r)
+			s.Log.Errorf("StreamService: listenClosedConns(): panic(): %s", r)
 			s.terminate()
 		}
 	}()
 
 	for {
 		select {
-		case conn := <-s.Conns.ConnChanCloseWS:
-			for k, v := range s.Conns.ConnMap {
-				if ok := v.RemoveConn(conn); ok {
-					s.Conns.MACChan <- k
+		case conn := <-s.Conns.ClosedConns:
+			s.Conns.Lock()
+			for mac, connList := range s.Conns.MACConns {
+				if ok := connList.RemoveConn(conn); ok {
+					s.Conns.CheckMACConns <- mac
 					break
 				}
 			}
+			s.Conns.Unlock()
 		case <-ctx.Done():
 			return
 		}

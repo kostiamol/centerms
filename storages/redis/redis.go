@@ -38,7 +38,7 @@ func (rds *RedisStorage) SetServer(s entities.Server) error {
 	return err
 }
 
-func (rds *RedisStorage) CreateConn() (entities.DevStorage, error) {
+func (rds *RedisStorage) CreateConn() (entities.Storage, error) {
 	nrc := RedisStorage{
 		Client:   redis.New(),
 		DbServer: rds.DbServer,
@@ -57,7 +57,6 @@ func (rds *RedisStorage) CreateConn() (entities.DevStorage, error) {
 		time.Sleep(time.Second*duration + 1)
 		err = nrc.Client.Connect(nrc.DbServer.Host, port)
 	}
-
 	return &nrc, err
 }
 
@@ -77,8 +76,8 @@ func (rds *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 	}
 
 	var (
-		dd  entities.DevData
-		dsd []entities.DevData
+		devData  entities.DevData
+		devsData []entities.DevData
 	)
 
 	for index, key := range devParamsKeysTokens {
@@ -87,12 +86,12 @@ func (rds *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 			errors.Wrapf(err, "RedisStorage: GetDevsData(): SMembers() for %rds has failed", devParamsKeys[index])
 		}
 
-		dd.Meta = entities.DevMeta{
+		devData.Meta = entities.DevMeta{
 			Type: key[1],
 			Name: key[2],
 			MAC:  key[3],
 		}
-		dd.Data = make(map[string][]string)
+		devData.Data = make(map[string][]string)
 
 		vals := make([][]string, len(params))
 		for i, p := range params {
@@ -100,12 +99,11 @@ func (rds *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 			if err != nil {
 				errors.Wrapf(err, "RedisStorage: GetDevsData(): ZRangeByScore() for %rds has failed", devParamsKeys[i])
 			}
-			dd.Data[p] = vals[i]
+			devData.Data[p] = vals[i]
 		}
-		dsd = append(dsd, dd)
+		devsData = append(devsData, devData)
 	}
-
-	return dsd, err
+	return devsData, err
 }
 
 func (rds *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
@@ -116,7 +114,6 @@ func (rds *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 		}
 		return true, err
 	}
-
 	return false, nil
 }
 
@@ -175,10 +172,12 @@ func (rds *RedisStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.Dev
 	}
 }
 
-func (rds *RedisStorage) Publish(channel string, msg interface{}) (int64, error) {
-	return rds.Client.Publish(channel, msg)
+// Publish posts a message on the given subject.
+func (rds *RedisStorage) Publish(subject string, message interface{}) (int64, error) {
+	return rds.Client.Publish(subject, message)
 }
 
-func (rds *RedisStorage) Subscribe(c chan []string, channel ...string) error {
-	return rds.Client.Subscribe(c, channel...)
+// Subscribe subscribes the client to the specified subjects.
+func (rds *RedisStorage) Subscribe(cn chan []string, subject ...string) error {
+	return rds.Client.Subscribe(cn, subject...)
 }

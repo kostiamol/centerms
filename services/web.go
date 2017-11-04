@@ -15,19 +15,19 @@ import (
 )
 
 type WebService struct {
-	Server     entities.Server
-	DevStorage entities.DevStorage
-	Controller entities.ServicesController
-	Log        *logrus.Logger
+	Server  entities.Server
+	Storage entities.Storage
+	Ctrl    entities.ServiceController
+	Log     *logrus.Logger
 }
 
-func NewWebService(s entities.Server, ds entities.DevStorage, sc entities.ServicesController, l *logrus.Logger) *WebService {
+func NewWebService(srv entities.Server, st entities.Storage, c entities.ServiceController, l *logrus.Logger) *WebService {
 	l.Out = os.Stdout
 	return &WebService{
-		Server:     s,
-		DevStorage: ds,
-		Controller: sc,
-		Log:        l,
+		Server:  srv,
+		Storage: st,
+		Ctrl:    c,
+		Log:     l,
 	}
 }
 
@@ -63,7 +63,7 @@ func (s *WebService) Run() {
 func (s *WebService) listenTermination() {
 	for {
 		select {
-		case <-s.Controller.StopChan:
+		case <-s.Ctrl.StopChan:
 			s.terminate()
 			return
 		}
@@ -74,13 +74,13 @@ func (s *WebService) terminate() {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("WebService: terminate(): panic(): %s", r)
-			s.Controller.Terminate()
+			s.Ctrl.Terminate()
 		}
 	}()
 
-	s.DevStorage.CloseConn()
+	s.Storage.CloseConn()
 	s.Log.Infoln("WebService has shut down")
-	s.Controller.Terminate()
+	s.Ctrl.Terminate()
 }
 
 // https://medium.com/@matryer/writing-middleware-in-golang-and-how-go-makes-it-so-much-fun-4375c1246e81
@@ -106,7 +106,7 @@ func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func (s *WebService) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.DevStorage.CreateConn()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("WebService: getDevicesHandler(): storage connection hasn't been established: %s", err)
 		return
@@ -126,7 +126,7 @@ func (s *WebService) getDevsDataHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.DevStorage.CreateConn()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("WebService: getDevDataHandler(): storage connection hasn't been established: %s", err)
 		return
@@ -152,7 +152,7 @@ func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.DevStorage.CreateConn()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("WebService: getDevConfigHandler(): storage connection hasn't been established: %s", err)
 		return
@@ -178,7 +178,7 @@ func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.DevStorage.CreateConn()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("WebService: patchDevConfigHandler(): storage connection hasn't been established: %s")
 		return
@@ -208,8 +208,8 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if _, err = conn.Publish(entities.DevConfigChan, b); err != nil {
-		s.Log.Errorf("WebService: patchDevConfigHandler(): streamDevData() has failed: %s", err)
+	if _, err = conn.Publish(entities.DevConfigSubject, b); err != nil {
+		s.Log.Errorf("WebService: patchDevConfigHandler(): stream() has failed: %s", err)
 		return
 	}
 }

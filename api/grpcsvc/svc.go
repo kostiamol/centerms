@@ -76,7 +76,7 @@ func (a *API) listenConfig() {
 	defer func() {
 		if r := recover(); r != nil {
 			a.Config.Log.Errorf("API: listenConfig(): panic(): %s", r)
-			a.Config.Controller.StopChan <- struct{}{}
+			a.Config.Ctrl.StopChan <- struct{}{}
 		}
 	}()
 
@@ -97,7 +97,7 @@ func (a *API) listenData() {
 	defer func() {
 		if r := recover(); r != nil {
 			a.Data.Log.Errorf("API: listenData(): panic(): %s", r)
-			a.Data.Controller.StopChan <- struct{}{}
+			a.Data.Ctrl.StopChan <- struct{}{}
 		}
 	}()
 

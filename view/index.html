@@ -1,86 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Smart House</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
-  <link rel="stylesheet" href="../css/style.css">
-  <link rel="icon" href="../img/home.png">
-  <link href="https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css" rel="stylesheet">
-  <script src="https://gitcdn.github.io/bootstrap-toggle/2.2.2/js/bootstrap-toggle.min.js"></script>
+    <title>Smart House</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="icon" href="../img/home.png">
+    <link href="https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css" rel="stylesheet">
+    <script src="https://gitcdn.github.io/bootstrap-toggle/2.2.2/js/bootstrap-toggle.min.js"></script>
+    <script src="js/index.js"></script>
 </head>
 <body>
 
-  <nav class="navbar navbar-default">
+<nav class="navbar navbar-default">
     <div class="container-fluid">
-      <!-- Brand and toggle get grouped for better mobile display -->
-      <div class="navbar-header">
-        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
-          <span class="sr-only">Toggle navigation</span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-        </button>
-      </div>
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+                    data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+        </div>
 
-      <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-        <ul class="nav navbar-nav">
-          <li><a href="index.html">Home</a></li>
-          <li><a href="kitchen.html">Kitchen</a></li>
-          <li><a href="unassigned.html">Unassigned Devices</a></li>
-        </ul>
-      </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav">
+                <li><a href="index.html">Devices</a></li>
+            </ul>
+        </div>
     </div>
-  </nav>
+</nav>
 
-  <div class="container">
-    <div class="row">
-      <div class="info-card">
-        <div class="front">
-          <img class="card-image" src="../img/Light.ico">
-        </div>
-        <div class="back">
-          <h2>Light</h2>
-          <input type="range" min="0" max="100" step="1" value="50"> 
-        </div>
-      </div>
-
-      <div class="info-card">
-        <div class="front">
-          <img class="card-image" src="../img/Heating.ico">
-        </div>
-        <div class="back">
-          <h2>Heating</h2>
-          <input type="range" min="0" max="100" step="1" value="50"> 
-
-        </div>
-      </div>
-
-      <div class="info-card">
-        <div class="front">
-          <img class="card-image" src="../img/Ventilation.ico">
-        </div>
-        <div class="back">
-          <h2>Ventilation</h2>
-          <input type="range" min="0" max="100" step="1" value="50"> 
-
-        </div>
-      </div>
-
-      <div class="info-card">
-        <div class="front">
-          <img class="card-image" src="../img/AirConditioner.png">
-        </div>
-        <div class="back">
-          <h2>Air Conditioner</h2>
-          <input type="range" min="0" max="100" step="1" value="50"> 
-          
-        </div>
-      </div>
-    </div>
-  </div>
+<div id="result"></div>
 </body>
 </html>

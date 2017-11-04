@@ -16,7 +16,6 @@
 
 <nav class="navbar navbar-default">
     <div class="container-fluid">
-        <!-- Brand and toggle get grouped for better mobile display -->
         <div class="navbar-header">
             <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
                     data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
@@ -26,16 +25,12 @@
                 <span class="icon-bar"></span>
             </button>
         </div>
-
-        <!-- Collect the nav links, forms, and other content for toggling -->
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav">
-                <li><a href="index.html">Home</a></li>
-                <li><a href="kitchen.html">Kitchen</a></li>
-                <li><a href="unassigned.html">Unassigned Devices</a></li>
+                <li><a href="index.html">Devices</a></li>
             </ul>
-        </div><!-- /.navbar-collapse -->
-    </div><!-- /.container-fluid -->
+        </div>
+    </div>
 </nav>
 
 <div class="container">
@@ -43,9 +38,7 @@
     <form class="form-horizontal">
         <div class="row">
             <div class="col-md-6">
-
                 <h4>Basic device info</h4>
-
                 <div class="form-group">
                     <label for="turnedOnBtn" class="col-sm-4 control-label">State</label>
                     <div class="col-sm-8">
@@ -70,15 +63,15 @@
             </div>
 
             <div class="col-md-6">
-                <h4>Config state</h4>
+                <h4>Configuration</h4>
                 <div class="form-group">
-                    <label for="collectFreq" class="col-sm-4 control-label">Data collection interval</label>
+                    <label for="collectFreq" class="col-sm-4 control-label">Data collection interval (ms)</label>
                     <div class="col-sm-8">
                         <input type="text" id="collectFreq" class="form-control">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="sendFreq" class="col-sm-4 control-label">Data sending interval</label>
+                    <label for="sendFreq" class="col-sm-4 control-label">Data sending interval (ms)</label>
                     <div class="col-sm-8">
                         <input type="text" id="sendFreq" class="form-control">
                     </div>

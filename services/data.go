@@ -14,21 +14,21 @@ import (
 )
 
 type DataService struct {
-	Server     entities.Server
-	DevStorage entities.DevStorage
-	Controller entities.ServicesController
-	Log        *logrus.Logger
+	Server  entities.Server
+	Storage entities.Storage
+	Ctrl    entities.ServiceController
+	Log     *logrus.Logger
 }
 
-func NewDataService(s entities.Server, ds entities.DevStorage, c entities.ServicesController,
+func NewDataService(srv entities.Server, st entities.Storage, c entities.ServiceController,
 	l *logrus.Logger) *DataService {
 
 	l.Out = os.Stdout
 	return &DataService{
-		Server:     s,
-		DevStorage: ds,
-		Controller: c,
-		Log:        l,
+		Server:  srv,
+		Storage: st,
+		Ctrl:    c,
+		Log:     l,
 	}
 }
 
@@ -49,7 +49,7 @@ func (s *DataService) Run() {
 func (s *DataService) listenTermination() {
 	for {
 		select {
-		case <-s.Controller.StopChan:
+		case <-s.Ctrl.StopChan:
 			s.terminate()
 			return
 		}
@@ -60,17 +60,17 @@ func (s *DataService) terminate() {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("DataService: terminate(): panic(): %s", r)
-			s.Controller.Terminate()
+			s.Ctrl.Terminate()
 		}
 	}()
 
-	s.DevStorage.CloseConn()
+	s.Storage.CloseConn()
 	s.Log.Infoln("DataService is down")
-	s.Controller.Terminate()
+	s.Ctrl.Terminate()
 }
 
 func (s *DataService) SaveDevData(req *entities.SaveDevDataRequest) {
-	conn, err := s.DevStorage.CreateConn()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("DataService: saveDevData(): storage connection hasn't been established: %s", err)
 		return
@@ -83,7 +83,7 @@ func (s *DataService) SaveDevData(req *entities.SaveDevDataRequest) {
 	}
 
 	//s.Log.Infof("save data for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", req.Meta.Type, req.Meta.Name, req.Meta.MAC)
-	go s.publishDevData(req, entities.DevDataChan)
+	go s.publishDevData(req, entities.DevDataSubject)
 }
 
 func (s *DataService) publishDevData(req *entities.SaveDevDataRequest, subject string) error {
@@ -94,7 +94,7 @@ func (s *DataService) publishDevData(req *entities.SaveDevDataRequest, subject s
 		}
 	}()
 
-	conn, err := s.DevStorage.CreateConn()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		return errors.Wrap(err, "DataService: publishDevData(): storage connection hasn't been established")
 	}

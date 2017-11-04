@@ -103,11 +103,6 @@ func (rds *RedisStorage) getFridgeConfig(m *entities.DevMeta) (*entities.DevConf
 		errors.Wrap(err, "RedisStorage: getFridgeConfig(): SendFreq field extraction has failed")
 		return nil, err
 	}
-	so, err := rds.Client.HMGet(configKey, "StreamOn")
-	if err != nil {
-		errors.Wrap(err, "RedisStorage: getFridgeConfig(): StreamOn field extraction has failed")
-		return nil, err
-	}
 
 	pto, err := strconv.ParseBool(strings.Join(to, " "))
 	if err != nil {
@@ -125,17 +120,11 @@ func (rds *RedisStorage) getFridgeConfig(m *entities.DevMeta) (*entities.DevConf
 		errors.Wrap(err, "RedisStorage: getFridgeConfig(): SendFreq field parsing has failed")
 		return nil, err
 	}
-	pso, err := strconv.ParseBool(strings.Join(so, " "))
-	if err != nil {
-		errors.Wrap(err, "RedisStorage: getFridgeConfig(): StreamOn field parsing has failed")
-		return nil, err
-	}
 
 	fc := entities.FridgeConfig{
 		TurnedOn:    pto,
 		CollectFreq: pcf,
 		SendFreq:    psf,
-		StreamOn:    pso,
 	}
 
 	b, err := json.Marshal(&fc)
@@ -198,11 +187,7 @@ func (rds *RedisStorage) setFridgeConfig(c *entities.DevConfig, m *entities.DevM
 		rds.Client.Discard()
 		return err
 	}
-	if _, err := rds.Client.HMSet(configKey, "StreamOn", fc.StreamOn); err != nil {
-		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
-		rds.Client.Discard()
-		return err
-	}
+
 	_, err := rds.Client.Exec()
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): Exec() has failed")

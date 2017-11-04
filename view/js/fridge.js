@@ -5,20 +5,25 @@ function parseURLParams(url) {
         pairs = query.replace(/\+/g, " ").split("&"),
         parms = {}, i, n, v, nv;
 
-    if (query === url || query === "") return;
+    if (query === url || query === "") {
+        return;
+    }
 
     for (i = 0; i < pairs.length; i++) {
         nv = pairs[i].split("=", 2);
         n = decodeURIComponent(nv[0]);
         v = decodeURIComponent(nv[1]);
 
-        if (!parms.hasOwnProperty(n)) parms[n] = [];
+        if (!parms.hasOwnProperty(n)) {
+            parms[n] = [];
+        }
+
         parms[n].push(nv.length === 2 ? v : null);
     }
     return parms;
 }
 
-function requestHandler(id, xhr) {
+function setRequestParams(id, xhr) {
     var url = "/devices/" + id + "/config?mac=" + urlParams["mac"] + "&type=" + urlParams["type"] + "&name=" + urlParams["name"];
     xhr.open("PATCH", url, true);
     xhr.setRequestHeader("Content-type", "application/json");
@@ -34,7 +39,7 @@ function requestHandler(id, xhr) {
 
 function sendDevConfigFreq(id, collectFreq, sendFreq) {
     var xhr = new XMLHttpRequest();
-    requestHandler(id, xhr);
+    setRequestParams(id, xhr);
 
     var config = JSON.stringify(
         {
@@ -50,7 +55,7 @@ function sendDevConfigFreq(id, collectFreq, sendFreq) {
 
 function sendDevConfigTurnedOn(id, turnedOn) {
     var xhr = new XMLHttpRequest();
-    requestHandler(id, xhr);
+    setRequestParams(id, xhr);
 
     var config = JSON.stringify(
         {
@@ -63,9 +68,9 @@ function sendDevConfigTurnedOn(id, turnedOn) {
     xhr.send(config);
 }
 
-function sendDevConfigStreamOn(id, streamOn) {
+function sendDevDataStreamOn(id, streamOn) {
     var xhr = new XMLHttpRequest();
-    requestHandler(id, xhr);
+    setRequestParams(id, xhr);
 
     var config = JSON.stringify(
         {
@@ -105,39 +110,37 @@ function setDevConfigFields(obj) {
 }
 
 function printFridgeChart(obj) {
-    //chart
     Highcharts.setOptions({
         global: {
             useUTC: false
         }
     });
 
-    // Create the chart
     Highcharts.stockChart('container', {
         chart: {
             events: {
                 load: function () {
-                    var seriesTemCam1 = this.series[0];
-                    var seriesTemCam2 = this.series[1];
+                    var seriesTopCompart = this.series[0];
+                    var seriesBotCompart = this.series[1];
                     var timerForRepaint = 50;
                     var repaint = function (fridge) {
                         for (key in fridge.data.BotCompart) {
                             var x = parseInt(key);
                             var y = parseFloat(fridge.data.BotCompart[key]);
-                            seriesTemCam2.addPoint([x, y], true, true);
+                            seriesBotCompart.addPoint([x, y], true, true);
                         }
                         for (key in fridge.data.TopCompart) {
                             var x = parseInt(key);
                             var y = parseFloat(fridge.data.TopCompart[key]);
-                            seriesTemCam1.addPoint([x, y], true, true);
+                            seriesTopCompart.addPoint([x, y], true, true);
                         }
                     };
 
                     var timerId = setInterval(function () {
-                        if (showDataFromWS === true) {
-                            var fridge = fridges.shift()
-                            if (fridge !== undefined) {
-                                repaint(fridge)
+                        if (showStreamData === true) {
+                            var fridgeData = fridgeDataList.shift()
+                            if (fridgeData !== undefined) {
+                                repaint(fridgeData)
                             }
                         }
                     }, timerForRepaint)
@@ -196,16 +199,15 @@ function printFridgeChart(obj) {
 
 var url = window.location.href.split("/");
 var urlParams = parseURLParams(window.location.href);
-var domen = url[2].split(":");
+var domain = url[2].split(":");
 
-var showDataFromWS = true;
-var fridges = [];
-var socket = new WebSocket("ws://" + domen[0] + ":3546" + "/devices/" + String(urlParams["mac"]));
-socket.onmessage = function (event) {
+var showStreamData = false;
+var fridgeDataList = [];
+var webSocket = new WebSocket("ws://" + domain[0] + ":3546" + "/devices/" + String(urlParams["mac"]));
+webSocket.onmessage = function (event) {
     var incomingMessage = event.data;
-    var fridge = JSON.parse(incomingMessage);
-    console.dir(fridge);
-    fridges.push(fridge);
+    var fridgeData = JSON.parse(incomingMessage);
+    fridgeDataList.push(fridgeData);
 };
 
 $(document).ready(function () {
@@ -252,20 +254,19 @@ $(document).ready(function () {
     document.getElementById("streamOnBtn").onclick = function () {
         var value = this.innerHTML;
         if (value === "On") {
-            sendDevConfigStreamOn(
+            /*sendDevDataStreamOn(
                 urlParams["mac"],
                 false
-            );
-            showDataFromWS = false
+            );*/
+            showStreamData = false;
             this.innerHTML = "Off";
             this.className = "btn btn-danger";
-
         } else {
-            sendDevConfigStreamOn(
+            /*sendDevDataStreamOn(
                 urlParams["mac"],
                 true
-            );
-            showDataFromWS = true;
+            );*/
+            showStreamData = true;
             this.innerHTML = "On";
             this.className = "btn btn-success";
         }

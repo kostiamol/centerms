@@ -6,13 +6,13 @@ import (
 )
 
 const (
-	DevDataChan   = "devDataChan"
-	DevConfigChan = "devConfigChan"
+	DevDataSubject   = "devData"
+	DevConfigSubject = "devConfig"
 )
 
 type Notifier interface {
-	Publish(channel string, msg interface{}) (int64, error)
-	Subscribe(c chan []string, channel ...string) error
+	Publish(subject string, message interface{}) (int64, error)
+	Subscribe(cn chan []string, subject ...string) error
 }
 
 type DevDataDriver interface {
@@ -28,18 +28,23 @@ type DevConfigDriver interface {
 	DevIsRegistered(m *DevMeta) (bool, error)
 }
 
-type DevStorage interface {
+type Storage interface {
 	Notifier
 	DevDataDriver
 	DevConfigDriver
 	SetServer(s Server) error
-	CreateConn() (DevStorage, error)
+	CreateConn() (Storage, error)
 	CloseConn() error
 }
 
 type Server struct {
 	Host string
 	Port string
+}
+
+type Subscription struct {
+	Subject string
+	Channel chan []string
 }
 
 type SaveDevDataRequest struct {
@@ -65,16 +70,16 @@ type DevData struct {
 	Data map[string][]string `json:"data"`
 }
 
-type ServicesController struct {
+type ServiceController struct {
 	StopChan chan struct{}
 }
 
-func (c *ServicesController) Wait() {
+func (c *ServiceController) Wait() {
 	<-c.StopChan
 	<-time.NewTimer(time.Second * 3).C
 }
 
-func (c *ServicesController) Terminate() {
+func (c *ServiceController) Terminate() {
 	select {
 	case <-c.StopChan:
 	default:

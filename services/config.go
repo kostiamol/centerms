@@ -2,13 +2,13 @@ package services
 
 import (
 	"encoding/json"
-	"net"
 
 	"os"
 
 	"golang.org/x/net/context"
 
-	"sync"
+	"math/rand"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/giperboloid/centerms/entities"
@@ -23,54 +23,29 @@ const (
 	event     = "ConfigPatched"
 )
 
-type ConnPool struct {
-	sync.Mutex
-	conn map[string]net.Conn
-}
-
-func (p *ConnPool) Init() {
-	p.Lock()
-	p.conn = make(map[string]net.Conn)
-	p.Unlock()
-}
-
-func (p *ConnPool) AddConn(conn net.Conn, key string) {
-	p.Lock()
-	p.conn[key] = conn
-	p.Unlock()
-}
-
-func (p *ConnPool) GetConn(key string) net.Conn {
-	p.Lock()
-	defer p.Unlock()
-	return p.conn[key]
-}
-
-func (p *ConnPool) RemoveConn(key string) {
-	p.Lock()
-	delete(p.conn, key)
-	p.Unlock()
-}
-
 type ConfigService struct {
-	Server     entities.Server
-	DevStorage entities.DevStorage
-	Controller entities.ServicesController
-	Log        *logrus.Logger
-	ConnPool   ConnPool
-	Messages   chan []string
+	Server        entities.Server
+	Storage       entities.Storage
+	Ctrl          entities.ServiceController
+	Log           *logrus.Logger
+	Sub           entities.Subscription
+	RetryInterval time.Duration
 }
 
-func NewConfigService(s entities.Server, ds entities.DevStorage, c entities.ServicesController,
-	l *logrus.Logger) *ConfigService {
+func NewConfigService(srv entities.Server, st entities.Storage, c entities.ServiceController,
+	l *logrus.Logger, retry time.Duration, subject string) *ConfigService {
 
 	l.Out = os.Stdout
 	return &ConfigService{
-		Server:     s,
-		DevStorage: ds,
-		Controller: c,
-		Log:        l,
-		Messages:   make(chan []string),
+		Server:        srv,
+		Storage:       st,
+		Ctrl:          c,
+		Log:           l,
+		RetryInterval: retry,
+		Sub: entities.Subscription{
+			Subject: subject,
+			Channel: make(chan []string),
+		},
 	}
 }
 
@@ -86,15 +61,13 @@ func (s *ConfigService) Run() {
 	}()
 
 	go s.listenTermination()
-
-	s.ConnPool.Init()
-	go s.listenConfigPatch(ctx, entities.DevConfigChan, s.Messages)
+	go s.listenConfigPatches(ctx)
 }
 
 func (s *ConfigService) listenTermination() {
 	for {
 		select {
-		case <-s.Controller.StopChan:
+		case <-s.Ctrl.StopChan:
 			s.terminate()
 			return
 		}
@@ -105,17 +78,17 @@ func (s *ConfigService) terminate() {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("ConfigService: terminate(): panic(): %s", r)
-			s.Controller.Terminate()
+			s.Ctrl.Terminate()
 		}
 	}()
 
-	s.DevStorage.CloseConn()
+	s.Storage.CloseConn()
 	s.Log.Infoln("ConfigService is down")
-	s.Controller.Terminate()
+	s.Ctrl.Terminate()
 }
 
 func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
-	conn, err := s.DevStorage.CreateConn()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		s.Log.Errorf("ConfigService: sendInitConfig(): storage connection hasn't been established: %s", err)
 		return nil, err
@@ -152,33 +125,32 @@ func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConf
 			return nil, err
 		}
 	}
-
 	return dc, err
 }
 
-func (s *ConfigService) listenConfigPatch(ctx context.Context, channel string, msg chan []string) {
+func (s *ConfigService) listenConfigPatches(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("ConfigService: listenConfigPatch(): panic(): %s", r)
+			s.Log.Errorf("ConfigService: listenConfigPatches(): panic(): %s", r)
 			s.terminate()
 		}
 	}()
 
-	conn, err := s.DevStorage.CreateConn()
+	conn, err := s.Storage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("ConfigService: listenConfigPatch(): storage connection hasn't been established: ", err)
+		s.Log.Errorf("ConfigService: listenConfigPatches(): storage connection hasn't been established: ", err)
 		return
 	}
 	defer conn.CloseConn()
+	conn.Subscribe(s.Sub.Channel, s.Sub.Subject)
 
 	var dc entities.DevConfig
-	conn.Subscribe(msg, channel)
 	for {
 		select {
-		case msg := <-msg:
+		case msg := <-s.Sub.Channel:
 			if msg[0] == "message" {
 				if err := json.Unmarshal([]byte(msg[2]), &dc); err != nil {
-					s.Log.Errorf("ConfigService: listenConfigPatch(): DevConfig unmarshalling has failed: ", err)
+					s.Log.Errorf("ConfigService: listenConfigPatches(): DevConfig unmarshalling has failed: ", err)
 					return
 				}
 				go s.publishConfigPatch(&dc)
@@ -197,7 +169,14 @@ func (s *ConfigService) publishConfigPatch(dc *entities.DevConfig) {
 		}
 	}()
 
-	conn, _ := nats.Connect(nats.DefaultURL)
+	conn, err := nats.Connect(nats.DefaultURL)
+	for err != nil {
+		s.Log.Error("ConfigService: publishConfigPatch(): nats connectivity status: DISCONNECTED")
+		duration := time.Duration(rand.Intn(int(s.RetryInterval.Seconds())))
+		time.Sleep(time.Second*duration + 1)
+		conn, err = nats.Connect(nats.DefaultURL)
+	}
+
 	defer conn.Close()
 
 	event := pb.EventStore{
