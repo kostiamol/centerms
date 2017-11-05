@@ -40,6 +40,7 @@ func main() {
 		st,
 		ctrl,
 		logrus.New(),
+		entities.DevDataSubject,
 	)
 	go ds.Run()
 
@@ -69,6 +70,7 @@ func main() {
 		st,
 		ctrl,
 		logrus.New(),
+		entities.DevConfigSubject,
 	)
 	go ws.Run()
 

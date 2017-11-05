@@ -34,7 +34,6 @@ func (rds *RedisStorage) SetServer(s entities.Server) error {
 		err = errors.Wrap(err, "RedisStorage: SetServer(): store server'rds port is empty")
 	}
 	rds.DbServer = s
-
 	return err
 }
 

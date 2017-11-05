@@ -15,19 +15,23 @@ import (
 )
 
 type WebService struct {
-	Server  entities.Server
-	Storage entities.Storage
-	Ctrl    entities.ServiceController
-	Log     *logrus.Logger
+	Server     entities.Server
+	Storage    entities.Storage
+	Ctrl       entities.ServiceController
+	Log        *logrus.Logger
+	PubSubject string
 }
 
-func NewWebService(srv entities.Server, st entities.Storage, c entities.ServiceController, l *logrus.Logger) *WebService {
+func NewWebService(srv entities.Server, st entities.Storage, c entities.ServiceController, l *logrus.Logger,
+	subj string) *WebService {
+
 	l.Out = os.Stdout
 	return &WebService{
-		Server:  srv,
-		Storage: st,
-		Ctrl:    c,
-		Log:     l,
+		Server:     srv,
+		Storage:    st,
+		Ctrl:       c,
+		Log:        l,
+		PubSubject: subj,
 	}
 }
 
@@ -79,7 +83,7 @@ func (s *WebService) terminate() {
 	}()
 
 	s.Storage.CloseConn()
-	s.Log.Infoln("WebService has shut down")
+	s.Log.Infoln("WebService is down")
 	s.Ctrl.Terminate()
 }
 
@@ -208,7 +212,7 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if _, err = conn.Publish(entities.DevConfigSubject, b); err != nil {
+	if _, err = conn.Publish(s.PubSubject, b); err != nil {
 		s.Log.Errorf("WebService: patchDevConfigHandler(): stream() has failed: %s", err)
 		return
 	}

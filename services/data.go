@@ -14,21 +14,23 @@ import (
 )
 
 type DataService struct {
-	Server  entities.Server
-	Storage entities.Storage
-	Ctrl    entities.ServiceController
-	Log     *logrus.Logger
+	Server     entities.Server
+	Storage    entities.Storage
+	Ctrl       entities.ServiceController
+	Log        *logrus.Logger
+	PubSubject string
 }
 
 func NewDataService(srv entities.Server, st entities.Storage, c entities.ServiceController,
-	l *logrus.Logger) *DataService {
+	l *logrus.Logger, subj string) *DataService {
 
 	l.Out = os.Stdout
 	return &DataService{
-		Server:  srv,
-		Storage: st,
-		Ctrl:    c,
-		Log:     l,
+		Server:     srv,
+		Storage:    st,
+		Ctrl:       c,
+		Log:        l,
+		PubSubject: subj,
 	}
 }
 
@@ -82,11 +84,10 @@ func (s *DataService) SaveDevData(req *entities.SaveDevDataRequest) {
 		return
 	}
 
-	//s.Log.Infof("save data for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", req.Meta.Type, req.Meta.Name, req.Meta.MAC)
-	go s.publishDevData(req, entities.DevDataSubject)
+	go s.publishDevData(req)
 }
 
-func (s *DataService) publishDevData(req *entities.SaveDevDataRequest, subject string) error {
+func (s *DataService) publishDevData(req *entities.SaveDevDataRequest) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.Errorf("DataService: publishDevData(): panic(): %s", r)
@@ -105,10 +106,9 @@ func (s *DataService) publishDevData(req *entities.SaveDevDataRequest, subject s
 		return errors.Wrap(err, "DataService: publishDevData(): Request marshalling has failed")
 	}
 
-	if _, err = conn.Publish(subject, b); err != nil {
+	if _, err = conn.Publish(s.PubSubject, b); err != nil {
 		return errors.Wrap(err, "DataService: publishDevData(): publishing has failed")
 	}
 
-	//s.Log.Infof("publish DevData for device with TYPE: [%s]; NAME: [%s]; MAC: [%s]", req.Meta.Type, req.Meta.Name, req.Meta.MAC)
 	return nil
 }

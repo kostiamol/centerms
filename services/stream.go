@@ -20,18 +20,18 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ConnList struct {
-	sync.Mutex
+type connList struct {
+	sync.RWMutex
 	Conns []*websocket.Conn
 }
 
-func (l *ConnList) AddConn(conn *websocket.Conn) {
+func (l *connList) addConn(conn *websocket.Conn) {
 	l.Lock()
 	l.Conns = append(l.Conns, conn)
 	l.Unlock()
 }
 
-func (l *ConnList) RemoveConn(conn *websocket.Conn) bool {
+func (l *connList) removeConn(conn *websocket.Conn) bool {
 	l.Lock()
 	defer l.Unlock()
 	for i, c := range l.Conns {
@@ -43,34 +43,27 @@ func (l *ConnList) RemoveConn(conn *websocket.Conn) bool {
 	return false
 }
 
-type StreamConns struct {
-	sync.Mutex
+type streamConns struct {
+	sync.RWMutex
 	ClosedConns   chan *websocket.Conn
 	CheckMACConns chan string
-	MACConns      map[string]*ConnList
+	MACConns      map[string]*connList
 }
 
-func NewStreamConns() *StreamConns {
-	return &StreamConns{
+func newStreamConns() *streamConns {
+	return &streamConns{
 		ClosedConns:   make(chan *websocket.Conn),
-		MACConns:      make(map[string]*ConnList),
+		MACConns:      make(map[string]*connList),
 		CheckMACConns: make(chan string),
 	}
 }
 
-func (c *StreamConns) checkMACConns(ctx context.Context) {
-	for {
-		select {
-		case mac := <-c.CheckMACConns:
-			c.Lock()
-			if len(c.MACConns[mac].Conns) == 0 {
-				delete(c.MACConns, mac)
-			}
-			c.Unlock()
-		case <-ctx.Done():
-			return
-		}
+func (c *streamConns) checkMACConns(mac string) {
+	c.Lock()
+	if len(c.MACConns[mac].Conns) == 0 {
+		delete(c.MACConns, mac)
 	}
+	c.Unlock()
 }
 
 type StreamService struct {
@@ -78,9 +71,9 @@ type StreamService struct {
 	Storage  entities.Storage
 	Ctrl     entities.ServiceController
 	Log      *logrus.Logger
-	Conns    StreamConns
 	Sub      entities.Subscription
-	Upgrader websocket.Upgrader
+	conns    streamConns
+	upgrader websocket.Upgrader
 }
 
 func NewStreamService(srv entities.Server, st entities.Storage, c entities.ServiceController, l *logrus.Logger,
@@ -102,12 +95,12 @@ func NewStreamService(srv entities.Server, st entities.Storage, c entities.Servi
 		Storage: st,
 		Ctrl:    c,
 		Log:     l,
-		Conns:   *NewStreamConns(),
+		conns:   *newStreamConns(),
 		Sub: entities.Subscription{
 			Subject: subject,
 			Channel: make(chan []string),
 		},
-		Upgrader: u,
+		upgrader: u,
 	}
 }
 
@@ -125,7 +118,6 @@ func (s *StreamService) Run() {
 	go s.listenTermination()
 	go s.listenPublications(ctx)
 	go s.listenClosedConns(ctx)
-	go s.Conns.checkMACConns(ctx)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/devices/{id}", s.addConnHandler)
@@ -173,21 +165,19 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	uri := strings.Split(r.URL.String(), "/")
 	mac := uri[2]
 
-	s.Conns.Lock()
-	if _, ok := s.Conns.MACConns[mac]; !ok {
-		s.Conns.MACConns[mac] = new(ConnList)
+	s.conns.Lock()
+	if _, ok := s.conns.MACConns[mac]; !ok {
+		s.conns.MACConns[mac] = new(connList)
 	}
-	s.Conns.Unlock()
+	s.conns.Unlock()
 
-	s.Log.Info("conn req from 1")
-	conn, err := s.Upgrader.Upgrade(w, r, nil)
+	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		s.Log.Errorf("StreamService: addConnHandler(): Upgrade() has failed: %s", err)
 		return
 	}
-	s.Log.Info("conn req from 2")
-	s.Conns.MACConns[mac].AddConn(conn)
-	s.Log.Infof("StreamService(): addConnHandler(): conn with %v has been added", conn.RemoteAddr())
+	s.conns.MACConns[mac].addConn(conn)
+	s.Log.Infof("StreamService: addConnHandler(): conn with %v has been added", conn.RemoteAddr())
 }
 
 func (s *StreamService) listenPublications(ctx context.Context) {
@@ -232,26 +222,24 @@ func (s *StreamService) stream(ctx context.Context, message []string) error {
 		return err
 	}
 
-	s.Conns.Lock()
-	if _, ok := s.Conns.MACConns[req.Meta.MAC]; ok {
-		s.Conns.Unlock()
-		s.Conns.MACConns[req.Meta.MAC].Lock()
-		for _, conn := range s.Conns.MACConns[req.Meta.MAC].Conns {
+	if _, ok := s.conns.MACConns[req.Meta.MAC]; ok {
+		for _, conn := range s.conns.MACConns[req.Meta.MAC].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				if err := conn.WriteMessage(1, []byte(message[2])); err != nil {
+				s.conns.MACConns[req.Meta.MAC].Lock()
+				err := conn.WriteMessage(1, []byte(message[2]))
+				s.conns.MACConns[req.Meta.MAC].Unlock()
+				if err != nil {
 					s.Log.Infof("StreamService: stream(): conn with %v has been closed", conn.RemoteAddr())
-					s.Conns.ClosedConns <- conn
+					s.conns.ClosedConns <- conn
 					return err
 				}
 			}
 		}
-		s.Conns.MACConns[req.Meta.MAC].Unlock()
 		return nil
 	}
-	s.Conns.Unlock()
 
 	return nil
 }
@@ -266,15 +254,13 @@ func (s *StreamService) listenClosedConns(ctx context.Context) {
 
 	for {
 		select {
-		case conn := <-s.Conns.ClosedConns:
-			s.Conns.Lock()
-			for mac, connList := range s.Conns.MACConns {
-				if ok := connList.RemoveConn(conn); ok {
-					s.Conns.CheckMACConns <- mac
+		case conn := <-s.conns.ClosedConns:
+			for mac, connList := range s.conns.MACConns {
+				if ok := connList.removeConn(conn); ok {
+					s.conns.checkMACConns(mac)
 					break
 				}
 			}
-			s.Conns.Unlock()
 		case <-ctx.Done():
 			return
 		}
