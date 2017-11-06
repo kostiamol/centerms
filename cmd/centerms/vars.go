@@ -14,10 +14,10 @@ const (
 	defaultWebPort       = "3301"
 	defaultStreamPort    = "3546"
 
-	defaultStorageHost    = "127.0.0.1"
-	defaultStoragePort    = defaultRedisPort
 	defaultRedisPort      = "6379"
 	defaultPostgreSQLPort = "5432"
+	defaultStoragePort    = defaultRedisPort
+	defaultStorageHost    = "127.0.0.1"
 
 	retryInterval           = time.Second * 10
 )

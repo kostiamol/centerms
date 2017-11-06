@@ -46,7 +46,6 @@ func (l *connList) removeConn(conn *websocket.Conn) bool {
 type streamConns struct {
 	sync.RWMutex
 	ClosedConns   chan *websocket.Conn
-	CheckMACConns chan string
 	MACConns      map[string]*connList
 }
 
@@ -54,7 +53,6 @@ func newStreamConns() *streamConns {
 	return &streamConns{
 		ClosedConns:   make(chan *websocket.Conn),
 		MACConns:      make(map[string]*connList),
-		CheckMACConns: make(chan string),
 	}
 }
 
@@ -240,7 +238,6 @@ func (s *StreamService) stream(ctx context.Context, message []string) error {
 		}
 		return nil
 	}
-
 	return nil
 }
 
