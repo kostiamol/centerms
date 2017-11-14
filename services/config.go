@@ -12,10 +12,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/giperboloid/centerms/entities"
-	"github.com/giperboloid/centerms/pb"
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/go-nats"
 	"github.com/satori/go.uuid"
+	"github.com/giperboloid/centerms/api/pb"
 )
 
 const (
@@ -179,7 +179,7 @@ func (s *ConfigService) publishConfigPatch(dc *entities.DevConfig) {
 
 	defer conn.Close()
 
-	event := pb.EventStore{
+	event := api.EventStore{
 		AggregateId:   dc.MAC,
 		AggregateType: aggregate,
 		EventId:       uuid.NewV4().String(),

@@ -1,9 +1,20 @@
 syntax = "proto3";
-package pb;
+package api;
 
-// Run protoc -I pb/ pb/centerms.proto --go_out=plugins=grpc:pb
-// to generate centerms.pb.go
+import "google/api/annotations.proto";
+/* Run
 
+ protoc -I api/pb/ api/pb/api.proto \
+ -I/usr/local/include \
+ -I${GOPATH}/src \
+ -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+ --go_out=plugins=grpc:api/pb \
+ --swagger_out=logtostderr=true:api/pb
+
+ to generate api.pb.go and api.swagger.json
+*/
+
+// EventStore is used for NATS Publish-Subscribe
 message EventStore {
     string aggregate_id = 1;
     string aggregate_type = 2;

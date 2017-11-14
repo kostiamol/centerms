@@ -8,10 +8,10 @@ import (
 	"net"
 
 	"github.com/giperboloid/centerms/entities"
-	"github.com/giperboloid/centerms/pb"
 	"github.com/giperboloid/centerms/services"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"github.com/giperboloid/centerms/api/pb"
 )
 
 type GRPCConfig struct {
@@ -40,7 +40,7 @@ type API struct {
 	RetryInterval time.Duration
 }
 
-func (a *API) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigRequest) (*pb.SetDevInitConfigResponse, error) {
+func (a *API) SetDevInitConfig(ctx context.Context, r *api.SetDevInitConfigRequest) (*api.SetDevInitConfigResponse, error) {
 	dm := entities.DevMeta{
 		Type: r.Meta.Type,
 		Name: r.Meta.Name,
@@ -49,12 +49,12 @@ func (a *API) SetDevInitConfig(ctx context.Context, r *pb.SetDevInitConfigReques
 
 	dc, _ := a.Config.SetDevInitConfig(&dm)
 
-	return &pb.SetDevInitConfigResponse{
+	return &api.SetDevInitConfigResponse{
 		Config: dc.Data,
 	}, nil
 }
 
-func (a *API) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
+func (a *API) SaveDevData(ctx context.Context, r *api.SaveDevDataRequest) (*api.SaveDevDataResponse, error) {
 	req := entities.SaveDevDataRequest{
 		Time: r.Time,
 		Meta: entities.DevMeta{
@@ -67,7 +67,7 @@ func (a *API) SaveDevData(ctx context.Context, r *pb.SaveDevDataRequest) (*pb.Sa
 
 	a.Data.SaveDevData(&req)
 
-	return &pb.SaveDevDataResponse{
+	return &api.SaveDevDataResponse{
 		Status: "OK",
 	}, nil
 }
@@ -89,8 +89,10 @@ func (a *API) listenConfig() {
 	}
 
 	gs := grpc.NewServer()
-	pb.RegisterCenterServiceServer(gs, a)
-	gs.Serve(ln)
+	api.RegisterCenterServiceServer(gs, a)
+	if gs.Serve(ln); err != nil {
+		a.Config.Log.Fatalf("API: listenConfig(): failed to serve: %s", err)
+	}
 }
 
 func (a *API) listenData() {
@@ -111,6 +113,8 @@ func (a *API) listenData() {
 	}
 
 	gs := grpc.NewServer()
-	pb.RegisterCenterServiceServer(gs, a)
-	gs.Serve(ln)
+	api.RegisterCenterServiceServer(gs, a)
+	if gs.Serve(ln); err != nil {
+		a.Config.Log.Fatalf("API: listenData(): failed to serve: %s", err)
+	}
 }
