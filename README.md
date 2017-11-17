@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/giperboloid/centerms.svg?branch=master)](https://travis-ci.org/giperboloid/centerms)
+
 # server-smart-house
 The project implements a server-side building automation for the home.
 
