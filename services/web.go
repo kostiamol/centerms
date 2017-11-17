@@ -51,7 +51,6 @@ func (s *WebService) Run() {
 	r.Handle("/devices/{id}/data", Adapt(s.getDevDataHandler, s.recoveryAdapter)).Methods(http.MethodGet)
 	r.Handle("/devices/{id}/config", Adapt(s.getDevConfigHandler, s.recoveryAdapter)).Methods(http.MethodGet)
 	r.Handle("/devices/{id}/config", Adapt(s.patchDevConfigHandler, s.recoveryAdapter)).Methods(http.MethodPatch)
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./view/")))
 
 	srv := &http.Server{
 		Handler:      r,
