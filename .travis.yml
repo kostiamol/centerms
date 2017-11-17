@@ -1,4 +1,5 @@
 language: go
+sudo: false
 
 # Only the last two Go releases are supported by the Go team with security
 # updates. Any versions older than that should be considered deprecated.
@@ -46,4 +47,4 @@ script:
 # - megacheck ./...                          # "go vet on steroids" + linter
   - gocyclo -over 19 $GO_FILES               # Forbid code with huge functions
 # - golint -set_exit_status $(go list ./...) # Another linter
-  - go test -v -covermode=count -coverprofile=coverage.out $HOME/gopath/bin/goveralls -coverprofile=coverage.out  -service=travis-ci 
+  - $GOPATH/bin/goveralls -service=travis-ci
