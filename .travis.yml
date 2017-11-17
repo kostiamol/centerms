@@ -46,6 +46,4 @@ script:
 # - megacheck ./...                          # "go vet on steroids" + linter
   - gocyclo -over 19 $GO_FILES               # Forbid code with huge functions
 # - golint -set_exit_status $(go list ./...) # Another linter
-  - go test -v -covermode=count -coverprofile=coverage.out \
-    $HOME/gopath/bin/goveralls -coverprofile=coverage.out  \
-    -service=travis-ci 
+  - go test -v -covermode=count -coverprofile=coverage.out $HOME/gopath/bin/goveralls -coverprofile=coverage.out  -service=travis-ci 
