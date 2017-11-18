@@ -1,50 +1,28 @@
 language: go
 sudo: false
-
-# Only the last two Go releases are supported by the Go team with security
-# updates. Any versions older than that should be considered deprecated.
-# Don't bother testing with them. tip builds your code with the latest
-# development version of Go. This can warn you that your code will break
-# in the next version of Go. Later we declare that test runs
-# are allowed to fail on Go tip.
 go:
-  - 1.9
-  - tip 
-
-# Skip the install step. Don't `go get` dependencies. Only build with the
-# code in vendor/
-# install: true
-
+- 1.9
+- tip
 matrix:
-  # It's ok if our code fails on unstable development versions of Go.
   allow_failures:
-    - go: tip
-  # Don't wait for tip tests to finish. Mark the test run green if the
-  # tests pass on the stable versions of Go.
+  - go: tip
   fast_finish: true
-
-# Don't email me the results of the test runs.
 notifications:
   email: false
-
-# Anything in before_script that returns a nonzero exit code will
-# flunk the build and immediately stop. It's sorta like having
-# set -e enabled in bash. 
 before_script:
-  - GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/) # All the .go files, excluding vendor/
-  - go get github.com/golang/lint/golint                        # Linter
-  - go get honnef.co/go/tools/cmd/megacheck                     # Static analyzer/linter
-  - go get github.com/fzipp/gocyclo                             
-  - go get golang.org/x/tools/cmd/cover                         # Test coverage
-  - go get github.com/mattn/goveralls
-
-# Script always run to completion (set +e). All of these code checks are must haves
-# in a modern Go project.
+- GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/)
+- go get github.com/golang/lint/golint
+- go get honnef.co/go/tools/cmd/megacheck
+- go get github.com/fzipp/gocyclo
+- go get golang.org/x/tools/cmd/cover
+- go get github.com/mattn/goveralls
 script:
-# - test -z $(gofmt -s -l $GO_FILES)         # Fail if a .go file hasn't been formatted with gofmt
-  - go test -v -race ./...                   # Run all the tests with the race detector enabled
-# - go vet ./...                             # go vet is the official Go static analyzer
-# - megacheck ./...                          # "go vet on steroids" + linter
-  - gocyclo -over 19 $GO_FILES               # Forbid code with huge functions
-# - golint -set_exit_status $(go list ./...) # Another linter
-  - $GOPATH/bin/goveralls -service=travis-ci
+- go test -v -race ./...
+- gocyclo -over 19 $GO_FILES
+- "$GOPATH/bin/goveralls -service=travis-ci"
+deploy:
+  provider: heroku
+  api_key:
+    secure: J9/tuta3IloCIYMbMSrArBlO/2+RifW4GDXM6VH/V/1EO8Mt4aw9YdCAXxPtDMOgbR2QP8IipxrXauSJw9dbfgFDuuzz7/TSpufWfcGQw/4HrZSS9hy6Abey4adgg6dpTtyKEXw+XsPgvul6RyO/AVcFcfSgUYstNeHYDuqwcMsL1R7YeQNb2/Z8gk3kGIT1rpF7WKJeS4kIdFtbIJrui70uNsRtQPluz+22v3XDFFJsjBRVHG1l8Q0ccT3GReooxFMv/28R6bs8x4WXlkAL75Vyj/uS3ZKYhaxUZP5+s9Ipapkv2y1FaXxWw3CUDWd5itCK9l4YsSE9cksauPzsyzjvaf6VvNLJSrhAg2G5Z8ccvzDKLzH3dI9XlbP5A90aviM++sMLCwMzoPWYNbW8kQsa8AQuSOxCS/vCXSbaFVmfscswfu86NcBesMaVgEELpcblwHEMecm1nuovAw+6c3qUDSYpqOwr+WDIXWmvqgOAXnAqLjvSll1XvIx5F7wdflrG3nU2LhXaxEiNSNhaJHeINYmWQ9kW11Gnaw46oHUrrMf89I1/Oen42F5rw/7ZmiJjlxL2xIb+MA7a7N8afOulLWESESbxfFImnK1GTmuZPueeYQXY0L52K6fkK7SGK6DwTyOBvtXhapWMe1gP/XCQ43qOGSdzcoiH2nZ0vas=
+  on: master
+  app: shms-center
