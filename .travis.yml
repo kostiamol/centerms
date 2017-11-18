@@ -20,9 +20,13 @@ script:
 - go test -v -race ./...
 - gocyclo -over 19 $GO_FILES
 - "$GOPATH/bin/goveralls -service=travis-ci"
+before_deploy:
+- go build ./cmd/centerms 
 deploy:
   provider: heroku
+  skip_cleanup: true
   api_key:
     secure: h9EfMQ0EbEtkDRc47lIp5l7TUUrv+1HCJdEFSWMrUmzTk/Hepg77GSf/aUEss2fA9ieiT9e2erbPJEU49dt0eJxhNycYc7RWS5gxBqDGseTWoIn0oqIhYe3OamA+xd2FgnYJZGbrPFNJcvhKS9ptxdzxhHVnK99GZarcoaOCYLHNtORMs3AlXJww2wa6xR0HeyqIqVbBIQFQuEcnvWJ1O+E1ItW3ZBocERStsL7/79thMq5W9R+UGesvJiQZ8oBPya7Pn5DFFZdW8svwGLKWLHBIPASmrxhrzC+yrmJz4fdmCGf3fU118kKdFAwPAFZlyqe63qvAW26zoK+d2I5PZe3Kg4gLlt7O7idRm09Os/EJcgNI2HKNVqg6xV8HmiPCjUPnaras2pBIJyjm7fHTwiZydLf0GKxoKheUB1KKWu/u5L1Na2CKrT2BlQ2BwAkOBTWqowTqcf3HcvimVkkZ08vbNxVyoq0MAiQdEpPL1YXNFLO4zfgaBQNyGk7pXOn/5KIrBvf20v7WvFDOrF78IDWC5+ic/7mLO82ZyPfh6Ck9vgxzgmSiP37iho+j0oc9Nl6I0YR5OLcSh9B517AwS6pL+psNBRUxIOqME3cofxspHZUDf9+6HnLQ86ElyY2AUxdPcXp0pU6mKhW4LzMXXfTdVR/P+WyKAYlaYQwLtSs=
   on: master
   app: shms-center
+  file: centerms
