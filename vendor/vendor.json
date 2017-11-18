@@ -297,5 +297,5 @@
 			"revisionTime": "2014-12-21T20:36:44Z"
 		}
 	],
-	"rootPath": "github.com/giperboloid/centerms"
+	"rootPath": "github.com/giperboloid/centerms/cmd/centerms"
 }
