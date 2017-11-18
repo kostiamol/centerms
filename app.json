@@ -1,6 +1,8 @@
 {
-  "buildpacks": 
+  "image": "heroku/go",
+  "buildpacks": [
     {
-      "url": "heroku/go"
-    }  
+      "url": "https://github.com/stomita/heroku-buildpack-phantomjs"
+    }
+  ]
 }
