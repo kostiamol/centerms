@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/giperboloid/centerms/api/pb"
 	"github.com/giperboloid/centerms/entities"
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/go-nats"
 	"github.com/satori/go.uuid"
-	"github.com/giperboloid/centerms/api/pb"
 )
 
 const (
@@ -95,6 +95,10 @@ func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConf
 	}
 	defer conn.CloseConn()
 
+	if err := conn.SetDevMeta(m); err != nil {
+		return nil, err
+	}
+
 	var dc *entities.DevConfig
 	if ok, err := conn.DevIsRegistered(m); ok {
 		if err != nil {
@@ -102,7 +106,7 @@ func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConf
 			return nil, err
 		}
 
-		dc, err = conn.GetDevConfig(m)
+		dc, err = conn.GetDevConfig(m.MAC)
 		if err != nil {
 			s.Log.Errorf("ConfigService: sendInitConfig(): GetDevConfig() has failed: %s", err)
 			return nil, err
@@ -119,11 +123,11 @@ func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConf
 			return nil, err
 		}
 
-		s.Log.Infof("new device is registered: %+v", m)
-		if err = conn.SetDevConfig(m, dc); err != nil {
+		if err = conn.SetDevConfig(m.MAC, dc); err != nil {
 			s.Log.Errorf("ConfigService: sendInitConfig(): SetDevConfig() has failed: %s", err)
 			return nil, err
 		}
+		s.Log.Infof("new device is registered: %+v", m)
 	}
 	return dc, err
 }

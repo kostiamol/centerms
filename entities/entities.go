@@ -10,6 +10,8 @@ const (
 	DevConfigSubject = "devConfig"
 )
 
+type DeviceID uint
+
 type Notifier interface {
 	Publish(subject string, message interface{}) (int64, error)
 	Subscribe(cn chan []string, subject ...string) error
@@ -17,13 +19,15 @@ type Notifier interface {
 
 type DevDataDriver interface {
 	GetDevsData() ([]DevData, error)
-	GetDevData(m *DevMeta) (*DevData, error)
+	GetDevData(id string) (*DevData, error)
 	SaveDevData(r *SaveDevDataRequest) error
+	GetDevMeta(id string) (*DevMeta, error)
+	SetDevMeta(m *DevMeta) error
 }
 
 type DevConfigDriver interface {
-	GetDevConfig(m *DevMeta) (*DevConfig, error)
-	SetDevConfig(m *DevMeta, c *DevConfig) error
+	GetDevConfig(id string) (*DevConfig, error)
+	SetDevConfig(id string, c *DevConfig) error
 	GetDevDefaultConfig(m *DevMeta) (*DevConfig, error)
 	DevIsRegistered(m *DevMeta) (bool, error)
 }
@@ -48,9 +52,9 @@ type Subscription struct {
 }
 
 type SaveDevDataRequest struct {
-	Time   int64           `json:"time"`
-	Meta   DevMeta         `json:"meta"`
-	Data   json.RawMessage `json:"data"`
+	Time int64           `json:"time"`
+	Meta DevMeta         `json:"meta"`
+	Data json.RawMessage `json:"data"`
 }
 
 type DevConfig struct {

@@ -116,13 +116,13 @@ func (s *WebService) getDevsDataHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	defer conn.CloseConn()
 
-	ds, err := conn.GetDevsData()
+	data, err := conn.GetDevsData()
 	if err != nil {
 		s.Log.Errorf("WebService: getDevicesHandler(): devices data extraction has failed: %s", err)
 		return
 	}
 
-	if err = json.NewEncoder(w).Encode(ds); err != nil {
+	if err = json.NewEncoder(w).Encode(data); err != nil {
 		s.Log.Errorf("WebService: getDevicesHandler(): []DevData encoding has failed: %s", err)
 		return
 	}
@@ -136,19 +136,15 @@ func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.CloseConn()
 
-	dm := entities.DevMeta{
-		Type: r.FormValue("type"),
-		Name: r.FormValue("name"),
-		MAC:  r.FormValue("mac"),
-	}
+	id := mux.Vars(r)["id"]
 
-	dd, err := conn.GetDevData(&dm)
+	data, err := conn.GetDevData(id)
 	if err != nil {
 		s.Log.Errorf("WebService: getDevDataHandler(): DevData extraction has failed: %s", err)
 		return
 	}
 
-	if err = json.NewEncoder(w).Encode(dd); err != nil {
+	if err = json.NewEncoder(w).Encode(data); err != nil {
 		s.Log.Errorf("WebService: getDevDataHandler(): DevData encoding has failed: %s", err)
 		return
 	}
@@ -162,19 +158,15 @@ func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request)
 	}
 	defer conn.CloseConn()
 
-	dm := entities.DevMeta{
-		Type: r.FormValue("type"),
-		Name: r.FormValue("name"),
-		MAC:  r.FormValue("mac"),
-	}
+	id := mux.Vars(r)["id"]
 
-	dc, err := conn.GetDevConfig(&dm)
+	config, err := conn.GetDevConfig(id)
 	if err != nil {
 		s.Log.Errorf("WebService: getDevConfigHandler(): DevConfig extraction has failed: %s", err)
 		return
 	}
 
-	if _, err = w.Write(dc.Data); err != nil {
+	if _, err = w.Write(config.Data); err != nil {
 		s.Log.Errorf("WebService: getDevConfigHandler(): Write() has failed: %s", err)
 		return
 	}
@@ -188,24 +180,19 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 	}
 	defer conn.CloseConn()
 
-	dm := entities.DevMeta{
-		Type: r.FormValue("type"),
-		Name: r.FormValue("name"),
-		MAC:  r.FormValue("mac"),
-	}
-
-	var dc entities.DevConfig
-	if err = json.NewDecoder(r.Body).Decode(&dc); err != nil {
+	var config entities.DevConfig
+	if err = json.NewDecoder(r.Body).Decode(&config); err != nil {
 		s.Log.Errorf("WebService: patchDevConfigHandler(): DevConfig decoding has failed: %s", err)
 		return
 	}
 
-	if err = conn.SetDevConfig(&dm, &dc); err != nil {
+	id := r.URL.Query().Get("id")
+	if err = conn.SetDevConfig(id, &config); err != nil {
 		s.Log.Errorf("WebService: patchDevConfigHandler(): DevConfig setting has failed: %s", err)
 		return
 	}
 
-	b, err := json.Marshal(dc)
+	b, err := json.Marshal(config)
 	if err != nil {
 		s.Log.Errorf("WebService: patchDevConfigHandler(): DevConfig marshalling has failed: %s", err)
 		return

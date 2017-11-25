@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/giperboloid/centerms/api/pb"
 	"github.com/giperboloid/centerms/entities"
 	"github.com/giperboloid/centerms/services"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/giperboloid/centerms/api/pb"
 )
 
 type GRPCConfig struct {

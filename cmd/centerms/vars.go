@@ -16,6 +16,7 @@ const (
 
 	defaultRedisPort      = "6379"
 	defaultPostgreSQLPort = "5432"
+
 	defaultStoragePort    = defaultRedisPort
 	defaultStorageHost    = "127.0.0.1"
 
@@ -25,8 +26,8 @@ const (
 var (
 	storageHost   = getEnvVar("STORAGE_TCP_ADDR", defaultStorageHost)
 	storagePort   = getEnvVar("STORAGE_TCP_PORT", defaultStoragePort)
-	devConfigPort = getEnvVar("CENTER_CONFIG_TCP_PORT", defaultDevConfigPort)
-	devDataPort   = getEnvVar("CENTER_DATA_TCP_PORT", defaultDevDataPort)
+	devConfigPort = getEnvVar("CONFIG_TCP_PORT", defaultDevConfigPort)
+	devDataPort   = getEnvVar("DATA_TCP_PORT", defaultDevDataPort)
 	webPort       = getEnvVar("WEB_TCP_PORT", defaultWebPort)
 	streamPort    = getEnvVar("STREAM_TCP_PORT", defaultStreamPort)
 )

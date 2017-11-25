@@ -105,6 +105,44 @@ func (rds *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 	return devsData, err
 }
 
+func (rds *RedisStorage) GetDevMeta(id string) (*entities.DevMeta, error) {
+	t, err := rds.Client.HGet("id:"+id, "type")
+	if err != nil {
+		errors.Wrapf(err, "RedisStorage: GetDevMeta(): HGet() has failed")
+	}
+	n, err := rds.Client.HGet("id:"+id, "name")
+	if err != nil {
+		errors.Wrapf(err, "RedisStorage: GetDevMeta():  HGet() has failed")
+	}
+	m, err := rds.Client.HGet("id:"+id, "mac")
+	if err != nil {
+		errors.Wrapf(err, "RedisStorage: GetDevMeta():  HGet() has failed")
+	}
+
+	meta := entities.DevMeta{
+		Type: t,
+		Name: n,
+		MAC:  m,
+	}
+	return &meta, nil
+}
+
+func (rds *RedisStorage) SetDevMeta(m *entities.DevMeta) error {
+	if _, err := rds.Client.HMSet("id:"+m.MAC, "type", m.Type); err != nil {
+		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
+		return err
+	}
+	if _, err := rds.Client.HMSet("id:"+m.MAC, "name", m.Name); err != nil {
+		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
+		return err
+	}
+	if _, err := rds.Client.HMSet("id:"+m.MAC, "mac", m.MAC); err != nil {
+		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
+		return err
+	}
+	return nil
+}
+
 func (rds *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 	configKey := m.MAC + partialDevConfigKey
 	if ok, err := rds.Client.Exists(configKey); ok {
@@ -116,12 +154,17 @@ func (rds *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 	return false, nil
 }
 
-func (rds *RedisStorage) GetDevData(m *entities.DevMeta) (*entities.DevData, error) {
-	switch m.Type {
+func (rds *RedisStorage) GetDevData(id string) (*entities.DevData, error) {
+	meta, err := rds.GetDevMeta(id)
+	if err != nil {
+		return nil, err
+	}
+
+	switch meta.Type {
 	case "fridge":
-		return rds.getFridgeData(m)
+		return rds.getFridgeData(meta)
 	case "washer":
-		return rds.getWasherData(m)
+		return rds.getWasherData(meta)
 	default:
 		return &entities.DevData{}, errors.New("RedisStorage: GetDevData(): dev type is unknown")
 	}
@@ -138,21 +181,31 @@ func (rds *RedisStorage) SaveDevData(r *entities.SaveDevDataRequest) error {
 	}
 }
 
-func (rds *RedisStorage) GetDevConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
-	switch m.Type {
+func (rds *RedisStorage) GetDevConfig(id string) (*entities.DevConfig, error) {
+	meta, err := rds.GetDevMeta(id)
+	if err != nil {
+		return nil, err
+	}
+
+	switch meta.Type {
 	case "fridge":
-		return rds.getFridgeConfig(m)
+		return rds.getFridgeConfig(meta)
 	case "washer":
-		return rds.getWasherConfig(m)
+		return rds.getWasherConfig(meta)
 	default:
 		return &entities.DevConfig{}, errors.New("RedisStorage: GetDevConfig(): dev type is unknown")
 	}
 }
 
-func (rds *RedisStorage) SetDevConfig(m *entities.DevMeta, c *entities.DevConfig) error {
-	switch m.Type {
+func (rds *RedisStorage) SetDevConfig(id string, c *entities.DevConfig) error {
+	meta, err := rds.GetDevMeta(id)
+	if err != nil {
+		return err
+	}
+
+	switch meta.Type {
 	case "fridge":
-		return rds.setFridgeConfig(c, m)
+		return rds.setFridgeConfig(c, meta)
 	case "washer":
 		return rds.setWasherConfig(c)
 	default:
