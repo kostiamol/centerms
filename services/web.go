@@ -59,7 +59,10 @@ func (s *WebService) Run() {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	http.ListenAndServe(s.Server.Host+":"+s.Server.Port, handlers.CORS()(r))
+	allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "OPTIONS", "PATCH"})
+	allowedHeaders := handlers.AllowedHeaders([]string{"Content-Type", "X-Requested-With"})
+
+	http.ListenAndServe(s.Server.Host+":"+s.Server.Port, handlers.CORS(allowedMethods, allowedHeaders)(r))
 	s.Log.Fatal(srv.ListenAndServe())
 }
 
