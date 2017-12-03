@@ -3,4 +3,4 @@
 [![Build Status](https://travis-ci.org/giperboloid/centerms.svg?branch=master)](https://travis-ci.org/giperboloid/centerms)
 
 # centerms
-The project implements a server-side building automation for the home
+The project implements a server-side management automation for a home.
