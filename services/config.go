@@ -157,7 +157,7 @@ func (s *ConfigService) listenConfigPatches(ctx context.Context) {
 					s.Log.Errorf("ConfigService: listenConfigPatches(): DevConfig unmarshalling has failed: ", err)
 					return
 				}
-				go s.publishConfigPatch(&dc)
+				go s.publishNewConfigPatchEvent(&dc)
 			}
 		case <-ctx.Done():
 			return
@@ -165,17 +165,17 @@ func (s *ConfigService) listenConfigPatches(ctx context.Context) {
 	}
 }
 
-func (s *ConfigService) publishConfigPatch(dc *entities.DevConfig) {
+func (s *ConfigService) publishNewConfigPatchEvent(dc *entities.DevConfig) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("ConfigService: publishConfigPatch(): panic(): %s", r)
+			s.Log.Errorf("ConfigService: publishNewConfigPatchEvent(): panic(): %s", r)
 			s.terminate()
 		}
 	}()
 
 	conn, err := nats.Connect(nats.DefaultURL)
 	for err != nil {
-		s.Log.Error("ConfigService: publishConfigPatch(): nats connectivity status: DISCONNECTED")
+		s.Log.Error("ConfigService: publishNewConfigPatchEvent(): nats connectivity status: DISCONNECTED")
 		duration := time.Duration(rand.Intn(int(s.RetryInterval.Seconds())))
 		time.Sleep(time.Second*duration + 1)
 		conn, err = nats.Connect(nats.DefaultURL)

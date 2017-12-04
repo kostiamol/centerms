@@ -104,7 +104,7 @@ func (rds *RedisStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevConf
 
 	config.MAC = m.MAC
 	configKey := m.MAC + partialDevConfigKey
-	unixTime:= int64(100) // fake
+	unixTime := int64(100) // fake
 	mode, err := rds.Client.ZRangeByScore(configKey, unixTime-100, unixTime+100)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherConfig(): ZRangeByScore() has failed")

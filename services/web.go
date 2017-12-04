@@ -140,7 +140,6 @@ func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	defer conn.CloseConn()
 
 	id := mux.Vars(r)["id"]
-
 	data, err := conn.GetDevData(id)
 	if err != nil {
 		s.Log.Errorf("WebService: getDevDataHandler(): DevData extraction has failed: %s", err)
@@ -162,7 +161,6 @@ func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request)
 	defer conn.CloseConn()
 
 	id := mux.Vars(r)["id"]
-
 	config, err := conn.GetDevConfig(id)
 	if err != nil {
 		s.Log.Errorf("WebService: getDevConfigHandler(): DevConfig extraction has failed: %s", err)
@@ -189,7 +187,7 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	id := r.URL.Query().Get("id")
+	id := mux.Vars(r)["id"]
 	if err = conn.SetDevConfig(id, &config); err != nil {
 		s.Log.Errorf("WebService: patchDevConfigHandler(): DevConfig setting has failed: %s", err)
 		return
