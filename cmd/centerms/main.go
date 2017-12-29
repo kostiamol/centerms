@@ -2,10 +2,10 @@ package main
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/giperboloid/centerms/api/grpcsvc"
-	"github.com/giperboloid/centerms/entities"
-	"github.com/giperboloid/centerms/services"
-	"github.com/giperboloid/centerms/storages/redis"
+	"github.com/kostiamol/centerms/api/grpcsvc"
+	"github.com/kostiamol/centerms/entities"
+	"github.com/kostiamol/centerms/services"
+	"github.com/kostiamol/centerms/storages/redis"
 )
 
 func main() {

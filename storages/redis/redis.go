@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/giperboloid/centerms/entities"
+	"github.com/kostiamol/centerms/entities"
 	"github.com/pkg/errors"
 	"menteslibres.net/gosexy/redis"
 )

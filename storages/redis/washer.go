@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"github.com/giperboloid/centerms/entities"
+	"github.com/kostiamol/centerms/entities"
 	"github.com/pkg/errors"
 )
 

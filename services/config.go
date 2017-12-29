@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/giperboloid/centerms/api/pb"
-	"github.com/giperboloid/centerms/entities"
+	"github.com/kostiamol/centerms/api/pb"
+	"github.com/kostiamol/centerms/entities"
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/go-nats"
 	"github.com/satori/go.uuid"

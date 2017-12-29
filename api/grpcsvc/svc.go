@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/giperboloid/centerms/api/pb"
-	"github.com/giperboloid/centerms/entities"
-	"github.com/giperboloid/centerms/services"
+	"github.com/kostiamol/centerms/api/pb"
+	"github.com/kostiamol/centerms/entities"
+	"github.com/kostiamol/centerms/services"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )

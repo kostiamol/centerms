@@ -11,7 +11,7 @@ import (
 
 	"os"
 
-	"github.com/giperboloid/centerms/entities"
+	"github.com/kostiamol/centerms/entities"
 )
 
 type WebService struct {
