@@ -14,7 +14,7 @@ The project implements a server-side management automation for a home.
 go get github.com/kostiamol/centerms
 ```
 
-4. Compile the centerms:
+4. Compile and run the centerms:
 
 ```bash
 cd $GOPATH/src/github.com/kostiamol/centerms/cmd/centerms
