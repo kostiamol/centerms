@@ -22,5 +22,5 @@ go build
 ./centerms
 ```
 
-5. Install the [dashboard](https://github.com/kostiamol/dashboard-ui) and some of the "devices":
+5. For proper functioning of the system as a whole install and run the [dashboard](https://github.com/kostiamol/dashboard-ui) and some of the "devices":
 - [fridgems](https://github.com/kostiamol/fridgems)
