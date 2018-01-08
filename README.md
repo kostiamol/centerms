@@ -22,5 +22,5 @@ go build
 ./centerms
 ```
 
-5. Optionally install some of the "devices":
+5. Optionally install the [dashboard](https://github.com/kostiamol/dashboard-ui) and some of the "devices":
 - [fridgems](https://github.com/kostiamol/fridgems)
