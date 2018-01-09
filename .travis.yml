@@ -17,11 +17,11 @@ before_script:
     - go get golang.org/x/tools/cmd/cover
     - go get github.com/mattn/goveralls
 script:
+    - make build
     - go test -v -race ./...
     - gocyclo -over 19 $GO_FILES
     - "$GOPATH/bin/goveralls -service=travis-ci"
-before_deploy:
-    - make build
+before_deploy:    
     - go build ./cmd/centerms 
 deploy:
     provider: heroku
