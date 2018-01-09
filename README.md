@@ -17,9 +17,8 @@ go get github.com/kostiamol/centerms
 4. Compile and run the centerms:
 
 ```bash
-cd $GOPATH/src/github.com/kostiamol/centerms
-make build
-go build ./cmd/centerms
+cd $GOPATH/src/github.com/kostiamol/centerms/cmd/centerms
+go build 
 ./centerms
 ```
 
