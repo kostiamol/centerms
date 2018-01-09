@@ -11,11 +11,12 @@ notifications:
     email: false
 before_script:
     - GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/)
-    - go get github.com/golang/lint/golint
-    - go get honnef.co/go/tools/cmd/megacheck
-    - go get github.com/fzipp/gocyclo
-    - go get golang.org/x/tools/cmd/cover
-    - go get github.com/mattn/goveralls
+    - go get -u github.com/golang/protobuf/protoc-gen-go
+    - go get -u github.com/golang/lint/golint
+    - go get -u honnef.co/go/tools/cmd/megacheck
+    - go get -u github.com/fzipp/gocyclo
+    - go get -u golang.org/x/tools/cmd/cover
+    - go get -u github.com/mattn/goveralls
 script:
     - make build
     - go test -v -race ./...
