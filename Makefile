@@ -6,3 +6,9 @@ build:
 		--go_out=plugins=grpc:api/pb \
 		--swagger_out=logtostderr=true:api/pb
 
+	GOOS=linux GOARCH=amd64 go build
+	docker build -t centerms .
+	
+run: 
+	docker run -p 50051:50051 centerms
+	
