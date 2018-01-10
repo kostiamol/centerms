@@ -5,9 +5,7 @@ RUN apk --no-cache add ca-certificates
 
 EXPOSE 6379 3030 3000 8100 2540
 
-RUN \
-    mkdir -p /home/centerms/bin \
-    mkdir -p /home/centerms/view
+RUN mkdir -p /home/centerms/bin    
 
 WORKDIR /home/centerms/bin
 COPY ./cmd/centerms .
