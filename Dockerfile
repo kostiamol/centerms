@@ -1,5 +1,7 @@
-FROM alpine
-MAINTAINER Molchanov Kostiantyn (kostyamol@gmail.com)
+FROM alpine:latest
+MAINTAINER Kostiantyn Molchanov (kostyamol@gmail.com)
+
+RUN apk --no-cache add ca-certificates
 
 EXPOSE 6379 3030 3000 8100 2540
 
@@ -9,7 +11,6 @@ RUN \
 
 WORKDIR /home/centerms/bin
 COPY ./cmd/centerms .
-COPY ./view ../view
 
 RUN \  
     chown daemon centerms && \
