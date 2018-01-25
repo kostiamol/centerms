@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/kostiamol/centerms/api/grpcsvc"
 	"github.com/kostiamol/centerms/entities"
@@ -10,23 +12,28 @@ import (
 
 func main() {
 	var (
-		st            = &storages.RedisStorage{RetryInterval: retryInterval}
+		log = &logrus.Logger{
+			Out:       os.Stdout,
+			Formatter: new(logrus.TextFormatter),
+			Level:     logrus.DebugLevel,
+		}
+		storage       = &storages.RedisStorage{RetryInterval: retryInterval}
 		ctrl          = entities.ServiceController{StopChan: make(chan struct{})}
 		storageServer = entities.Server{
 			Host: storageHost,
 			Port: storagePort,
 		}
 	)
-	st.SetServer(storageServer)
+	storage.SetServer(storageServer)
 
 	cs := services.NewConfigService(
 		entities.Server{
 			Host: localhost,
 			Port: devConfigPort,
 		},
-		st,
+		storage,
 		ctrl,
-		logrus.New(),
+		logrus.NewEntry(log),
 		retryInterval,
 		entities.DevConfigSubject,
 	)
@@ -37,9 +44,9 @@ func main() {
 			Host: localhost,
 			Port: devDataPort,
 		},
-		st,
+		storage,
 		ctrl,
-		logrus.New(),
+		logrus.NewEntry(log),
 		entities.DevDataSubject,
 	)
 	go ds.Run()
@@ -55,9 +62,9 @@ func main() {
 			Host: webHost,
 			Port: streamPort,
 		},
-		st,
+		storage,
 		ctrl,
-		logrus.New(),
+		logrus.NewEntry(log),
 		entities.DevDataSubject,
 	)
 	go ss.Run()
@@ -67,9 +74,9 @@ func main() {
 			Host: webHost,
 			Port: webPort,
 		},
-		st,
+		storage,
 		ctrl,
-		logrus.New(),
+		logrus.NewEntry(log),
 		entities.DevConfigSubject,
 	)
 	go ws.Run()

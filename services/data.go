@@ -7,39 +7,42 @@ import (
 
 	"golang.org/x/net/context"
 
-	"os"
-
 	"github.com/kostiamol/centerms/entities"
-	"github.com/pkg/errors"
 )
 
 type DataService struct {
-	Server     entities.Server
-	Storage    entities.Storage
-	Ctrl       entities.ServiceController
-	Log        *logrus.Logger
-	PubSubject string
+	Server  entities.Server
+	Storage entities.Storage
+	Ctrl    entities.ServiceController
+	Log     *logrus.Entry
+	PubSubj string
 }
 
-func NewDataService(srv entities.Server, st entities.Storage, c entities.ServiceController,
-	l *logrus.Logger, subj string) *DataService {
+func NewDataService(srv entities.Server, storage entities.Storage, ctrl entities.ServiceController,
+	log *logrus.Entry, subj string) *DataService {
 
-	l.Out = os.Stdout
 	return &DataService{
-		Server:     srv,
-		Storage:    st,
-		Ctrl:       c,
-		Log:        l,
-		PubSubject: subj,
+		Server:  srv,
+		Storage: storage,
+		Ctrl:    ctrl,
+		Log:     log.WithFields(logrus.Fields{"service": "data"}),
+		PubSubj: subj,
 	}
 }
 
 func (s *DataService) Run() {
-	s.Log.Infof("DataService   is running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
+	s.Log.WithFields(logrus.Fields{
+		"func":  "Run",
+		"event": "start",
+	}).Infof("running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
+
 	_, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("DataService: Run(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "Run",
+				"event": "panic",
+			}).Errorf("%s", r)
 			cancel()
 			s.terminate()
 		}
@@ -61,26 +64,36 @@ func (s *DataService) listenTermination() {
 func (s *DataService) terminate() {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("DataService: terminate(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "terminate",
+				"event": "panic",
+			}).Errorf("%s", r)
 			s.Ctrl.Terminate()
 		}
 	}()
 
 	s.Storage.CloseConn()
-	s.Log.Infoln("DataService is down")
+	s.Log.WithFields(logrus.Fields{
+		"func":  "terminate",
+		"event": "service_terminated",
+	}).Infoln("DataService is down")
 	s.Ctrl.Terminate()
 }
 
 func (s *DataService) SaveDevData(req *entities.SaveDevDataRequest) {
 	conn, err := s.Storage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("DataService: saveDevData(): storage connection hasn't been established: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "SaveDevData",
+		}).Errorf("%s", err)
 		return
 	}
 	defer conn.CloseConn()
 
 	if err = conn.SaveDevData(req); err != nil {
-		s.Log.Errorf("DataService: SaveDevData() has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "SaveDevData",
+		}).Errorf("%s", err)
 		return
 	}
 
@@ -90,24 +103,36 @@ func (s *DataService) SaveDevData(req *entities.SaveDevDataRequest) {
 func (s *DataService) publishDevData(req *entities.SaveDevDataRequest) error {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("DataService: publishDevData(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "publishDevData",
+				"event": "panic",
+			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
 
 	conn, err := s.Storage.CreateConn()
 	if err != nil {
-		return errors.Wrap(err, "DataService: publishDevData(): storage connection hasn't been established")
+		s.Log.WithFields(logrus.Fields{
+			"func": "publishDevData",
+		}).Errorf("%s", err)
+		return err
 	}
 	defer conn.CloseConn()
 
 	b, err := json.Marshal(req)
 	if err != nil {
-		return errors.Wrap(err, "DataService: publishDevData(): Request marshalling has failed")
+		s.Log.WithFields(logrus.Fields{
+			"func": "publishDevData",
+		}).Errorf("%s", err)
+		return err
 	}
 
-	if _, err = conn.Publish(s.PubSubject, b); err != nil {
-		return errors.Wrap(err, "DataService: publishDevData(): publishing has failed")
+	if _, err = conn.Publish(s.PubSubj, b); err != nil {
+		s.Log.WithFields(logrus.Fields{
+			"func": "publishDevData",
+		}).Errorf("%s", err)
+		return err
 	}
 
 	return nil

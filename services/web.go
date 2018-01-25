@@ -9,8 +9,6 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
-	"os"
-
 	"github.com/kostiamol/centerms/entities"
 )
 
@@ -18,28 +16,34 @@ type WebService struct {
 	Server     entities.Server
 	Storage    entities.Storage
 	Ctrl       entities.ServiceController
-	Log        *logrus.Logger
+	Log        *logrus.Entry
 	PubSubject string
 }
 
-func NewWebService(srv entities.Server, st entities.Storage, c entities.ServiceController, l *logrus.Logger,
+func NewWebService(srv entities.Server, storage entities.Storage, ctrl entities.ServiceController, log *logrus.Entry,
 	subj string) *WebService {
 
-	l.Out = os.Stdout
 	return &WebService{
 		Server:     srv,
-		Storage:    st,
-		Ctrl:       c,
-		Log:        l,
+		Storage:    storage,
+		Ctrl:       ctrl,
+		Log:        log.WithFields(logrus.Fields{"service": "web"}),
 		PubSubject: subj,
 	}
 }
 
 func (s *WebService) Run() {
-	s.Log.Infof("WebService    is running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
+	s.Log.WithFields(logrus.Fields{
+		"func":  "Run",
+		"event": "start",
+	}).Infof("running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
+
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("WebService: Run(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "Run",
+				"event": "panic",
+			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
@@ -79,13 +83,19 @@ func (s *WebService) listenTermination() {
 func (s *WebService) terminate() {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("WebService: terminate(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "terminate",
+				"event": "panic",
+			}).Errorf("%s", r)
 			s.Ctrl.Terminate()
 		}
 	}()
 
 	s.Storage.CloseConn()
-	s.Log.Infoln("WebService is down")
+	s.Log.WithFields(logrus.Fields{
+		"func":  "terminate",
+		"event": "service_terminated",
+	}).Infoln("WebService is down")
 	s.Ctrl.Terminate()
 }
 
@@ -103,7 +113,10 @@ func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if r := recover(); r != nil {
-				s.Log.Errorf("WebService: panic(): %s", r)
+				s.Log.WithFields(logrus.Fields{
+					"func":  "recoveryAdapter",
+					"event": "panic",
+				}).Errorf("%s", r)
 				s.terminate()
 			}
 		}()
@@ -114,19 +127,25 @@ func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 func (s *WebService) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.Storage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("WebService: getDevicesHandler(): storage connection hasn't been established: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "getDevsDataHandler",
+		}).Errorf("%s", err)
 		return
 	}
 	defer conn.CloseConn()
 
 	data, err := conn.GetDevsData()
 	if err != nil {
-		s.Log.Errorf("WebService: getDevicesHandler(): devices data extraction has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "getDevsDataHandler",
+		}).Errorf("%s", err)
 		return
 	}
 
 	if err = json.NewEncoder(w).Encode(data); err != nil {
-		s.Log.Errorf("WebService: getDevicesHandler(): []DevData encoding has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "getDevsDataHandler",
+		}).Errorf("%s", err)
 		return
 	}
 }
@@ -134,7 +153,9 @@ func (s *WebService) getDevsDataHandler(w http.ResponseWriter, r *http.Request) 
 func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.Storage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("WebService: getDevDataHandler(): storage connection hasn't been established: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "getDevDataHandler",
+		}).Errorf("%s", err)
 		return
 	}
 	defer conn.CloseConn()
@@ -142,12 +163,16 @@ func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	data, err := conn.GetDevData(id)
 	if err != nil {
-		s.Log.Errorf("WebService: getDevDataHandler(): DevData extraction has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "getDevDataHandler",
+		}).Errorf("%s", err)
 		return
 	}
 
 	if err = json.NewEncoder(w).Encode(data); err != nil {
-		s.Log.Errorf("WebService: getDevDataHandler(): DevData encoding has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "getDevDataHandler",
+		}).Errorf("%s", err)
 		return
 	}
 }
@@ -155,7 +180,9 @@ func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.Storage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("WebService: getDevConfigHandler(): storage connection hasn't been established: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "getDevConfigHandler",
+		}).Errorf("%s", err)
 		return
 	}
 	defer conn.CloseConn()
@@ -163,12 +190,16 @@ func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request)
 	id := mux.Vars(r)["id"]
 	config, err := conn.GetDevConfig(id)
 	if err != nil {
-		s.Log.Errorf("WebService: getDevConfigHandler(): DevConfig extraction has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "getDevConfigHandler",
+		}).Errorf("%s", err)
 		return
 	}
 
 	if _, err = w.Write(config.Data); err != nil {
-		s.Log.Errorf("WebService: getDevConfigHandler(): Write() has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "getDevConfigHandler",
+		}).Errorf("%s", err)
 		return
 	}
 }
@@ -176,31 +207,41 @@ func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request)
 func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.Storage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("WebService: patchDevConfigHandler(): storage connection hasn't been established: %s")
+		s.Log.WithFields(logrus.Fields{
+			"func": "patchDevConfigHandler",
+		}).Errorf("%s", err)
 		return
 	}
 	defer conn.CloseConn()
 
 	var config entities.DevConfig
 	if err = json.NewDecoder(r.Body).Decode(&config); err != nil {
-		s.Log.Errorf("WebService: patchDevConfigHandler(): DevConfig decoding has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "patchDevConfigHandler",
+		}).Errorf("%s", err)
 		return
 	}
 
 	id := mux.Vars(r)["id"]
 	if err = conn.SetDevConfig(id, &config); err != nil {
-		s.Log.Errorf("WebService: patchDevConfigHandler(): DevConfig setting has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "patchDevConfigHandler",
+		}).Errorf("%s", err)
 		return
 	}
 
 	b, err := json.Marshal(config)
 	if err != nil {
-		s.Log.Errorf("WebService: patchDevConfigHandler(): DevConfig marshalling has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "patchDevConfigHandler",
+		}).Errorf("%s", err)
 		return
 	}
 
 	if _, err = conn.Publish(s.PubSubject, b); err != nil {
-		s.Log.Errorf("WebService: patchDevConfigHandler(): stream() has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "patchDevConfigHandler",
+		}).Errorf("%s", err)
 		return
 	}
 }

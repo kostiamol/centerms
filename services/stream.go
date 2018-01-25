@@ -14,10 +14,7 @@ import (
 
 	"context"
 
-	"os"
-
 	"github.com/kostiamol/centerms/entities"
-	"github.com/pkg/errors"
 )
 
 type connList struct {
@@ -45,14 +42,14 @@ func (l *connList) removeConn(conn *websocket.Conn) bool {
 
 type streamConns struct {
 	sync.RWMutex
-	ClosedConns   chan *websocket.Conn
-	MACConns      map[string]*connList
+	ClosedConns chan *websocket.Conn
+	MACConns    map[string]*connList
 }
 
 func newStreamConns() *streamConns {
 	return &streamConns{
-		ClosedConns:   make(chan *websocket.Conn),
-		MACConns:      make(map[string]*connList),
+		ClosedConns: make(chan *websocket.Conn),
+		MACConns:    make(map[string]*connList),
 	}
 }
 
@@ -68,15 +65,15 @@ type StreamService struct {
 	Server   entities.Server
 	Storage  entities.Storage
 	Ctrl     entities.ServiceController
-	Log      *logrus.Logger
+	Log      *logrus.Entry
 	Sub      entities.Subscription
 	conns    streamConns
 	upgrader websocket.Upgrader
 }
 
-func NewStreamService(srv entities.Server, st entities.Storage, c entities.ServiceController, l *logrus.Logger,
-	subject string) *StreamService {
-	u := websocket.Upgrader{
+func NewStreamService(srv entities.Server, storage entities.Storage, ctrl entities.ServiceController, log *logrus.Entry,
+	subj string) *StreamService {
+	upg := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
@@ -86,28 +83,34 @@ func NewStreamService(srv entities.Server, st entities.Storage, c entities.Servi
 			return true
 		},
 	}
-	l.Out = os.Stdout
 
 	return &StreamService{
 		Server:  srv,
-		Storage: st,
-		Ctrl:    c,
-		Log:     l,
+		Storage: storage,
+		Ctrl:    ctrl,
+		Log:     log.WithFields(logrus.Fields{"service": "stream"}),
 		conns:   *newStreamConns(),
 		Sub: entities.Subscription{
-			Subject: subject,
+			Subject: subj,
 			Channel: make(chan []string),
 		},
-		upgrader: u,
+		upgrader: upg,
 	}
 }
 
 func (s *StreamService) Run() {
-	s.Log.Infof("StreamService is running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
+	s.Log.WithFields(logrus.Fields{
+		"func":  "Run",
+		"event": "start",
+	}).Infof("running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: Run(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "Run",
+				"event": "panic",
+			}).Errorf("%s", r)
 			cancel()
 			s.terminate()
 		}
@@ -142,20 +145,29 @@ func (s *StreamService) listenTermination() {
 func (s *StreamService) terminate() {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: terminate(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "terminate",
+				"event": "panic",
+			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
 
 	s.Storage.CloseConn()
-	s.Log.Info("StreamService is down")
+	s.Log.WithFields(logrus.Fields{
+		"func":  "terminate",
+		"event": "service_terminated",
+	}).Info("StreamService is down")
 	s.Ctrl.Terminate()
 }
 
 func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: addConnHandler(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "addConnHandler",
+				"event": "panic",
+			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
@@ -171,24 +183,34 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		s.Log.Errorf("StreamService: addConnHandler(): Upgrade() has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "addConnHandler",
+		}).Errorf("%s", err)
 		return
 	}
 	s.conns.MACConns[mac].addConn(conn)
-	s.Log.Infof("StreamService: addConnHandler(): conn with %v has been added", conn.RemoteAddr())
+	s.Log.WithFields(logrus.Fields{
+		"func":  "addConnHandler",
+		"event": "ws_conn_added",
+	}).Infof("addr: %v", conn.RemoteAddr())
 }
 
 func (s *StreamService) listenPublications(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: listenPublications(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "listenPublications",
+				"event": "panic",
+			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
 
 	conn, err := s.Storage.CreateConn()
 	if err != nil {
-		s.Log.Errorf("StreamService: listenPublications(): storage connection hasn't been established: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "listenPublications",
+		}).Errorf("%s", err)
 		return
 	}
 	defer conn.CloseConn()
@@ -209,14 +231,19 @@ func (s *StreamService) listenPublications(ctx context.Context) {
 func (s *StreamService) stream(ctx context.Context, message []string) error {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: stream(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "stream",
+				"event": "panic",
+			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
 
 	var req entities.SaveDevDataRequest
 	if err := json.Unmarshal([]byte(message[2]), &req); err != nil {
-		errors.Wrap(err, "StreamService: stream(): Request unmarshalling has failed")
+		s.Log.WithFields(logrus.Fields{
+			"func": "stream",
+		}).Errorf("%s", err)
 		return err
 	}
 
@@ -230,7 +257,10 @@ func (s *StreamService) stream(ctx context.Context, message []string) error {
 				err := conn.WriteMessage(1, []byte(message[2]))
 				s.conns.MACConns[req.Meta.MAC].Unlock()
 				if err != nil {
-					s.Log.Infof("StreamService: stream(): conn with %v has been closed", conn.RemoteAddr())
+					s.Log.WithFields(logrus.Fields{
+						"func":  "stream",
+						"event": "ws_conn_closed",
+					}).Infof("addr: %v", conn.RemoteAddr())
 					s.conns.ClosedConns <- conn
 					return err
 				}
@@ -244,7 +274,10 @@ func (s *StreamService) stream(ctx context.Context, message []string) error {
 func (s *StreamService) listenClosedConns(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Log.Errorf("StreamService: listenClosedConns(): panic(): %s", r)
+			s.Log.WithFields(logrus.Fields{
+				"func":  "listenClosedConns",
+				"event": "panic",
+			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
