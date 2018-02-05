@@ -223,7 +223,7 @@ func (s *ConfigService) publishNewConfigPatchEvent(dc *entities.DevConfig) {
 	}
 	defer conn.Close()
 
-	event := api.EventStore{
+	event := pb.EventStore{
 		AggregateId:   dc.MAC,
 		AggregateType: aggregate,
 		EventId:       uuid.NewV4().String(),

@@ -6,11 +6,11 @@ import (
 )
 
 const (
-	DevDataSubject   = "devData"
-	DevConfigSubject = "devConfig"
+	DevDataSubject   = "dev_data"
+	DevConfigSubject = "dev_config"
 )
 
-type DeviceID uint
+// type DeviceID uint
 
 type Notifier interface {
 	Publish(subject string, message interface{}) (int64, error)
@@ -20,23 +20,23 @@ type Notifier interface {
 type DevDataDriver interface {
 	GetDevsData() ([]DevData, error)
 	GetDevData(id string) (*DevData, error)
-	SaveDevData(r *SaveDevDataRequest) error
+	SaveDevData(req *SaveDevDataRequest) error
 	GetDevMeta(id string) (*DevMeta, error)
-	SetDevMeta(m *DevMeta) error
+	SetDevMeta(meta *DevMeta) error
 }
 
 type DevConfigDriver interface {
 	GetDevConfig(id string) (*DevConfig, error)
-	SetDevConfig(id string, c *DevConfig) error
-	GetDevDefaultConfig(m *DevMeta) (*DevConfig, error)
-	DevIsRegistered(m *DevMeta) (bool, error)
+	SetDevConfig(id string, config *DevConfig) error
+	GetDevDefaultConfig(meta *DevMeta) (*DevConfig, error)
+	DevIsRegistered(meta *DevMeta) (bool, error)
 }
 
 type Storage interface {
 	Notifier
 	DevDataDriver
 	DevConfigDriver
-	SetServer(s Server) error
+	SetServer(srv Server) error
 	CreateConn() (Storage, error)
 	CloseConn() error
 }
@@ -69,7 +69,6 @@ type DevMeta struct {
 }
 
 type DevData struct {
-	Site string              `json:"site"`
 	Meta DevMeta             `json:"meta"`
 	Data map[string][]string `json:"data"`
 }

@@ -15,7 +15,7 @@ It has these top-level messages:
 	SaveDevDataRequest
 	SaveDevDataResponse
 */
-package api
+package pb
 
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"

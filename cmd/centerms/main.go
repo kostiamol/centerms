@@ -26,7 +26,7 @@ func main() {
 	)
 	storage.SetServer(storageServer)
 
-	cs := services.NewConfigService(
+	config := services.NewConfigService(
 		entities.Server{
 			Host: localhost,
 			Port: devConfigPort,
@@ -37,9 +37,9 @@ func main() {
 		retryInterval,
 		entities.DevConfigSubject,
 	)
-	go cs.Run()
+	go config.Run()
 
-	ds := services.NewDataService(
+	data := services.NewDataService(
 		entities.Server{
 			Host: localhost,
 			Port: devDataPort,
@@ -49,15 +49,16 @@ func main() {
 		logrus.NewEntry(log),
 		entities.DevDataSubject,
 	)
-	go ds.Run()
+	go data.Run()
 
 	grpcsvc.Init(grpcsvc.GRPCConfig{
-		ConfigService: cs,
-		DataService:   ds,
+		ConfigService: config,
+		DataService:   data,
 		RetryInterval: retryInterval,
+		Log:           logrus.NewEntry(log),
 	})
 
-	ss := services.NewStreamService(
+	stream := services.NewStreamService(
 		entities.Server{
 			Host: webHost,
 			Port: streamPort,
@@ -67,9 +68,9 @@ func main() {
 		logrus.NewEntry(log),
 		entities.DevDataSubject,
 	)
-	go ss.Run()
+	go stream.Run()
 
-	ws := services.NewWebService(
+	web := services.NewWebService(
 		entities.Server{
 			Host: webHost,
 			Port: webPort,
@@ -79,7 +80,7 @@ func main() {
 		logrus.NewEntry(log),
 		entities.DevConfigSubject,
 	)
-	go ws.Run()
+	go web.Run()
 
 	ctrl.Wait()
 	logrus.Info("center is down")

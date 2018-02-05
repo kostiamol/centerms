@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	localhost            = "127.0.0.1"
-	webHost              = "0.0.0.0"
+	localhost = "127.0.0.1"
+	webHost   = "0.0.0.0"
 
 	defaultDevConfigPort = "3092"
 	defaultDevDataPort   = "3126"
@@ -15,12 +15,13 @@ const (
 	defaultStreamPort    = "3546"
 
 	defaultRedisPort      = "6379"
+	defaultInfluxDBPort   = "8086"
 	defaultPostgreSQLPort = "5432"
 
-	defaultStoragePort    = defaultRedisPort
-	defaultStorageHost    = "127.0.0.1"
+	defaultStoragePort = defaultRedisPort
+	defaultStorageHost = "127.0.0.1"
 
-	retryInterval           = time.Second * 10
+	retryInterval = time.Second * 10
 )
 
 var (
