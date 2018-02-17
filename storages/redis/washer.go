@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (rds *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, error) {
+func (s *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	devParamsKey := devKey + partialDevParamsKey
 
@@ -18,14 +18,14 @@ func (rds *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, 
 		Data: make(map[string][]string),
 	}
 
-	params, err := rds.Client.SMembers(devParamsKey)
+	params, err := s.Client.SMembers(devParamsKey)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherData(): can't read members from devParamsKeys")
 	}
 
 	data := make([][]string, len(params))
 	for i, p := range params {
-		data[i], err = rds.Client.ZRangeByScore(devParamsKey+":"+p, "-inf", "inf")
+		data[i], err = s.Client.ZRangeByScore(devParamsKey+":"+p, "-inf", "inf")
 		if err != nil {
 			errors.Wrap(err, "RedisDevStorage: getWasherData(): can't read members from sorted set")
 		}
@@ -35,7 +35,7 @@ func (rds *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, 
 	return &dd, err
 }
 
-func (rds *RedisStorage) saveWasherData(r *entities.SaveDevDataRequest) error {
+func (s *RedisStorage) saveWasherData(r *entities.SaveDevDataRequest) error {
 	var wd entities.WasherData
 	if err := json.NewDecoder(bytes.NewBuffer(r.Data)).Decode(&wd); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): WasherData decoding has failed")
@@ -45,33 +45,33 @@ func (rds *RedisStorage) saveWasherData(r *entities.SaveDevDataRequest) error {
 	devKey := partialDevKey + r.Meta.Type + ":" + r.Meta.Name + ":" + r.Meta.MAC
 	paramsKey := devKey + partialDevParamsKey
 
-	if _, err := rds.Client.Multi(); err != nil {
+	if _, err := s.Client.Multi(); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Multi() has failed")
-		rds.Client.Discard()
+		s.Client.Discard()
 		return err
 	}
-	if err := rds.setTurnoversData(wd.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
+	if err := s.setTurnoversData(wd.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setTurnoversData() has failed")
-		rds.Client.Discard()
+		s.Client.Discard()
 		return err
 	}
-	if err := rds.setWaterTempData(wd.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
+	if err := s.setWaterTempData(wd.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setWaterTempData() has failed")
-		rds.Client.Discard()
+		s.Client.Discard()
 		return err
 	}
-	if _, err := rds.Client.Exec(); err != nil {
+	if _, err := s.Client.Exec(); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Exec() has failed")
-		rds.Client.Discard()
+		s.Client.Discard()
 		return err
 	}
 
 	return nil
 }
 
-func (rds *RedisStorage) setTurnoversData(TempCam map[int64]int64, key string) error {
+func (s *RedisStorage) setTurnoversData(TempCam map[int64]int64, key string) error {
 	for t, v := range TempCam {
-		_, err := rds.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
+		_, err := s.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+strconv.FormatInt(int64(v), 10))
 		if err != nil {
 			errors.Wrap(err, "RedisDevStorage: setTurnoversData(): adding to sorted set has failed")
@@ -82,9 +82,9 @@ func (rds *RedisStorage) setTurnoversData(TempCam map[int64]int64, key string) e
 	return nil
 }
 
-func (rds *RedisStorage) setWaterTempData(TempCam map[int64]float32, key string) error {
+func (s *RedisStorage) setWaterTempData(TempCam map[int64]float32, key string) error {
 	for t, v := range TempCam {
-		_, err := rds.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
+		_, err := s.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+
 				strconv.FormatFloat(float64(v), 'f', -1, 32))
 		if err != nil {
@@ -96,8 +96,8 @@ func (rds *RedisStorage) setWaterTempData(TempCam map[int64]float32, key string)
 	return nil
 }
 
-func (rds *RedisStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
-	config, err := rds.getWasherDefaultConfig(m)
+func (s *RedisStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+	config, err := s.getWasherDefaultConfig(m)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherConfig(): getWasherDefaultConfig() has failed")
 	}
@@ -105,7 +105,7 @@ func (rds *RedisStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevConf
 	config.MAC = m.MAC
 	configKey := m.MAC + partialDevConfigKey
 	unixTime := int64(100) // fake
-	mode, err := rds.Client.ZRangeByScore(configKey, unixTime-100, unixTime+100)
+	mode, err := s.Client.ZRangeByScore(configKey, unixTime-100, unixTime+100)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherConfig(): ZRangeByScore() has failed")
 	}
@@ -123,7 +123,7 @@ func (rds *RedisStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevConf
 	return config, err
 }
 
-func (rds *RedisStorage) setWasherConfig(c *entities.DevConfig) error {
+func (s *RedisStorage) setWasherConfig(c *entities.DevConfig) error {
 	var tm *entities.TimerMode
 	err := json.NewDecoder(bytes.NewBuffer(c.Data)).Decode(&tm)
 	if err != nil {
@@ -131,7 +131,7 @@ func (rds *RedisStorage) setWasherConfig(c *entities.DevConfig) error {
 	}
 
 	configKey := c.MAC + partialDevConfigKey
-	rds.Client.ZAdd(configKey, tm.StartTime, tm.Name)
+	s.Client.ZAdd(configKey, tm.StartTime, tm.Name)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: setWasherConfig(): ZAdd() has failed")
 	}
@@ -139,7 +139,7 @@ func (rds *RedisStorage) setWasherConfig(c *entities.DevConfig) error {
 	return err
 }
 
-func (rds *RedisStorage) getWasherDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (s *RedisStorage) getWasherDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	b, err := json.Marshal(entities.StandardMode)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherDefaultConfig(): WasherConfig marshalling has failed")

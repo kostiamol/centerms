@@ -13,14 +13,14 @@ import (
 )
 
 type WebService struct {
-	Server     entities.Server
+	Server     entities.Address
 	Storage    entities.Storage
 	Ctrl       entities.ServiceController
 	Log        *logrus.Entry
 	PubSubject string
 }
 
-func NewWebService(srv entities.Server, storage entities.Storage, ctrl entities.ServiceController, log *logrus.Entry,
+func NewWebService(srv entities.Address, storage entities.Storage, ctrl entities.ServiceController, log *logrus.Entry,
 	subj string) *WebService {
 
 	return &WebService{

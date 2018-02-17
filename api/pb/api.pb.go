@@ -257,7 +257,7 @@ func (c *centerServiceClient) SaveDevData(ctx context.Context, in *SaveDevDataRe
 	return out, nil
 }
 
-// Server API for CenterService service
+// Addr API for CenterService service
 
 type CenterServiceServer interface {
 	SetDevInitConfig(context.Context, *SetDevInitConfigRequest) (*SetDevInitConfigResponse, error)

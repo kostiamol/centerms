@@ -8,7 +8,10 @@ import (
 
 	"strconv"
 
+	"log"
+
 	"github.com/Sirupsen/logrus"
+	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/pkg/errors"
 	"menteslibres.net/gosexy/redis"
@@ -21,50 +24,123 @@ const (
 )
 
 type RedisStorage struct {
-	Client        *redis.Client
-	DbServer      entities.Server
-	RetryInterval time.Duration
+	entities.ExternalService
+	Client *redis.Client
+	Retry  time.Duration
 }
 
-func (rds *RedisStorage) SetServer(s entities.Server) error {
-	var err error
-	if s.Host == "" {
-		err = errors.New("RedisStorage: SetServer(): store server'rds host is empty")
-	} else if s.Port == "" {
-		err = errors.Wrap(err, "RedisStorage: SetServer(): store server'rds port is empty")
+func (s *RedisStorage) Init(addr entities.Address, name string, ttl time.Duration, retry time.Duration) error {
+	if addr.Host == "" {
+		return errors.New("RedisStorage: SetServer(): host is empty")
+	} else if addr.Port == "" {
+		return errors.New("RedisStorage: SetServer(): port is empty")
 	}
-	rds.DbServer = s
-	return err
-}
+	s.Addr = addr
+	s.Name = name
+	s.TTL = ttl
+	s.Retry = retry
 
-func (rds *RedisStorage) CreateConn() (entities.Storage, error) {
-	nrc := RedisStorage{
-		Client:   redis.New(),
-		DbServer: rds.DbServer,
-	}
-
-	parsedPort, err := strconv.ParseUint(nrc.DbServer.Port, 10, 64)
+	parsedPort, err := strconv.ParseUint(s.Addr.Port, 10, 64)
 	if err != nil {
 		errors.New("RedisStorage: CreateConn(): ParseUint() has failed")
 	}
 	port := uint(parsedPort)
 
-	err = nrc.Client.Connect(nrc.DbServer.Host, port)
+	s.Client = redis.New()
+	err = s.Client.Connect(s.Addr.Host, port)
+	for err != nil {
+		logrus.Errorf("RedisStorage: CreateConn(): Connect() has failed: %addr", err)
+		duration := time.Duration(rand.Intn(int(s.Retry.Seconds())))
+		time.Sleep(time.Second*duration + 1)
+		err = s.Client.Connect(s.Addr.Host, port)
+	}
+
+	ok, err := s.Check()
+	if !ok {
+		return err
+	}
+
+	c, err := consul.NewClient(consul.DefaultConfig())
+	if err != nil {
+		return err
+	}
+	s.ConsulAgent = c.Agent()
+
+	serviceDef := &consul.AgentServiceRegistration{
+		Name: s.Name,
+		Check: &consul.AgentServiceCheck{
+			TTL: s.TTL.String(),
+		},
+	}
+
+	if err := s.ConsulAgent.ServiceRegister(serviceDef); err != nil {
+		return err
+	}
+	go s.UpdateTTL(s.Check)
+
+	return nil
+}
+
+// Check method issues PING Redis command to check if we’re ok.
+func (s *RedisStorage) Check() (bool, error) {
+	_, err := s.Client.Ping()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *RedisStorage) UpdateTTL(check func() (bool, error)) {
+	ticker := time.NewTicker(s.TTL / 2)
+	for range ticker.C {
+		s.update(check)
+	}
+}
+
+func (s *RedisStorage) update(check func() (bool, error)) {
+	ok, err := check()
+	if !ok {
+		logrus.Errorf("err=\"Check failed\" msg=\"%s\"", err.Error())
+		if agentErr := s.ConsulAgent.FailTTL("service:"+s.Name, err.Error()); agentErr != nil {
+			log.Print(agentErr)
+		}
+	} else {
+		if agentErr := s.ConsulAgent.PassTTL("service:"+s.Name, ""); agentErr != nil {
+			log.Print(agentErr)
+		}
+		logrus.Error("it's ok")
+	}
+}
+
+func (s *RedisStorage) CreateConn() (entities.Storage, error) {
+	parsedPort, err := strconv.ParseUint(s.Addr.Port, 10, 64)
+	if err != nil {
+		errors.New("RedisStorage: CreateConn(): ParseUint() has failed")
+	}
+	port := uint(parsedPort)
+
+	newStorage := RedisStorage{
+		ExternalService: entities.ExternalService{Addr: s.Addr},
+		Client:          redis.New(),
+		Retry:           s.Retry,
+	}
+	err = newStorage.Client.Connect(newStorage.Addr.Host, port)
 	for err != nil {
 		logrus.Errorf("RedisStorage: CreateConn(): Connect() has failed: %s", err)
-		duration := time.Duration(rand.Intn(int(rds.RetryInterval.Seconds())))
+		duration := time.Duration(rand.Intn(int(s.Retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		err = nrc.Client.Connect(nrc.DbServer.Host, port)
+		err = newStorage.Client.Connect(newStorage.Addr.Host, port)
 	}
-	return &nrc, err
+
+	return &newStorage, err
 }
 
-func (rds *RedisStorage) CloseConn() error {
-	return rds.Client.Close()
+func (s *RedisStorage) CloseConn() error {
+	return s.Client.Close()
 }
 
-func (rds *RedisStorage) GetDevsData() ([]entities.DevData, error) {
-	devParamsKeys, err := rds.Client.SMembers("devParamsKeys")
+func (s *RedisStorage) GetDevsData() ([]entities.DevData, error) {
+	devParamsKeys, err := s.Client.SMembers("devParamsKeys")
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: GetDevsData(): SMembers for devParamsKeys has failed")
 	}
@@ -80,9 +156,9 @@ func (rds *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 	)
 
 	for index, key := range devParamsKeysTokens {
-		params, err := rds.Client.SMembers(devParamsKeys[index])
+		params, err := s.Client.SMembers(devParamsKeys[index])
 		if err != nil {
-			errors.Wrapf(err, "RedisStorage: GetDevsData(): SMembers() for %rds has failed", devParamsKeys[index])
+			errors.Wrapf(err, "RedisStorage: GetDevsData(): SMembers() for %s has failed", devParamsKeys[index])
 		}
 
 		devData.Meta = entities.DevMeta{
@@ -94,9 +170,9 @@ func (rds *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 
 		vals := make([][]string, len(params))
 		for i, p := range params {
-			vals[i], _ = rds.Client.ZRangeByScore(devParamsKeys[index]+":"+p, "-inf", "inf")
+			vals[i], _ = s.Client.ZRangeByScore(devParamsKeys[index]+":"+p, "-inf", "inf")
 			if err != nil {
-				errors.Wrapf(err, "RedisStorage: GetDevsData(): ZRangeByScore() for %rds has failed", devParamsKeys[i])
+				errors.Wrapf(err, "RedisStorage: GetDevsData(): ZRangeByScore() for %s has failed", devParamsKeys[i])
 			}
 			devData.Data[p] = vals[i]
 		}
@@ -105,16 +181,16 @@ func (rds *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 	return devsData, err
 }
 
-func (rds *RedisStorage) GetDevMeta(id string) (*entities.DevMeta, error) {
-	t, err := rds.Client.HGet("id:"+id, "type")
+func (s *RedisStorage) GetDevMeta(id string) (*entities.DevMeta, error) {
+	t, err := s.Client.HGet("id:"+id, "type")
 	if err != nil {
 		errors.Wrapf(err, "RedisStorage: GetDevMeta(): HGet() has failed")
 	}
-	n, err := rds.Client.HGet("id:"+id, "name")
+	n, err := s.Client.HGet("id:"+id, "name")
 	if err != nil {
 		errors.Wrapf(err, "RedisStorage: GetDevMeta():  HGet() has failed")
 	}
-	m, err := rds.Client.HGet("id:"+id, "mac")
+	m, err := s.Client.HGet("id:"+id, "mac")
 	if err != nil {
 		errors.Wrapf(err, "RedisStorage: GetDevMeta():  HGet() has failed")
 	}
@@ -127,25 +203,25 @@ func (rds *RedisStorage) GetDevMeta(id string) (*entities.DevMeta, error) {
 	return &meta, nil
 }
 
-func (rds *RedisStorage) SetDevMeta(m *entities.DevMeta) error {
-	if _, err := rds.Client.HMSet("id:"+m.MAC, "type", m.Type); err != nil {
+func (s *RedisStorage) SetDevMeta(m *entities.DevMeta) error {
+	if _, err := s.Client.HMSet("id:"+m.MAC, "type", m.Type); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
 		return err
 	}
-	if _, err := rds.Client.HMSet("id:"+m.MAC, "name", m.Name); err != nil {
+	if _, err := s.Client.HMSet("id:"+m.MAC, "name", m.Name); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
 		return err
 	}
-	if _, err := rds.Client.HMSet("id:"+m.MAC, "mac", m.MAC); err != nil {
+	if _, err := s.Client.HMSet("id:"+m.MAC, "mac", m.MAC); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
 		return err
 	}
 	return nil
 }
 
-func (rds *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
+func (s *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 	configKey := m.MAC + partialDevConfigKey
-	if ok, err := rds.Client.Exists(configKey); ok {
+	if ok, err := s.Client.Exists(configKey); ok {
 		if err != nil {
 			errors.Wrap(err, "RedisStorage: DevIsRegistered(): Exists() has failed")
 		}
@@ -154,82 +230,82 @@ func (rds *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 	return false, nil
 }
 
-func (rds *RedisStorage) GetDevData(id string) (*entities.DevData, error) {
-	meta, err := rds.GetDevMeta(id)
+func (s *RedisStorage) GetDevData(id string) (*entities.DevData, error) {
+	meta, err := s.GetDevMeta(id)
 	if err != nil {
 		return nil, err
 	}
 
 	switch meta.Type {
 	case "fridge":
-		return rds.getFridgeData(meta)
+		return s.getFridgeData(meta)
 	case "washer":
-		return rds.getWasherData(meta)
+		return s.getWasherData(meta)
 	default:
 		return &entities.DevData{}, errors.New("RedisStorage: GetDevData(): dev type is unknown")
 	}
 }
 
-func (rds *RedisStorage) SaveDevData(r *entities.SaveDevDataRequest) error {
+func (s *RedisStorage) SaveDevData(r *entities.SaveDevDataRequest) error {
 	switch r.Meta.Type {
 	case "fridge":
-		return rds.saveFridgeData(r)
+		return s.saveFridgeData(r)
 	case "washer":
-		return rds.saveWasherData(r)
+		return s.saveWasherData(r)
 	default:
 		return errors.New("RedisStorage: SaveDevData(): dev type is unknown")
 	}
 }
 
-func (rds *RedisStorage) GetDevConfig(id string) (*entities.DevConfig, error) {
-	meta, err := rds.GetDevMeta(id)
+func (s *RedisStorage) GetDevConfig(id string) (*entities.DevConfig, error) {
+	meta, err := s.GetDevMeta(id)
 	if err != nil {
 		return nil, err
 	}
 
 	switch meta.Type {
 	case "fridge":
-		return rds.getFridgeConfig(meta)
+		return s.getFridgeConfig(meta)
 	case "washer":
-		return rds.getWasherConfig(meta)
+		return s.getWasherConfig(meta)
 	default:
 		return &entities.DevConfig{}, errors.New("RedisStorage: GetDevConfig(): dev type is unknown")
 	}
 }
 
-func (rds *RedisStorage) SetDevConfig(id string, c *entities.DevConfig) error {
-	meta, err := rds.GetDevMeta(id)
+func (s *RedisStorage) SetDevConfig(id string, c *entities.DevConfig) error {
+	meta, err := s.GetDevMeta(id)
 	if err != nil {
 		return err
 	}
 
 	switch meta.Type {
 	case "fridge":
-		return rds.setFridgeConfig(c, meta)
+		return s.setFridgeConfig(c, meta)
 	case "washer":
-		return rds.setWasherConfig(c)
+		return s.setWasherConfig(c)
 	default:
 		return errors.New("RedisStorage: SetDevConfig(): dev type is unknown")
 	}
 }
 
-func (rds *RedisStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
+func (s *RedisStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	switch m.Type {
 	case "fridge":
-		return rds.getFridgeDefaultConfig(m)
+		return s.getFridgeDefaultConfig(m)
 	case "washer":
-		return rds.getWasherDefaultConfig(m)
+		return s.getWasherDefaultConfig(m)
 	default:
 		return &entities.DevConfig{}, errors.New("RedisStorage: GetDevDefaultConfig(): dev type is unknown")
 	}
 }
 
 // Publish posts a message on the given subject.
-func (rds *RedisStorage) Publish(subject string, message interface{}) (int64, error) {
-	return rds.Client.Publish(subject, message)
+func (s *RedisStorage) Publish(subject string, message interface{}) (int64, error) {
+	return s.Client.Publish(subject, message)
 }
 
 // Subscribe subscribes the client to the specified subjects.
-func (rds *RedisStorage) Subscribe(cn chan []string, subject ...string) error {
-	return rds.Client.Subscribe(cn, subject...)
+func (s *RedisStorage) Subscribe(cn chan []string, subject ...string) error {
+	return s.Client.Subscribe(cn, subject...)
 }

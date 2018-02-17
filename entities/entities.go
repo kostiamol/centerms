@@ -3,14 +3,35 @@ package entities
 import (
 	"encoding/json"
 	"time"
+
+	consul "github.com/hashicorp/consul/api"
 )
 
 const (
-	DevDataSubject   = "dev_data"
-	DevConfigSubject = "dev_config"
+	DevDataSubject            = "dev_data"
+	DevConfigSubject          = "dev_config"
+	timeForRoutineTermination = time.Second * 3
 )
 
-// type DeviceID uint
+// todo: type DeviceID uint
+// todo: type InternalService struct + type Interner interface
+
+type Address struct {
+	Host string
+	Port string
+}
+
+type ExternalService struct {
+	Addr        Address
+	Name        string
+	TTL         time.Duration
+	ConsulAgent *consul.Agent
+}
+
+type Externer interface {
+	Check() (bool, error)
+	UpdateTTL(check func() (bool, error))
+}
 
 type Notifier interface {
 	Publish(subject string, message interface{}) (int64, error)
@@ -36,14 +57,9 @@ type Storage interface {
 	Notifier
 	DevDataDriver
 	DevConfigDriver
-	SetServer(srv Server) error
+	Init(addr Address, name string, ttl time.Duration, retry time.Duration) error
 	CreateConn() (Storage, error)
 	CloseConn() error
-}
-
-type Server struct {
-	Host string
-	Port string
 }
 
 type Subscription struct {
@@ -79,7 +95,7 @@ type ServiceController struct {
 
 func (c *ServiceController) Wait() {
 	<-c.StopChan
-	<-time.NewTimer(time.Second * 3).C
+	<-time.NewTimer(timeForRoutineTermination).C
 }
 
 func (c *ServiceController) Terminate() {

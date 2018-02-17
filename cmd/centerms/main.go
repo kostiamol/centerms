@@ -1,48 +1,42 @@
 package main
 
 import (
-	"os"
+	"flag"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/kostiamol/centerms/api/grpcsvc"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/kostiamol/centerms/services"
-	"github.com/kostiamol/centerms/storages/redis"
 )
 
 func main() {
-	var (
-		log = &logrus.Logger{
-			Out:       os.Stdout,
-			Formatter: new(logrus.TextFormatter),
-			Level:     logrus.DebugLevel,
-		}
-		storage       = &storages.RedisStorage{RetryInterval: retryInterval}
-		ctrl          = entities.ServiceController{StopChan: make(chan struct{})}
-		storageServer = entities.Server{
-			Host: storageHost,
-			Port: storagePort,
-		}
-	)
-	storage.SetServer(storageServer)
+	flag.Parse()
+	checkCLIArgs()
+
+	storageServer := entities.Address{
+		Host: *storageHost,
+		Port: *storagePort,
+	}
+
+	storage.Init(storageServer, "redis", *ttl, *retry)
 
 	config := services.NewConfigService(
-		entities.Server{
+		entities.Address{
 			Host: localhost,
-			Port: devConfigPort,
+			Port: *devConfigPort,
 		},
 		storage,
 		ctrl,
 		logrus.NewEntry(log),
-		retryInterval,
+		*retry,
 		entities.DevConfigSubject,
 	)
 	go config.Run()
 
 	data := services.NewDataService(
-		entities.Server{
+		entities.Address{
 			Host: localhost,
-			Port: devDataPort,
+			Port: *devDataPort,
 		},
 		storage,
 		ctrl,
@@ -54,14 +48,14 @@ func main() {
 	grpcsvc.Init(grpcsvc.GRPCConfig{
 		ConfigService: config,
 		DataService:   data,
-		RetryInterval: retryInterval,
+		RetryInterval: *retry,
 		Log:           logrus.NewEntry(log),
 	})
 
 	stream := services.NewStreamService(
-		entities.Server{
+		entities.Address{
 			Host: webHost,
-			Port: streamPort,
+			Port: *streamPort,
 		},
 		storage,
 		ctrl,
@@ -71,9 +65,9 @@ func main() {
 	go stream.Run()
 
 	web := services.NewWebService(
-		entities.Server{
+		entities.Address{
 			Host: webHost,
-			Port: webPort,
+			Port: *webPort,
 		},
 		storage,
 		ctrl,

@@ -87,14 +87,14 @@ func (api *API) listenConfig() {
 		}
 	}()
 
-	ln, err := net.Listen("tcp", api.Config.Server.Host+":"+fmt.Sprint(api.Config.Server.Port))
+	ln, err := net.Listen("tcp", api.Config.Addr.Host+":"+fmt.Sprint(api.Config.Addr.Port))
 	for err != nil {
 		api.Log.WithFields(logrus.Fields{
 			"func": "listenConfig",
 		}).Errorf("Listen() has failed: %s", err)
 		duration := time.Duration(rand.Intn(int(api.RetryInterval.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		ln, err = net.Listen("tcp", api.Config.Server.Host+":"+fmt.Sprint(api.Config.Server.Port))
+		ln, err = net.Listen("tcp", api.Config.Addr.Host+":"+fmt.Sprint(api.Config.Addr.Port))
 	}
 
 	gs := grpc.NewServer()

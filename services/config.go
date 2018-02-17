@@ -1,8 +1,6 @@
 package services
 
 import (
-	"encoding/json"
-
 	"golang.org/x/net/context"
 
 	"math/rand"
@@ -17,28 +15,28 @@ import (
 )
 
 const (
-	aggregate = "Config"
-	event     = "ConfigPatched"
+	aggregate = "config_service"
+	event     = "config_patched"
 )
 
 type ConfigService struct {
-	Server        entities.Server
-	Storage       entities.Storage
-	Ctrl          entities.ServiceController
-	Log           *logrus.Entry
-	Sub           entities.Subscription
-	RetryInterval time.Duration
+	Addr    entities.Address
+	Storage entities.Storage
+	Ctrl    entities.ServiceController
+	Log     *logrus.Entry
+	Sub     entities.Subscription
+	Retry   time.Duration
 }
 
-func NewConfigService(srv entities.Server, storage entities.Storage, ctrl entities.ServiceController,
+func NewConfigService(addr entities.Address, storage entities.Storage, ctrl entities.ServiceController,
 	log *logrus.Entry, retry time.Duration, subj string) *ConfigService {
 
 	return &ConfigService{
-		Server:        srv,
-		Storage:       storage,
-		Ctrl:          ctrl,
-		Log:           log.WithFields(logrus.Fields{"service": "config"}),
-		RetryInterval: retry,
+		Addr:    addr,
+		Storage: storage,
+		Ctrl:    ctrl,
+		Log:     log.WithFields(logrus.Fields{"service": "config"}),
+		Retry:   retry,
 		Sub: entities.Subscription{
 			Subject: subj,
 			Channel: make(chan []string),
@@ -50,7 +48,7 @@ func (s *ConfigService) Run() {
 	s.Log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": "start",
-	}).Infof("running on host: [%s], port: [%s]", s.Server.Host, s.Server.Port)
+	}).Infof("running on host: [%s], port: [%s]", s.Addr.Host, s.Addr.Port)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -180,7 +178,8 @@ func (s *ConfigService) listenConfigPatches(ctx context.Context) {
 		return
 	}
 	defer conn.CloseConn()
-	conn.Subscribe(s.Sub.Channel, s.Sub.Subject)
+
+	/*conn.Subscribe(s.Sub.Channel, s.Sub.Subject)
 
 	var dc entities.DevConfig
 	for {
@@ -198,7 +197,7 @@ func (s *ConfigService) listenConfigPatches(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		}
-	}
+	}*/
 }
 
 func (s *ConfigService) publishNewConfigPatchEvent(dc *entities.DevConfig) {
@@ -217,7 +216,7 @@ func (s *ConfigService) publishNewConfigPatchEvent(dc *entities.DevConfig) {
 		s.Log.WithFields(logrus.Fields{
 			"func": "publishNewConfigPatchEvent",
 		}).Error("nats connectivity status: DISCONNECTED")
-		duration := time.Duration(rand.Intn(int(s.RetryInterval.Seconds())))
+		duration := time.Duration(rand.Intn(int(s.Retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
 		conn, err = nats.Connect(nats.DefaultURL)
 	}
@@ -230,7 +229,7 @@ func (s *ConfigService) publishNewConfigPatchEvent(dc *entities.DevConfig) {
 		EventType:     event,
 		EventData:     string(dc.Data),
 	}
-	subject := "Config.Patch." + dc.MAC
+	subject := "ConfigService.Patch." + dc.MAC
 	data, _ := proto.Marshal(&event)
 
 	conn.Publish(subject, data)
