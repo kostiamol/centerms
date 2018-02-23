@@ -13,20 +13,9 @@ const (
 	timeForRoutineTermination = time.Second * 3
 )
 
-// todo: type DeviceID uint
-// todo: type InternalService struct + type Interner interface
-
-type Address struct {
-	Host string
-	Port string
-}
-
-type ExternalService struct {
-	Addr        Address
-	Name        string
-	TTL         time.Duration
-	ConsulAgent *consul.Agent
-}
+// Query the Consul for services:
+// dig +noall +answer @127.0.0.1 -p 8600 myCoolServiceName.service.dc1.consul
+// curl localhost:8500/v1/health/service/myCoolServiceName?passing
 
 type Externer interface {
 	Check() (bool, error)
@@ -38,7 +27,7 @@ type Notifier interface {
 	Subscribe(cn chan []string, subject ...string) error
 }
 
-type DevDataDriver interface {
+type DevDataStorager interface {
 	GetDevsData() ([]DevData, error)
 	GetDevData(id string) (*DevData, error)
 	SaveDevData(req *SaveDevDataRequest) error
@@ -46,20 +35,37 @@ type DevDataDriver interface {
 	SetDevMeta(meta *DevMeta) error
 }
 
-type DevConfigDriver interface {
+type DevConfigStorager interface {
 	GetDevConfig(id string) (*DevConfig, error)
 	SetDevConfig(id string, config *DevConfig) error
 	GetDevDefaultConfig(meta *DevMeta) (*DevConfig, error)
 	DevIsRegistered(meta *DevMeta) (bool, error)
 }
 
-type Storage interface {
+type Storager interface {
+	Externer
 	Notifier
-	DevDataDriver
-	DevConfigDriver
-	Init(addr Address, name string, ttl time.Duration, retry time.Duration) error
-	CreateConn() (Storage, error)
+	DevDataStorager
+	DevConfigStorager
+	Init() error
+	CreateConn() (Storager, error)
 	CloseConn() error
+}
+
+// todo: type DeviceID uint
+// todo: type InternalService struct + type Interner interface
+// todo: change port type from string to uint
+
+type Address struct {
+	Host string
+	Port string
+}
+
+type ExternalService struct {
+	Addr        Address
+	Name        string
+	TTL         time.Duration
+	ConsulAgent *consul.Agent
 }
 
 type Subscription struct {

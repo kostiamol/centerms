@@ -63,7 +63,7 @@ func (c *streamConns) checkMACConns(mac string) {
 
 type StreamService struct {
 	Server   entities.Address
-	Storage  entities.Storage
+	Storage  entities.Storager
 	Ctrl     entities.ServiceController
 	Log      *logrus.Entry
 	Sub      entities.Subscription
@@ -71,7 +71,7 @@ type StreamService struct {
 	upgrader websocket.Upgrader
 }
 
-func NewStreamService(srv entities.Address, storage entities.Storage, ctrl entities.ServiceController, log *logrus.Entry,
+func NewStreamService(srv entities.Address, storage entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
 	subj string) *StreamService {
 	upg := websocket.Upgrader{
 		ReadBufferSize:  1024,

@@ -12,13 +12,13 @@ import (
 
 type DataService struct {
 	Server  entities.Address
-	Storage entities.Storage
+	Storage entities.Storager
 	Ctrl    entities.ServiceController
 	Log     *logrus.Entry
 	PubSubj string
 }
 
-func NewDataService(srv entities.Address, storage entities.Storage, ctrl entities.ServiceController,
+func NewDataService(srv entities.Address, storage entities.Storager, ctrl entities.ServiceController,
 	log *logrus.Entry, subj string) *DataService {
 
 	return &DataService{

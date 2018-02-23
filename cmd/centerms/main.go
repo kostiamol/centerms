@@ -3,11 +3,17 @@ package main
 import (
 	"flag"
 
+	"os"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/kostiamol/centerms/api/grpcsvc"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/kostiamol/centerms/services"
+	"github.com/kostiamol/centerms/storages/redis"
 )
+
+// todo: fix logging in main package
+// todo: reconnect
 
 func main() {
 	flag.Parse()
@@ -17,8 +23,11 @@ func main() {
 		Host: *storageHost,
 		Port: *storagePort,
 	}
-
-	storage.Init(storageServer, "redis", *ttl, *retry)
+	storage := storages.NewRedisStorage(storageServer, "redis", *ttl, *retry, logrus.NewEntry(log))
+	if err := storage.Init(); err != nil {
+		logrus.Error(err)
+		os.Exit(1)
+	}
 
 	config := services.NewConfigService(
 		entities.Address{

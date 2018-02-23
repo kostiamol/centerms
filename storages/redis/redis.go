@@ -8,8 +8,6 @@ import (
 
 	"strconv"
 
-	"log"
-
 	"github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/entities"
@@ -27,36 +25,48 @@ type RedisStorage struct {
 	entities.ExternalService
 	Client *redis.Client
 	Retry  time.Duration
+	Log    *logrus.Entry
 }
 
-func (s *RedisStorage) Init(addr entities.Address, name string, ttl time.Duration, retry time.Duration) error {
-	if addr.Host == "" {
+func NewRedisStorage(addr entities.Address, name string, ttl time.Duration, retry time.Duration,
+	log *logrus.Entry) entities.Storager {
+
+	return &RedisStorage{
+		ExternalService: entities.ExternalService{
+			Addr: addr,
+			Name: name,
+			TTL:  ttl,
+		},
+		Retry: retry,
+		Log:   log.WithFields(logrus.Fields{"service": "storage", "type": "redis"}),
+	}
+}
+
+func (s *RedisStorage) Init() error {
+	if s.Addr.Host == "" {
 		return errors.New("RedisStorage: SetServer(): host is empty")
-	} else if addr.Port == "" {
+	} else if s.Addr.Port == "" {
 		return errors.New("RedisStorage: SetServer(): port is empty")
 	}
-	s.Addr = addr
-	s.Name = name
-	s.TTL = ttl
-	s.Retry = retry
 
 	parsedPort, err := strconv.ParseUint(s.Addr.Port, 10, 64)
 	if err != nil {
-		errors.New("RedisStorage: CreateConn(): ParseUint() has failed")
+		return errors.New("RedisStorage: CreateConn(): ParseUint() has failed")
 	}
 	port := uint(parsedPort)
 
 	s.Client = redis.New()
 	err = s.Client.Connect(s.Addr.Host, port)
 	for err != nil {
-		logrus.Errorf("RedisStorage: CreateConn(): Connect() has failed: %addr", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "Init",
+		}).Errorf("Connect() has failed: %s", err)
 		duration := time.Duration(rand.Intn(int(s.Retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
 		err = s.Client.Connect(s.Addr.Host, port)
 	}
 
-	ok, err := s.Check()
-	if !ok {
+	if ok, err := s.Check(); !ok {
 		return err
 	}
 
@@ -98,21 +108,30 @@ func (s *RedisStorage) UpdateTTL(check func() (bool, error)) {
 }
 
 func (s *RedisStorage) update(check func() (bool, error)) {
+	var health string
 	ok, err := check()
 	if !ok {
-		logrus.Errorf("err=\"Check failed\" msg=\"%s\"", err.Error())
-		if agentErr := s.ConsulAgent.FailTTL("service:"+s.Name, err.Error()); agentErr != nil {
-			log.Print(agentErr)
-		}
+		s.Log.WithFields(logrus.Fields{
+			"func":  "update",
+			"event": "updating_storage_status",
+		}).Errorf("check has failed: %s", err)
+
+		// failed check will remove a service instance from DNS and HTTP query
+		// to avoid returning errors or invalid data
+		health = consul.HealthCritical
 	} else {
-		if agentErr := s.ConsulAgent.PassTTL("service:"+s.Name, ""); agentErr != nil {
-			log.Print(agentErr)
-		}
-		logrus.Error("it's ok")
+		health = consul.HealthPassing
+	}
+
+	if err := s.ConsulAgent.UpdateTTL("service:"+s.Name, "", health); err != nil {
+		s.Log.WithFields(logrus.Fields{
+			"func":  "update",
+			"event": "updating_storage_status",
+		}).Error(err)
 	}
 }
 
-func (s *RedisStorage) CreateConn() (entities.Storage, error) {
+func (s *RedisStorage) CreateConn() (entities.Storager, error) {
 	parsedPort, err := strconv.ParseUint(s.Addr.Port, 10, 64)
 	if err != nil {
 		errors.New("RedisStorage: CreateConn(): ParseUint() has failed")
@@ -126,7 +145,9 @@ func (s *RedisStorage) CreateConn() (entities.Storage, error) {
 	}
 	err = newStorage.Client.Connect(newStorage.Addr.Host, port)
 	for err != nil {
-		logrus.Errorf("RedisStorage: CreateConn(): Connect() has failed: %s", err)
+		s.Log.WithFields(logrus.Fields{
+			"func": "Init",
+		}).Errorf("Connect() has failed: %s", err)
 		duration := time.Duration(rand.Intn(int(s.Retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
 		err = newStorage.Client.Connect(newStorage.Addr.Host, port)

@@ -21,14 +21,14 @@ const (
 
 type ConfigService struct {
 	Addr    entities.Address
-	Storage entities.Storage
+	Storage entities.Storager
 	Ctrl    entities.ServiceController
 	Log     *logrus.Entry
 	Sub     entities.Subscription
 	Retry   time.Duration
 }
 
-func NewConfigService(addr entities.Address, storage entities.Storage, ctrl entities.ServiceController,
+func NewConfigService(addr entities.Address, storage entities.Storager, ctrl entities.ServiceController,
 	log *logrus.Entry, retry time.Duration, subj string) *ConfigService {
 
 	return &ConfigService{
