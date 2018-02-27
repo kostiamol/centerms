@@ -13,22 +13,22 @@ import (
 )
 
 type WebService struct {
-	Server     entities.Address
-	Storage    entities.Storager
-	Ctrl       entities.ServiceController
-	Log        *logrus.Entry
-	PubSubject string
+	Server  entities.Address
+	Storage entities.Storager
+	Ctrl    entities.ServiceController
+	Log     *logrus.Entry
+	PubChan string
 }
 
 func NewWebService(srv entities.Address, storage entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
-	subj string) *WebService {
+	pubChan string) *WebService {
 
 	return &WebService{
-		Server:     srv,
-		Storage:    storage,
-		Ctrl:       ctrl,
-		Log:        log.WithFields(logrus.Fields{"service": "web"}),
-		PubSubject: subj,
+		Server:  srv,
+		Storage: storage,
+		Ctrl:    ctrl,
+		Log:     log.WithFields(logrus.Fields{"service": "web"}),
+		PubChan: pubChan,
 	}
 }
 
@@ -237,8 +237,7 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 		}).Errorf("%s", err)
 		return
 	}
-
-	if _, err = conn.Publish(s.PubSubject, b); err != nil {
+	if _, err = conn.Publish(b, s.PubChan); err != nil {
 		s.Log.WithFields(logrus.Fields{
 			"func": "patchDevConfigHandler",
 		}).Errorf("%s", err)

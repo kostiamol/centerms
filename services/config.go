@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"time"
 
+	"encoding/json"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
 	"github.com/kostiamol/centerms/api/pb"
@@ -38,8 +40,8 @@ func NewConfigService(addr entities.Address, storage entities.Storager, ctrl ent
 		Log:     log.WithFields(logrus.Fields{"service": "config"}),
 		Retry:   retry,
 		Sub: entities.Subscription{
-			Subject: subj,
-			Channel: make(chan []string),
+			ChanName: subj,
+			Channel:  make(chan []byte),
 		},
 	}
 }
@@ -179,25 +181,23 @@ func (s *ConfigService) listenConfigPatches(ctx context.Context) {
 	}
 	defer conn.CloseConn()
 
-	/*conn.Subscribe(s.Sub.Channel, s.Sub.Subject)
+	go conn.Subscribe(s.Sub.Channel, s.Sub.ChanName)
 
-	var dc entities.DevConfig
+	var config entities.DevConfig
 	for {
 		select {
 		case msg := <-s.Sub.Channel:
-			if msg[0] == "message" {
-				if err := json.Unmarshal([]byte(msg[2]), &dc); err != nil {
-					s.Log.WithFields(logrus.Fields{
-						"func": "listenConfigPatches",
-					}).Errorf("%s", err)
-					return
-				}
-				go s.publishNewConfigPatchEvent(&dc)
+			if err := json.Unmarshal(msg, &config); err != nil {
+				s.Log.WithFields(logrus.Fields{
+					"func": "listenConfigPatches",
+				}).Errorf("%s", err)
+			} else {
+				go s.publishNewConfigPatchEvent(&config)
 			}
 		case <-ctx.Done():
 			return
 		}
-	}*/
+	}
 }
 
 func (s *ConfigService) publishNewConfigPatchEvent(dc *entities.DevConfig) {

@@ -72,7 +72,7 @@ type StreamService struct {
 }
 
 func NewStreamService(srv entities.Address, storage entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
-	subj string) *StreamService {
+	pubChan string) *StreamService {
 	upg := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -91,8 +91,8 @@ func NewStreamService(srv entities.Address, storage entities.Storager, ctrl enti
 		Log:     log.WithFields(logrus.Fields{"service": "stream"}),
 		conns:   *newStreamConns(),
 		Sub: entities.Subscription{
-			Subject: subj,
-			Channel: make(chan []string),
+			ChanName: pubChan,
+			Channel:  make(chan []byte),
 		},
 		upgrader: upg,
 	}
@@ -214,21 +214,20 @@ func (s *StreamService) listenPublications(ctx context.Context) {
 		return
 	}
 	defer conn.CloseConn()
-	conn.Subscribe(s.Sub.Channel, s.Sub.Subject)
+	go conn.Subscribe(s.Sub.Channel, s.Sub.ChanName)
 
 	for {
 		select {
-		case message := <-s.Sub.Channel:
-			if message[0] == "message" {
-				go s.stream(ctx, message)
-			}
+		case msg := <-s.Sub.Channel:
+			go s.stream(ctx, msg)
+
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (s *StreamService) stream(ctx context.Context, message []string) error {
+func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.WithFields(logrus.Fields{
@@ -239,8 +238,8 @@ func (s *StreamService) stream(ctx context.Context, message []string) error {
 		}
 	}()
 
-	var req entities.SaveDevDataRequest
-	if err := json.Unmarshal([]byte(message[2]), &req); err != nil {
+	var req entities.SaveDevDataReq
+	if err := json.Unmarshal(msg, &req); err != nil {
 		s.Log.WithFields(logrus.Fields{
 			"func": "stream",
 		}).Errorf("%s", err)
@@ -254,7 +253,7 @@ func (s *StreamService) stream(ctx context.Context, message []string) error {
 				return nil
 			default:
 				s.conns.MACConns[req.Meta.MAC].Lock()
-				err := conn.WriteMessage(1, []byte(message[2]))
+				err := conn.WriteMessage(1, msg)
 				s.conns.MACConns[req.Meta.MAC].Unlock()
 				if err != nil {
 					s.Log.WithFields(logrus.Fields{

@@ -12,8 +12,10 @@ import (
 	"github.com/kostiamol/centerms/storages/redis"
 )
 
+// todo: substitute req with common struct
 // todo: fix logging in main package
 // todo: reconnect
+// todo: fill encapsulation gaps in structs
 
 func main() {
 	flag.Parse()

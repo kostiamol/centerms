@@ -23,14 +23,14 @@ type Externer interface {
 }
 
 type Notifier interface {
-	Publish(subject string, message interface{}) (int64, error)
-	Subscribe(cn chan []string, subject ...string) error
+	Publish(msg interface{}, channel string) (int64, error)
+	Subscribe(cn chan []byte, subject ...string) error
 }
 
 type DevDataStorager interface {
 	GetDevsData() ([]DevData, error)
 	GetDevData(id string) (*DevData, error)
-	SaveDevData(req *SaveDevDataRequest) error
+	SaveDevData(req *SaveDevDataReq) error
 	GetDevMeta(id string) (*DevMeta, error)
 	SetDevMeta(meta *DevMeta) error
 }
@@ -69,11 +69,11 @@ type ExternalService struct {
 }
 
 type Subscription struct {
-	Subject string
-	Channel chan []string
+	ChanName string
+	Channel  chan []byte
 }
 
-type SaveDevDataRequest struct {
+type SaveDevDataReq struct {
 	Time int64           `json:"time"`
 	Meta DevMeta         `json:"meta"`
 	Data json.RawMessage `json:"data"`

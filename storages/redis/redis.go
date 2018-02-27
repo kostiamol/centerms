@@ -6,13 +6,14 @@ import (
 
 	"time"
 
-	"strconv"
+	"github.com/garyburd/redigo/redis"
+
+	"fmt"
 
 	"github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/pkg/errors"
-	"menteslibres.net/gosexy/redis"
 )
 
 const (
@@ -23,9 +24,9 @@ const (
 
 type RedisStorage struct {
 	entities.ExternalService
-	Client *redis.Client
-	Retry  time.Duration
-	Log    *logrus.Entry
+	conn  redis.Conn
+	Retry time.Duration
+	Log   *logrus.Entry
 }
 
 func NewRedisStorage(addr entities.Address, name string, ttl time.Duration, retry time.Duration,
@@ -49,21 +50,15 @@ func (s *RedisStorage) Init() error {
 		return errors.New("RedisStorage: SetServer(): port is empty")
 	}
 
-	parsedPort, err := strconv.ParseUint(s.Addr.Port, 10, 64)
-	if err != nil {
-		return errors.New("RedisStorage: CreateConn(): ParseUint() has failed")
-	}
-	port := uint(parsedPort)
-
-	s.Client = redis.New()
-	err = s.Client.Connect(s.Addr.Host, port)
+	var err error
+	s.conn, err = redis.Dial("tcp", s.Addr.Host+":"+s.Addr.Port)
 	for err != nil {
 		s.Log.WithFields(logrus.Fields{
 			"func": "Init",
 		}).Errorf("Connect() has failed: %s", err)
 		duration := time.Duration(rand.Intn(int(s.Retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		err = s.Client.Connect(s.Addr.Host, port)
+		s.conn, err = redis.Dial("tcp", s.Addr.Host+":"+s.Addr.Port)
 	}
 
 	if ok, err := s.Check(); !ok {
@@ -72,7 +67,7 @@ func (s *RedisStorage) Init() error {
 
 	c, err := consul.NewClient(consul.DefaultConfig())
 	if err != nil {
-		return err
+		return errors.Errorf("Consul: %s", err)
 	}
 	s.ConsulAgent = c.Agent()
 
@@ -84,7 +79,7 @@ func (s *RedisStorage) Init() error {
 	}
 
 	if err := s.ConsulAgent.ServiceRegister(serviceDef); err != nil {
-		return err
+		return errors.Errorf("Consul: %s", err)
 	}
 	go s.UpdateTTL(s.Check)
 
@@ -93,7 +88,7 @@ func (s *RedisStorage) Init() error {
 
 // Check method issues PING Redis command to check if we’re ok.
 func (s *RedisStorage) Check() (bool, error) {
-	_, err := s.Client.Ping()
+	_, err := s.conn.Do("PING")
 	if err != nil {
 		return false, err
 	}
@@ -132,40 +127,36 @@ func (s *RedisStorage) update(check func() (bool, error)) {
 }
 
 func (s *RedisStorage) CreateConn() (entities.Storager, error) {
-	parsedPort, err := strconv.ParseUint(s.Addr.Port, 10, 64)
-	if err != nil {
-		errors.New("RedisStorage: CreateConn(): ParseUint() has failed")
-	}
-	port := uint(parsedPort)
-
 	newStorage := RedisStorage{
 		ExternalService: entities.ExternalService{Addr: s.Addr},
-		Client:          redis.New(),
 		Retry:           s.Retry,
 	}
-	err = newStorage.Client.Connect(newStorage.Addr.Host, port)
+
+	var err error
+	newStorage.conn, err = redis.Dial("tcp", s.Addr.Host+":"+s.Addr.Port)
 	for err != nil {
 		s.Log.WithFields(logrus.Fields{
 			"func": "Init",
 		}).Errorf("Connect() has failed: %s", err)
 		duration := time.Duration(rand.Intn(int(s.Retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		err = newStorage.Client.Connect(newStorage.Addr.Host, port)
+		newStorage.conn, err = redis.Dial("tcp", s.Addr.Host+":"+s.Addr.Port)
 	}
 
 	return &newStorage, err
 }
 
 func (s *RedisStorage) CloseConn() error {
-	return s.Client.Close()
+	return s.conn.Close()
 }
 
 func (s *RedisStorage) GetDevsData() ([]entities.DevData, error) {
-	devParamsKeys, err := s.Client.SMembers("devParamsKeys")
+	reply, err := s.conn.Do("SMEMBERS", "devParamsKeys")
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: GetDevsData(): SMembers for devParamsKeys has failed")
 	}
 
+	devParamsKeys := reply.([]string)
 	devParamsKeysTokens := make([][]string, len(devParamsKeys))
 	for k, v := range devParamsKeys {
 		devParamsKeysTokens[k] = strings.Split(v, ":")
@@ -177,7 +168,7 @@ func (s *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 	)
 
 	for index, key := range devParamsKeysTokens {
-		params, err := s.Client.SMembers(devParamsKeys[index])
+		reply, err := s.conn.Do("SMEMBERS", devParamsKeys[index])
 		if err != nil {
 			errors.Wrapf(err, "RedisStorage: GetDevsData(): SMembers() for %s has failed", devParamsKeys[index])
 		}
@@ -189,12 +180,14 @@ func (s *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 		}
 		devData.Data = make(map[string][]string)
 
+		params := reply.([]string)
 		vals := make([][]string, len(params))
 		for i, p := range params {
-			vals[i], _ = s.Client.ZRangeByScore(devParamsKeys[index]+":"+p, "-inf", "inf")
+			reply, _ = s.conn.Do("ZRANGEBYSCORE", devParamsKeys[index]+":"+p, "-inf", "inf")
 			if err != nil {
 				errors.Wrapf(err, "RedisStorage: GetDevsData(): ZRangeByScore() for %s has failed", devParamsKeys[i])
 			}
+			vals[i] = reply.([]string)
 			devData.Data[p] = vals[i]
 		}
 		devsData = append(devsData, devData)
@@ -203,37 +196,37 @@ func (s *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 }
 
 func (s *RedisStorage) GetDevMeta(id string) (*entities.DevMeta, error) {
-	t, err := s.Client.HGet("id:"+id, "type")
+	t, err := s.conn.Do("HGET", "id:"+id, "type")
 	if err != nil {
 		errors.Wrapf(err, "RedisStorage: GetDevMeta(): HGet() has failed")
 	}
-	n, err := s.Client.HGet("id:"+id, "name")
+	n, err := s.conn.Do("HGET", "id:"+id, "name")
 	if err != nil {
 		errors.Wrapf(err, "RedisStorage: GetDevMeta():  HGet() has failed")
 	}
-	m, err := s.Client.HGet("id:"+id, "mac")
+	m, err := s.conn.Do("HGET", "id:"+id, "mac")
 	if err != nil {
 		errors.Wrapf(err, "RedisStorage: GetDevMeta():  HGet() has failed")
 	}
 
 	meta := entities.DevMeta{
-		Type: t,
-		Name: n,
-		MAC:  m,
+		Type: t.(string),
+		Name: n.(string),
+		MAC:  m.(string),
 	}
 	return &meta, nil
 }
 
 func (s *RedisStorage) SetDevMeta(m *entities.DevMeta) error {
-	if _, err := s.Client.HMSet("id:"+m.MAC, "type", m.Type); err != nil {
+	if _, err := s.conn.Do("HMSET", "id:"+m.MAC, "type", m.Type); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
 		return err
 	}
-	if _, err := s.Client.HMSet("id:"+m.MAC, "name", m.Name); err != nil {
+	if _, err := s.conn.Do("HMSET", "id:"+m.MAC, "name", m.Name); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
 		return err
 	}
-	if _, err := s.Client.HMSet("id:"+m.MAC, "mac", m.MAC); err != nil {
+	if _, err := s.conn.Do("HMSET", "id:"+m.MAC, "mac", m.MAC); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
 		return err
 	}
@@ -242,7 +235,9 @@ func (s *RedisStorage) SetDevMeta(m *entities.DevMeta) error {
 
 func (s *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 	configKey := m.MAC + partialDevConfigKey
-	if ok, err := s.Client.Exists(configKey); ok {
+	reply, err := s.conn.Do("EXISTS", configKey)
+
+	if ok := reply.(bool); ok {
 		if err != nil {
 			errors.Wrap(err, "RedisStorage: DevIsRegistered(): Exists() has failed")
 		}
@@ -267,7 +262,7 @@ func (s *RedisStorage) GetDevData(id string) (*entities.DevData, error) {
 	}
 }
 
-func (s *RedisStorage) SaveDevData(r *entities.SaveDevDataRequest) error {
+func (s *RedisStorage) SaveDevData(r *entities.SaveDevDataReq) error {
 	switch r.Meta.Type {
 	case "fridge":
 		return s.saveFridgeData(r)
@@ -321,12 +316,32 @@ func (s *RedisStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.DevCo
 	}
 }
 
-// Publish posts a message on the given subject.
-func (s *RedisStorage) Publish(subject string, message interface{}) (int64, error) {
-	return s.Client.Publish(subject, message)
+// Publish posts a message on the given channel.
+func (s *RedisStorage) Publish(msg interface{}, channel string) (int64, error) {
+	numberOfClients, err := s.conn.Do("PUBLISH", msg, channel)
+	if err != nil {
+		return 0, err
+	}
+	return numberOfClients.(int64), nil
 }
 
-// Subscribe subscribes the client to the specified subjects.
-func (s *RedisStorage) Subscribe(cn chan []string, subject ...string) error {
-	return s.Client.Subscribe(cn, subject...)
+// Subscribe subscribes the client to the specified channels.
+func (s *RedisStorage) Subscribe(cn chan []byte, channel ...string) error {
+	psc := redis.PubSubConn{Conn: s.conn}
+	for _, c := range channel {
+		psc.Subscribe(c)
+	}
+
+	for {
+		switch v := psc.Receive().(type) {
+		case redis.Message:
+			fmt.Printf("chan %s: message: %s\n", v.Channel, v.Data)
+			cn <- v.Data
+		case redis.Subscription:
+			fmt.Printf("chan %s: kind: %s count: %d\n", v.Channel, v.Kind, v.Count)
+		case error:
+			return v
+		}
+	}
+	return nil
 }

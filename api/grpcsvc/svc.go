@@ -59,7 +59,7 @@ func (api *API) SetDevInitConfig(ctx context.Context, req *pb.SetDevInitConfigRe
 }
 
 func (api *API) SaveDevData(ctx context.Context, req *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
-	data := entities.SaveDevDataRequest{
+	data := entities.SaveDevDataReq{
 		Time: req.Time,
 		Meta: entities.DevMeta{
 			Type: req.Meta.Type,

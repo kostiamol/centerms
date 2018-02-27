@@ -18,14 +18,16 @@ func (s *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, er
 		Data: make(map[string][]string),
 	}
 
-	params, err := s.Client.SMembers(devParamsKey)
+	reply, err := s.conn.Do("SMEMBERS", devParamsKey)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherData(): can't read members from devParamsKeys")
 	}
 
+	params := reply.([]string)
 	data := make([][]string, len(params))
 	for i, p := range params {
-		data[i], err = s.Client.ZRangeByScore(devParamsKey+":"+p, "-inf", "inf")
+		reply, err = s.conn.Do("ZRANGEBYSCORE", devParamsKey+":"+p, "-inf", "inf")
+		data[i] = reply.([]string)
 		if err != nil {
 			errors.Wrap(err, "RedisDevStorage: getWasherData(): can't read members from sorted set")
 		}
@@ -35,7 +37,7 @@ func (s *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, er
 	return &dd, err
 }
 
-func (s *RedisStorage) saveWasherData(r *entities.SaveDevDataRequest) error {
+func (s *RedisStorage) saveWasherData(r *entities.SaveDevDataReq) error {
 	var wd entities.WasherData
 	if err := json.NewDecoder(bytes.NewBuffer(r.Data)).Decode(&wd); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): WasherData decoding has failed")
@@ -45,24 +47,24 @@ func (s *RedisStorage) saveWasherData(r *entities.SaveDevDataRequest) error {
 	devKey := partialDevKey + r.Meta.Type + ":" + r.Meta.Name + ":" + r.Meta.MAC
 	paramsKey := devKey + partialDevParamsKey
 
-	if _, err := s.Client.Multi(); err != nil {
+	if _, err := s.conn.Do("MULTI"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Multi() has failed")
-		s.Client.Discard()
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if err := s.setTurnoversData(wd.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setTurnoversData() has failed")
-		s.Client.Discard()
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if err := s.setWaterTempData(wd.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setWaterTempData() has failed")
-		s.Client.Discard()
+		s.conn.Do("DISCARD")
 		return err
 	}
-	if _, err := s.Client.Exec(); err != nil {
+	if _, err := s.conn.Do("EXEC"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Exec() has failed")
-		s.Client.Discard()
+		s.conn.Do("DISCARD")
 		return err
 	}
 
@@ -71,7 +73,7 @@ func (s *RedisStorage) saveWasherData(r *entities.SaveDevDataRequest) error {
 
 func (s *RedisStorage) setTurnoversData(TempCam map[int64]int64, key string) error {
 	for t, v := range TempCam {
-		_, err := s.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
+		_, err := s.conn.Do("ZADD", key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+strconv.FormatInt(int64(v), 10))
 		if err != nil {
 			errors.Wrap(err, "RedisDevStorage: setTurnoversData(): adding to sorted set has failed")
@@ -84,7 +86,7 @@ func (s *RedisStorage) setTurnoversData(TempCam map[int64]int64, key string) err
 
 func (s *RedisStorage) setWaterTempData(TempCam map[int64]float32, key string) error {
 	for t, v := range TempCam {
-		_, err := s.Client.ZAdd(key, strconv.FormatInt(int64(t), 10),
+		_, err := s.conn.Do("ZADD", key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+
 				strconv.FormatFloat(float64(v), 'f', -1, 32))
 		if err != nil {
@@ -105,11 +107,12 @@ func (s *RedisStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevConfig
 	config.MAC = m.MAC
 	configKey := m.MAC + partialDevConfigKey
 	unixTime := int64(100) // fake
-	mode, err := s.Client.ZRangeByScore(configKey, unixTime-100, unixTime+100)
+	reply, err := s.conn.Do("ZRANGEBYSCORE", configKey, unixTime-100, unixTime+100)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherConfig(): ZRangeByScore() has failed")
 	}
 
+	mode := reply.(string)
 	if len(mode) == 0 {
 		return config, err
 	}
@@ -131,7 +134,7 @@ func (s *RedisStorage) setWasherConfig(c *entities.DevConfig) error {
 	}
 
 	configKey := c.MAC + partialDevConfigKey
-	s.Client.ZAdd(configKey, tm.StartTime, tm.Name)
+	s.conn.Do("ZADD", configKey, tm.StartTime, tm.Name)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: setWasherConfig(): ZAdd() has failed")
 	}

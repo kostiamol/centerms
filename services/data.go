@@ -15,18 +15,18 @@ type DataService struct {
 	Storage entities.Storager
 	Ctrl    entities.ServiceController
 	Log     *logrus.Entry
-	PubSubj string
+	PubChan string
 }
 
 func NewDataService(srv entities.Address, storage entities.Storager, ctrl entities.ServiceController,
-	log *logrus.Entry, subj string) *DataService {
+	log *logrus.Entry, pubChan string) *DataService {
 
 	return &DataService{
 		Server:  srv,
 		Storage: storage,
 		Ctrl:    ctrl,
 		Log:     log.WithFields(logrus.Fields{"service": "data"}),
-		PubSubj: subj,
+		PubChan: pubChan,
 	}
 }
 
@@ -80,7 +80,7 @@ func (s *DataService) terminate() {
 	s.Ctrl.Terminate()
 }
 
-func (s *DataService) SaveDevData(req *entities.SaveDevDataRequest) {
+func (s *DataService) SaveDevData(req *entities.SaveDevDataReq) {
 	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		s.Log.WithFields(logrus.Fields{
@@ -100,7 +100,7 @@ func (s *DataService) SaveDevData(req *entities.SaveDevDataRequest) {
 	go s.publishDevData(req)
 }
 
-func (s *DataService) publishDevData(req *entities.SaveDevDataRequest) error {
+func (s *DataService) publishDevData(req *entities.SaveDevDataReq) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.WithFields(logrus.Fields{
@@ -127,8 +127,7 @@ func (s *DataService) publishDevData(req *entities.SaveDevDataRequest) error {
 		}).Errorf("%s", err)
 		return err
 	}
-
-	if _, err = conn.Publish(s.PubSubj, b); err != nil {
+	if _, err = conn.Publish(b, s.PubChan); err != nil {
 		s.Log.WithFields(logrus.Fields{
 			"func": "publishDevData",
 		}).Errorf("%s", err)
