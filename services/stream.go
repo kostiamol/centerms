@@ -238,23 +238,23 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 		}
 	}()
 
-	var req entities.SaveDevDataReq
-	if err := json.Unmarshal(msg, &req); err != nil {
+	var data entities.RawDevData
+	if err := json.Unmarshal(msg, &data); err != nil {
 		s.Log.WithFields(logrus.Fields{
 			"func": "stream",
 		}).Errorf("%s", err)
 		return err
 	}
 
-	if _, ok := s.conns.MACConns[req.Meta.MAC]; ok {
-		for _, conn := range s.conns.MACConns[req.Meta.MAC].Conns {
+	if _, ok := s.conns.MACConns[data.Meta.MAC]; ok {
+		for _, conn := range s.conns.MACConns[data.Meta.MAC].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				s.conns.MACConns[req.Meta.MAC].Lock()
+				s.conns.MACConns[data.Meta.MAC].Lock()
 				err := conn.WriteMessage(1, msg)
-				s.conns.MACConns[req.Meta.MAC].Unlock()
+				s.conns.MACConns[data.Meta.MAC].Unlock()
 				if err != nil {
 					s.Log.WithFields(logrus.Fields{
 						"func":  "stream",

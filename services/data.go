@@ -80,7 +80,7 @@ func (s *DataService) terminate() {
 	s.Ctrl.Terminate()
 }
 
-func (s *DataService) SaveDevData(req *entities.SaveDevDataReq) {
+func (s *DataService) SaveDevData(data *entities.RawDevData) {
 	conn, err := s.Storage.CreateConn()
 	if err != nil {
 		s.Log.WithFields(logrus.Fields{
@@ -90,17 +90,17 @@ func (s *DataService) SaveDevData(req *entities.SaveDevDataReq) {
 	}
 	defer conn.CloseConn()
 
-	if err = conn.SaveDevData(req); err != nil {
+	if err = conn.SaveDevData(data); err != nil {
 		s.Log.WithFields(logrus.Fields{
 			"func": "SaveDevData",
 		}).Errorf("%s", err)
 		return
 	}
 
-	go s.publishDevData(req)
+	go s.publishDevData(data)
 }
 
-func (s *DataService) publishDevData(req *entities.SaveDevDataReq) error {
+func (s *DataService) publishDevData(data *entities.RawDevData) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.Log.WithFields(logrus.Fields{
@@ -120,7 +120,7 @@ func (s *DataService) publishDevData(req *entities.SaveDevDataReq) error {
 	}
 	defer conn.CloseConn()
 
-	b, err := json.Marshal(req)
+	b, err := json.Marshal(data)
 	if err != nil {
 		s.Log.WithFields(logrus.Fields{
 			"func": "publishDevData",

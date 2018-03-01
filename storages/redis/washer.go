@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 
+	"github.com/garyburd/redigo/redis"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/pkg/errors"
 )
@@ -13,58 +14,64 @@ func (s *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, er
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	devParamsKey := devKey + partialDevParamsKey
 
-	dd := entities.DevData{
+	devData := entities.DevData{
 		Meta: *m,
 		Data: make(map[string][]string),
 	}
 
-	reply, err := s.conn.Do("SMEMBERS", devParamsKey)
+	params, err := redis.Strings(s.conn.Do("SMEMBERS", devParamsKey))
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherData(): can't read members from devParamsKeys")
 	}
 
-	params := reply.([]string)
 	data := make([][]string, len(params))
 	for i, p := range params {
-		reply, err = s.conn.Do("ZRANGEBYSCORE", devParamsKey+":"+p, "-inf", "inf")
-		data[i] = reply.([]string)
+		data[i], err = redis.Strings(s.conn.Do("ZRANGEBYSCORE", devParamsKey+":"+p, "-inf", "inf"))
 		if err != nil {
 			errors.Wrap(err, "RedisDevStorage: getWasherData(): can't read members from sorted set")
 		}
-		dd.Data[p] = data[i]
+		devData.Data[p] = data[i]
 	}
 
-	return &dd, err
+	return &devData, err
 }
 
-func (s *RedisStorage) saveWasherData(r *entities.SaveDevDataReq) error {
+func (s *RedisStorage) saveWasherData(data *entities.RawDevData) error {
 	var wd entities.WasherData
-	if err := json.NewDecoder(bytes.NewBuffer(r.Data)).Decode(&wd); err != nil {
+	if err := json.NewDecoder(bytes.NewBuffer(data.Data)).Decode(&wd); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): WasherData decoding has failed")
 		return err
 	}
 
-	devKey := partialDevKey + r.Meta.Type + ":" + r.Meta.Name + ":" + r.Meta.MAC
+	devKey := partialDevKey + data.Meta.Type + ":" + data.Meta.Name + ":" + data.Meta.MAC
 	paramsKey := devKey + partialDevParamsKey
 
 	if _, err := s.conn.Do("MULTI"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Multi() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 	if err := s.setTurnoversData(wd.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setTurnoversData() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 	if err := s.setWaterTempData(wd.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setWaterTempData() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 	if _, err := s.conn.Do("EXEC"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Exec() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 
@@ -107,12 +114,10 @@ func (s *RedisStorage) getWasherConfig(m *entities.DevMeta) (*entities.DevConfig
 	config.MAC = m.MAC
 	configKey := m.MAC + partialDevConfigKey
 	unixTime := int64(100) // fake
-	reply, err := s.conn.Do("ZRANGEBYSCORE", configKey, unixTime-100, unixTime+100)
+	mode, err := redis.Strings(s.conn.Do("ZRANGEBYSCORE", configKey, unixTime-100, unixTime+100))
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherConfig(): ZRangeByScore() has failed")
 	}
-
-	mode := reply.(string)
 	if len(mode) == 0 {
 		return config, err
 	}
@@ -134,7 +139,7 @@ func (s *RedisStorage) setWasherConfig(c *entities.DevConfig) error {
 	}
 
 	configKey := c.MAC + partialDevConfigKey
-	s.conn.Do("ZADD", configKey, tm.StartTime, tm.Name)
+	_, err = s.conn.Do("ZADD", configKey, tm.StartTime, tm.Name)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: setWasherConfig(): ZAdd() has failed")
 	}

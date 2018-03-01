@@ -115,7 +115,10 @@ func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevC
 		return nil, err
 	}
 
-	var dc *entities.DevConfig
+	var (
+		dc *entities.DevConfig
+		id = entities.DevID(meta.MAC)
+	)
 	if ok, err := conn.DevIsRegistered(meta); ok {
 		if err != nil {
 			s.Log.WithFields(logrus.Fields{
@@ -124,7 +127,7 @@ func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevC
 			return nil, err
 		}
 
-		dc, err = conn.GetDevConfig(meta.MAC)
+		dc, err = conn.GetDevConfig(id)
 		if err != nil {
 			s.Log.WithFields(logrus.Fields{
 				"func": "SetDevInitConfig",
@@ -147,7 +150,7 @@ func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevC
 			return nil, err
 		}
 
-		if err = conn.SetDevConfig(meta.MAC, dc); err != nil {
+		if err = conn.SetDevConfig(id, dc); err != nil {
 			s.Log.WithFields(logrus.Fields{
 				"func": "SetDevInitConfig",
 			}).Errorf("%s", err)

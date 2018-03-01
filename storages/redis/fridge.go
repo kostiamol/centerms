@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/garyburd/redigo/redis"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/pkg/errors"
 )
@@ -13,65 +14,74 @@ func (s *RedisStorage) getFridgeData(m *entities.DevMeta) (*entities.DevData, er
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	paramsKey := devKey + partialDevParamsKey
 
-	dd := entities.DevData{
+	devData := entities.DevData{
 		Meta: *m,
 		Data: make(map[string][]string),
 	}
 
-	reply, err := s.conn.Do("SMEMBERS", paramsKey)
+	params, err := redis.Strings(s.conn.Do("SMEMBERS", paramsKey))
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: getFridgeData(): SMembers() has failed")
 	}
 
-	params := reply.([]string)
 	data := make([][]string, len(params))
 	for i, p := range params {
-		reply, err = s.conn.Do("ZRANGEBYSCORE", paramsKey+":"+p, "-inf", "inf")
-		data[i] = reply.([]string)
+		data[i], err = redis.Strings(s.conn.Do("ZRANGEBYSCORE", paramsKey+":"+p, "-inf", "inf"))
 		if err != nil {
 			errors.Wrap(err, "RedisStorage: getFridgeData(): ZRangeByScore() has failed")
 		}
-		dd.Data[p] = data[i]
+		devData.Data[p] = data[i]
 	}
 
-	return &dd, err
+	return &devData, err
 }
 
-func (s *RedisStorage) saveFridgeData(r *entities.SaveDevDataReq) error {
+func (s *RedisStorage) saveFridgeData(data *entities.RawDevData) error {
 	var fd entities.FridgeData
-	if err := json.Unmarshal([]byte(r.Data), &fd); err != nil {
+	if err := json.Unmarshal([]byte(data.Data), &fd); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): FridgeData unmarshalling has failed")
 		return err
 	}
 
-	devKey := partialDevKey + r.Meta.Type + ":" + r.Meta.Name + ":" + r.Meta.MAC
+	devKey := partialDevKey + data.Meta.Type + ":" + data.Meta.Name + ":" + data.Meta.MAC
 	paramsKey := devKey + partialDevParamsKey
 
 	if _, err := s.conn.Do("HMSET", "devParamsKeys", paramsKey); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): SAdd() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
-	if _, err := s.conn.Do("HMSET", devKey, "ReqTime", r.Time); err != nil {
+	if _, err := s.conn.Do("HMSET", devKey, "ReqTime", data.Time); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): HMSet() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 	if _, err := s.conn.Do("SADD", paramsKey, "TopCompart", "BotCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): SAdd() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 	if err := s.setFridgeCameraData(fd.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeCameraData(): Multi() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 	if err := s.setFridgeCameraData(fd.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): setFridgeCameraData() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
+
 	return nil
 }
 
@@ -84,40 +94,41 @@ func (s *RedisStorage) setFridgeCameraData(tempCam map[int64]float32, key string
 			return err
 		}
 	}
+
 	return nil
 }
 
 func (s *RedisStorage) getFridgeConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	configKey := m.MAC + partialDevConfigKey
 
-	to, err := s.conn.Do("HMGET", configKey, "TurnedOn")
+	to, err := redis.Strings(s.conn.Do("HMGET", configKey, "TurnedOn"))
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: getFridgeConfig(): TurnedOn field extraction has failed")
 		return nil, err
 	}
-	cf, err := s.conn.Do("HMGET", configKey, "CollectFreq")
+	cf, err := redis.Strings(s.conn.Do("HMGET", configKey, "CollectFreq"))
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: getFridgeConfig(): CollectFreq field extraction has failed")
 		return nil, err
 	}
-	sf, err := s.conn.Do("HMGET", configKey, "SendFreq")
+	sf, err := redis.Strings(s.conn.Do("HMGET", configKey, "SendFreq"))
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: getFridgeConfig(): SendFreq field extraction has failed")
 		return nil, err
 	}
 
-	pto, err := strconv.ParseBool(strings.Join(to.([]string), " "))
+	pto, err := strconv.ParseBool(strings.Join(to, " "))
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: getFridgeConfig(): TurnedOn field parsing has failed")
 		return nil, err
 	}
 
-	pcf, err := strconv.ParseInt(strings.Join(cf.([]string), " "), 10, 64)
+	pcf, err := strconv.ParseInt(strings.Join(cf, " "), 10, 64)
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: getFridgeConfig(): CollectFreq field parsing has failed")
 		return nil, err
 	}
-	psf, err := strconv.ParseInt(strings.Join(sf.([]string), " "), 10, 64)
+	psf, err := strconv.ParseInt(strings.Join(sf, " "), 10, 64)
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: getFridgeConfig(): SendFreq field parsing has failed")
 		return nil, err
@@ -171,29 +182,39 @@ func (s *RedisStorage) setFridgeConfig(c *entities.DevConfig, m *entities.DevMet
 	configKey := c.MAC + partialDevConfigKey
 	if _, err := s.conn.Do("MULTI"); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): Multi() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 	if _, err := s.conn.Do("HMSET", configKey, "TurnedOn", fc.TurnedOn); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 	if _, err := s.conn.Do("HMSET", configKey, "CollectFreq", fc.CollectFreq); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 	if _, err := s.conn.Do("HMSET", configKey, "SendFreq", fc.SendFreq); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 
 	_, err := s.conn.Do("EXEC")
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): Exec() has failed")
-		s.conn.Do("DISCARD")
+		if _, err := s.conn.Do("DISCARD"); err != nil {
+			return err
+		}
 		return err
 	}
 

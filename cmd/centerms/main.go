@@ -12,10 +12,11 @@ import (
 	"github.com/kostiamol/centerms/storages/redis"
 )
 
-// todo: substitute req with common struct
-// todo: fix logging in main package
-// todo: reconnect
 // todo: fill encapsulation gaps in structs
+// todo: "extract" events
+// todo: add comments and tidy up
+// todo: reconnect
+// todo: substitute ma[string][]string with []byte
 
 func main() {
 	flag.Parse()
@@ -27,7 +28,10 @@ func main() {
 	}
 	storage := storages.NewRedisStorage(storageServer, "redis", *ttl, *retry, logrus.NewEntry(log))
 	if err := storage.Init(); err != nil {
-		logrus.Error(err)
+		logrus.WithFields(logrus.Fields{
+			"func":  "main",
+			"event": "storage_init",
+		}).Errorf("%s", err)
 		os.Exit(1)
 	}
 
@@ -88,5 +92,8 @@ func main() {
 	go web.Run()
 
 	ctrl.Wait()
-	logrus.Info("center is down")
+	logrus.WithFields(logrus.Fields{
+		"func":  "main",
+		"event": "ms_termination",
+	}).Info("center is down")
 }

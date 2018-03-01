@@ -94,7 +94,7 @@ func (s *WebService) terminate() {
 	s.Storage.CloseConn()
 	s.Log.WithFields(logrus.Fields{
 		"func":  "terminate",
-		"event": "service_terminated",
+		"event": "service_termination",
 	}).Infoln("WebService is down")
 	s.Ctrl.Terminate()
 }
@@ -160,7 +160,7 @@ func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.CloseConn()
 
-	id := mux.Vars(r)["id"]
+	id := entities.DevID(mux.Vars(r)["id"])
 	data, err := conn.GetDevData(id)
 	if err != nil {
 		s.Log.WithFields(logrus.Fields{
@@ -187,7 +187,7 @@ func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request)
 	}
 	defer conn.CloseConn()
 
-	id := mux.Vars(r)["id"]
+	id := entities.DevID(mux.Vars(r)["id"])
 	config, err := conn.GetDevConfig(id)
 	if err != nil {
 		s.Log.WithFields(logrus.Fields{
@@ -222,8 +222,8 @@ func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	id := mux.Vars(r)["id"]
-	if err = conn.SetDevConfig(id, &config); err != nil {
+	id := entities.DevID(mux.Vars(r)["id"])
+	if err = conn.SetDevConfig(entities.DevID(id), &config); err != nil {
 		s.Log.WithFields(logrus.Fields{
 			"func": "patchDevConfigHandler",
 		}).Errorf("%s", err)
