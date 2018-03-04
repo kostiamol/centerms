@@ -12,11 +12,11 @@ import (
 	"github.com/kostiamol/centerms/storages/redis"
 )
 
-// todo: fill encapsulation gaps in structs
 // todo: "extract" events
 // todo: add comments and tidy up
+// todo: substitute map[string][]string with []byte
+// todo: add consul agent to center
 // todo: reconnect
-// todo: substitute ma[string][]string with []byte
 
 func main() {
 	flag.Parse()
@@ -44,7 +44,7 @@ func main() {
 		ctrl,
 		logrus.NewEntry(log),
 		*retry,
-		entities.DevConfigSubject,
+		entities.DevConfigChan,
 	)
 	go config.Run()
 
@@ -56,14 +56,14 @@ func main() {
 		storage,
 		ctrl,
 		logrus.NewEntry(log),
-		entities.DevDataSubject,
+		entities.DevDataChan,
 	)
 	go data.Run()
 
 	grpcsvc.Init(grpcsvc.GRPCConfig{
 		ConfigService: config,
 		DataService:   data,
-		RetryInterval: *retry,
+		Retry:         *retry,
 		Log:           logrus.NewEntry(log),
 	})
 
@@ -75,7 +75,7 @@ func main() {
 		storage,
 		ctrl,
 		logrus.NewEntry(log),
-		entities.DevDataSubject,
+		entities.DevDataChan,
 	)
 	go stream.Run()
 
@@ -87,7 +87,7 @@ func main() {
 		storage,
 		ctrl,
 		logrus.NewEntry(log),
-		entities.DevConfigSubject,
+		entities.DevConfigChan,
 	)
 	go web.Run()
 

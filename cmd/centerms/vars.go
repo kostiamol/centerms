@@ -41,12 +41,12 @@ var (
 
 	ctrl = entities.ServiceController{StopChan: make(chan struct{})}
 
-	storageHost = flag.String("storage-addr", defaultStorageHost, "Storage address")
-	storagePort = flag.String("storage-port", defaultStoragePort, "Port to listen on dat from storage")
+	storageHost = flag.String("storage-addr", defaultStorageHost, "Storage IP address")
+	storagePort = flag.String("storage-port", defaultStoragePort, "Storage TCP port")
 
 	devConfigPort = flag.String("dev-config-port", defaultDevConfigPort, "Port to listen on config from devices")
 	devDataPort   = flag.String("dev-data-port", defaultDevDataPort, "Port to listen on data from devices")
-	webPort       = flag.String("web-port", defaultWebPort, "Port to listen on clients")
+	webPort       = flag.String("web-port", defaultWebPort, "Port to listen on web clients")
 	streamPort    = flag.String("stream-port", defaultStreamPort, "Port for data streaming")
 
 	ttl   = flag.Duration("ttl", defaultTTLInterval, "Service TTL check duration")

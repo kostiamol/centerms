@@ -3,21 +3,18 @@ package entities
 import (
 	"encoding/json"
 	"time"
-
-	consul "github.com/hashicorp/consul/api"
 )
 
 const (
-	DevDataSubject            = "dev_data"
-	DevConfigSubject          = "dev_config"
+	DevDataChan               = "dev_data"
+	DevConfigChan             = "dev_config"
 	timeForRoutineTermination = time.Second * 3
 )
-
-// todo: type InternalService struct + type Interner interface
 
 // Query the Consul for services:
 // dig +noall +answer @127.0.0.1 -p 8600 myCoolServiceName.service.dc1.consul
 // curl localhost:8500/v1/health/service/myCoolServiceName?passing
+
 type Externer interface {
 	Check() (bool, error)
 	UpdateTTL(check func() (bool, error))
@@ -58,13 +55,6 @@ type DevID string
 type Address struct {
 	Host string
 	Port string
-}
-
-type ExternalService struct {
-	Addr        Address
-	Name        string
-	TTL         time.Duration
-	ConsulAgent *consul.Agent
 }
 
 type Subscription struct {

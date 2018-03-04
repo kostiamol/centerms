@@ -21,42 +21,43 @@ const (
 )
 
 type RedisStorage struct {
-	entities.ExternalService
+	addr  entities.Address
+	name  string
 	conn  redis.Conn
-	Retry time.Duration
-	Log   *logrus.Entry
+	retry time.Duration
+	ttl   time.Duration
+	agent *consul.Agent
+	log   *logrus.Entry
 }
 
 func NewRedisStorage(addr entities.Address, name string, ttl time.Duration, retry time.Duration,
 	log *logrus.Entry) *RedisStorage {
 
 	return &RedisStorage{
-		ExternalService: entities.ExternalService{
-			Addr: addr,
-			Name: name,
-			TTL:  ttl,
-		},
-		Retry: retry,
-		Log:   log.WithFields(logrus.Fields{"service": "storage", "type": "redis"}),
+		addr:  addr,
+		name:  name,
+		ttl:   ttl,
+		retry: retry,
+		log:   log.WithFields(logrus.Fields{"service": "storage", "type": "redis"}),
 	}
 }
 
 func (s *RedisStorage) Init() error {
-	if s.Addr.Host == "" {
+	if s.addr.Host == "" {
 		return errors.New("RedisStorage: SetServer(): host is empty")
-	} else if s.Addr.Port == "" {
+	} else if s.addr.Port == "" {
 		return errors.New("RedisStorage: SetServer(): port is empty")
 	}
 
 	var err error
-	s.conn, err = redis.Dial("tcp", s.Addr.Host+":"+s.Addr.Port)
+	s.conn, err = redis.Dial("tcp", s.addr.Host+":"+s.addr.Port)
 	for err != nil {
-		s.Log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "Init",
 		}).Errorf("Connect() has failed: %s", err)
-		duration := time.Duration(rand.Intn(int(s.Retry.Seconds())))
+		duration := time.Duration(rand.Intn(int(s.retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		s.conn, err = redis.Dial("tcp", s.Addr.Host+":"+s.Addr.Port)
+		s.conn, err = redis.Dial("tcp", s.addr.Host+":"+s.addr.Port)
 	}
 
 	if ok, err := s.Check(); !ok {
@@ -67,16 +68,16 @@ func (s *RedisStorage) Init() error {
 	if err != nil {
 		return errors.Errorf("Consul: %s", err)
 	}
-	s.ConsulAgent = c.Agent()
+	s.agent = c.Agent()
 
 	serviceDef := &consul.AgentServiceRegistration{
-		Name: s.Name,
+		Name: s.name,
 		Check: &consul.AgentServiceCheck{
-			TTL: s.TTL.String(),
+			TTL: s.ttl.String(),
 		},
 	}
 
-	if err := s.ConsulAgent.ServiceRegister(serviceDef); err != nil {
+	if err := s.agent.ServiceRegister(serviceDef); err != nil {
 		return errors.Errorf("Consul: %s", err)
 	}
 	go s.UpdateTTL(s.Check)
@@ -86,15 +87,14 @@ func (s *RedisStorage) Init() error {
 
 // Check method issues PING Redis command to check if we’re ok.
 func (s *RedisStorage) Check() (bool, error) {
-	_, err := s.conn.Do("PING")
-	if err != nil {
+	if _, err := s.conn.Do("PING"); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 func (s *RedisStorage) UpdateTTL(check func() (bool, error)) {
-	ticker := time.NewTicker(s.TTL / 2)
+	ticker := time.NewTicker(s.ttl / 2)
 	for range ticker.C {
 		s.update(check)
 	}
@@ -104,7 +104,7 @@ func (s *RedisStorage) update(check func() (bool, error)) {
 	var health string
 	ok, err := check()
 	if !ok {
-		s.Log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": "updating_storage_status",
 		}).Errorf("check has failed: %s", err)
@@ -116,8 +116,8 @@ func (s *RedisStorage) update(check func() (bool, error)) {
 		health = consul.HealthPassing
 	}
 
-	if err := s.ConsulAgent.UpdateTTL("service:"+s.Name, "", health); err != nil {
-		s.Log.WithFields(logrus.Fields{
+	if err := s.agent.UpdateTTL("service:"+s.name, "", health); err != nil {
+		s.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": "updating_storage_status",
 		}).Error(err)
@@ -126,20 +126,20 @@ func (s *RedisStorage) update(check func() (bool, error)) {
 
 func (s *RedisStorage) CreateConn() (entities.Storager, error) {
 	newStorage := RedisStorage{
-		ExternalService: entities.ExternalService{Addr: s.Addr},
-		Retry:           s.Retry,
-		Log:             s.Log,
+		addr:  s.addr,
+		retry: s.retry,
+		log:   s.log,
 	}
 
 	var err error
-	newStorage.conn, err = redis.Dial("tcp", s.Addr.Host+":"+s.Addr.Port)
+	newStorage.conn, err = redis.Dial("tcp", s.addr.Host+":"+s.addr.Port)
 	for err != nil {
-		s.Log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "Init",
 		}).Errorf("Connect() has failed: %s", err)
-		duration := time.Duration(rand.Intn(int(s.Retry.Seconds())))
+		duration := time.Duration(rand.Intn(int(s.retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		newStorage.conn, err = redis.Dial("tcp", s.Addr.Host+":"+s.Addr.Port)
+		newStorage.conn, err = redis.Dial("tcp", s.addr.Host+":"+s.addr.Port)
 	}
 
 	return &newStorage, err
@@ -329,16 +329,16 @@ func (s *RedisStorage) Subscribe(cn chan []byte, channel ...string) {
 	for {
 		switch v := psc.Receive().(type) {
 		case redis.Message:
-			s.Log.WithFields(logrus.Fields{
+			s.log.WithFields(logrus.Fields{
 				"func": "Subscribe",
 			}).Infof("chan %s: message: %s", v.Channel, v.Data)
 			cn <- v.Data
 		case redis.Subscription:
-			s.Log.WithFields(logrus.Fields{
+			s.log.WithFields(logrus.Fields{
 				"func": "Subscribe",
 			}).Infof("chan %s: kind: %s count: %d", v.Channel, v.Kind, v.Count)
 		case error:
-			s.Log.WithFields(logrus.Fields{
+			s.log.WithFields(logrus.Fields{
 				"func": "Subscribe",
 			}).Errorf("%s", v)
 		}
