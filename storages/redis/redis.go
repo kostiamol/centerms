@@ -106,7 +106,7 @@ func (s *RedisStorage) update(check func() (bool, error)) {
 	if !ok {
 		s.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": "updating_storage_status",
+			"event": entities.EventUpdConsulStatus,
 		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
@@ -119,7 +119,7 @@ func (s *RedisStorage) update(check func() (bool, error)) {
 	if err := s.agent.UpdateTTL("service:"+s.name, "", health); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": "updating_storage_status",
+			"event": entities.EventUpdConsulStatus,
 		}).Error(err)
 	}
 }
@@ -192,23 +192,23 @@ func (s *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 }
 
 func (s *RedisStorage) GetDevMeta(id entities.DevID) (*entities.DevMeta, error) {
-	t, err := redis.String(s.conn.Do("HGET", "id:"+id, "type"))
+	devType, err := redis.String(s.conn.Do("HGET", "id:"+id, "type"))
 	if err != nil {
 		errors.Wrapf(err, "RedisStorage: GetDevMeta(): HGet() has failed")
 	}
-	n, err := redis.String(s.conn.Do("HGET", "id:"+id, "name"))
+	devName, err := redis.String(s.conn.Do("HGET", "id:"+id, "name"))
 	if err != nil {
 		errors.Wrapf(err, "RedisStorage: GetDevMeta():  HGet() has failed")
 	}
-	m, err := redis.String(s.conn.Do("HGET", "id:"+id, "mac"))
+	devMeta, err := redis.String(s.conn.Do("HGET", "id:"+id, "mac"))
 	if err != nil {
 		errors.Wrapf(err, "RedisStorage: GetDevMeta():  HGet() has failed")
 	}
 
 	meta := entities.DevMeta{
-		Type: t,
-		Name: n,
-		MAC:  m,
+		Type: devType,
+		Name: devName,
+		MAC:  devMeta,
 	}
 	return &meta, nil
 }
@@ -256,12 +256,12 @@ func (s *RedisStorage) GetDevData(id entities.DevID) (*entities.DevData, error) 
 	}
 }
 
-func (s *RedisStorage) SaveDevData(r *entities.RawDevData) error {
-	switch r.Meta.Type {
+func (s *RedisStorage) SaveDevData(d *entities.RawDevData) error {
+	switch d.Meta.Type {
 	case "fridge":
-		return s.saveFridgeData(r)
+		return s.saveFridgeData(d)
 	case "washer":
-		return s.saveWasherData(r)
+		return s.saveWasherData(d)
 	default:
 		return errors.New("RedisStorage: SaveDevData(): dev type is unknown")
 	}
@@ -321,13 +321,13 @@ func (s *RedisStorage) Publish(msg interface{}, channel string) (int64, error) {
 
 // Subscribe subscribes the client to the specified channels.
 func (s *RedisStorage) Subscribe(cn chan []byte, channel ...string) {
-	psc := redis.PubSubConn{Conn: s.conn}
+	conn := redis.PubSubConn{Conn: s.conn}
 	for _, c := range channel {
-		psc.Subscribe(c)
+		conn.Subscribe(c)
 	}
 
 	for {
-		switch v := psc.Receive().(type) {
+		switch v := conn.Receive().(type) {
 		case redis.Message:
 			s.log.WithFields(logrus.Fields{
 				"func": "Subscribe",

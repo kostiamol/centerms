@@ -30,12 +30,12 @@ type ConfigService struct {
 	retry   time.Duration
 }
 
-func NewConfigService(addr entities.Address, storage entities.Storager, ctrl entities.ServiceController,
+func NewConfigService(addr entities.Address, st entities.Storager, ctrl entities.ServiceController,
 	log *logrus.Entry, retry time.Duration, subj string) *ConfigService {
 
 	return &ConfigService{
 		addr:    addr,
-		storage: storage,
+		storage: st,
 		ctrl:    ctrl,
 		log:     log.WithFields(logrus.Fields{"service": "config"}),
 		retry:   retry,
@@ -49,7 +49,7 @@ func NewConfigService(addr entities.Address, storage entities.Storager, ctrl ent
 func (s *ConfigService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": "start",
+		"event": entities.EventSVCStarted,
 	}).Infof("running on host: [%s], port: [%s]", s.addr.Host, s.addr.Port)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -57,7 +57,7 @@ func (s *ConfigService) Run() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 
 			cancel()
@@ -88,7 +88,7 @@ func (s *ConfigService) terminate() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "terminate",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.ctrl.Terminate()
 		}
@@ -97,12 +97,12 @@ func (s *ConfigService) terminate() {
 	s.storage.CloseConn()
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
-		"event": "service_terminated",
-	}).Infoln("ConfigService is down")
+		"event": entities.EventSVCShutdown,
+	}).Infoln("service is down")
 	s.ctrl.Terminate()
 }
 
-func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevConfig, error) {
+func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	conn, err := s.storage.CreateConn()
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
@@ -112,7 +112,7 @@ func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevC
 	}
 	defer conn.CloseConn()
 
-	if err := conn.SetDevMeta(meta); err != nil {
+	if err := conn.SetDevMeta(m); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "SetDevInitConfig",
 		}).Errorf("%s", err)
@@ -120,10 +120,10 @@ func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevC
 	}
 
 	var (
-		dc *entities.DevConfig
-		id = entities.DevID(meta.MAC)
+		config *entities.DevConfig
+		id     = entities.DevID(m.MAC)
 	)
-	if ok, err := conn.DevIsRegistered(meta); ok {
+	if ok, err := conn.DevIsRegistered(m); ok {
 		if err != nil {
 			s.log.WithFields(logrus.Fields{
 				"func": "SetDevInitConfig",
@@ -131,7 +131,7 @@ func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevC
 			return nil, err
 		}
 
-		dc, err = conn.GetDevConfig(id)
+		config, err = conn.GetDevConfig(id)
 		if err != nil {
 			s.log.WithFields(logrus.Fields{
 				"func": "SetDevInitConfig",
@@ -146,7 +146,7 @@ func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevC
 			return nil, err
 		}
 
-		dc, err = conn.GetDevDefaultConfig(meta)
+		config, err = conn.GetDevDefaultConfig(m)
 		if err != nil {
 			s.log.WithFields(logrus.Fields{
 				"func": "SetDevInitConfig",
@@ -154,7 +154,7 @@ func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevC
 			return nil, err
 		}
 
-		if err = conn.SetDevConfig(id, dc); err != nil {
+		if err = conn.SetDevConfig(id, config); err != nil {
 			s.log.WithFields(logrus.Fields{
 				"func": "SetDevInitConfig",
 			}).Errorf("%s", err)
@@ -162,10 +162,10 @@ func (s *ConfigService) SetDevInitConfig(meta *entities.DevMeta) (*entities.DevC
 		}
 		s.log.WithFields(logrus.Fields{
 			"func":  "SetDevInitConfig",
-			"event": "device_registered",
-		}).Infof("device's meta: %+v", meta)
+			"event": entities.EventDevRegistered,
+		}).Infof("device's meta: %+v", m)
 	}
-	return dc, err
+	return config, err
 }
 
 func (s *ConfigService) listenConfigPatches(ctx context.Context) {
@@ -173,7 +173,7 @@ func (s *ConfigService) listenConfigPatches(ctx context.Context) {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "listenConfigPatches",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -207,12 +207,12 @@ func (s *ConfigService) listenConfigPatches(ctx context.Context) {
 	}
 }
 
-func (s *ConfigService) publishNewConfigPatchEvent(dc *entities.DevConfig) {
+func (s *ConfigService) publishNewConfigPatchEvent(c *entities.DevConfig) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "publishNewConfigPatchEvent",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -230,18 +230,18 @@ func (s *ConfigService) publishNewConfigPatchEvent(dc *entities.DevConfig) {
 	defer conn.Close()
 
 	event := pb.EventStore{
-		AggregateId:   dc.MAC,
+		AggregateId:   c.MAC,
 		AggregateType: aggregate,
 		EventId:       uuid.NewV4().String(),
 		EventType:     event,
-		EventData:     string(dc.Data),
+		EventData:     string(c.Data),
 	}
-	subject := "ConfigService.Patch." + dc.MAC
+	subject := "ConfigService.Patch." + c.MAC
 	data, _ := proto.Marshal(&event)
 
 	conn.Publish(subject, data)
 	s.log.WithFields(logrus.Fields{
 		"func":  "publishNewConfigPatchEvent",
-		"event": event,
-	}).Infof("publish config patch: %s for device with MAC [%s]", dc.Data, dc.MAC)
+		"event": entities.EventConfigPatchCreated,
+	}).Infof("config patch [%s] for device with id [%s]", c.Data, c.MAC)
 }

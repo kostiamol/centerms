@@ -18,12 +18,12 @@ type DataService struct {
 	pubChan string
 }
 
-func NewDataService(srv entities.Address, storage entities.Storager, ctrl entities.ServiceController,
+func NewDataService(srv entities.Address, st entities.Storager, ctrl entities.ServiceController,
 	log *logrus.Entry, pubChan string) *DataService {
 
 	return &DataService{
 		addr:    srv,
-		storage: storage,
+		storage: st,
 		ctrl:    ctrl,
 		log:     log.WithFields(logrus.Fields{"service": "data"}),
 		pubChan: pubChan,
@@ -33,7 +33,7 @@ func NewDataService(srv entities.Address, storage entities.Storager, ctrl entiti
 func (s *DataService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": "start",
+		"event": entities.EventSVCStarted,
 	}).Infof("running on host: [%s], port: [%s]", s.addr.Host, s.addr.Port)
 
 	_, cancel := context.WithCancel(context.Background())
@@ -41,7 +41,7 @@ func (s *DataService) Run() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			cancel()
 			s.terminate()
@@ -70,7 +70,7 @@ func (s *DataService) terminate() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "terminate",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.ctrl.Terminate()
 		}
@@ -79,12 +79,12 @@ func (s *DataService) terminate() {
 	s.storage.CloseConn()
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
-		"event": "service_terminated",
-	}).Infoln("DataService is down")
+		"event": entities.EventSVCShutdown,
+	}).Infoln("service is down")
 	s.ctrl.Terminate()
 }
 
-func (s *DataService) SaveDevData(data *entities.RawDevData) {
+func (s *DataService) SaveDevData(d *entities.RawDevData) {
 	conn, err := s.storage.CreateConn()
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
@@ -94,22 +94,22 @@ func (s *DataService) SaveDevData(data *entities.RawDevData) {
 	}
 	defer conn.CloseConn()
 
-	if err = conn.SaveDevData(data); err != nil {
+	if err = conn.SaveDevData(d); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "SaveDevData",
 		}).Errorf("%s", err)
 		return
 	}
 
-	go s.publishDevData(data)
+	go s.publishDevData(d)
 }
 
-func (s *DataService) publishDevData(data *entities.RawDevData) error {
+func (s *DataService) publishDevData(d *entities.RawDevData) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "publishDevData",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -124,7 +124,7 @@ func (s *DataService) publishDevData(data *entities.RawDevData) error {
 	}
 	defer conn.CloseConn()
 
-	b, err := json.Marshal(data)
+	b, err := json.Marshal(d)
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "publishDevData",

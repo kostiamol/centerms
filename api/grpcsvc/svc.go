@@ -82,7 +82,7 @@ func (api *API) listenConfig() {
 		if r := recover(); r != nil {
 			api.log.WithFields(logrus.Fields{
 				"func":  "listenConfig",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			api.ctrl.StopChan <- struct{}{}
 		}
@@ -112,7 +112,7 @@ func (api *API) listenData() {
 		if r := recover(); r != nil {
 			api.log.WithFields(logrus.Fields{
 				"func":  "listenData",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			api.ctrl.StopChan <- struct{}{}
 		}

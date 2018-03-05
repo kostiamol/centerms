@@ -20,12 +20,12 @@ type WebService struct {
 	pubChan string
 }
 
-func NewWebService(srv entities.Address, storage entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
+func NewWebService(srv entities.Address, st entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
 	pubChan string) *WebService {
 
 	return &WebService{
 		addr:    srv,
-		storage: storage,
+		storage: st,
 		ctrl:    ctrl,
 		log:     log.WithFields(logrus.Fields{"service": "web"}),
 		pubChan: pubChan,
@@ -35,14 +35,14 @@ func NewWebService(srv entities.Address, storage entities.Storager, ctrl entitie
 func (s *WebService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": "start",
+		"event": entities.EventSVCStarted,
 	}).Infof("running on host: [%s], port: [%s]", s.addr.Host, s.addr.Port)
 
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -89,7 +89,7 @@ func (s *WebService) terminate() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "terminate",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.ctrl.Terminate()
 		}
@@ -98,8 +98,8 @@ func (s *WebService) terminate() {
 	s.storage.CloseConn()
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
-		"event": "service_termination",
-	}).Infoln("WebService is down")
+		"event": entities.EventSVCShutdown,
+	}).Infoln("service is down")
 	s.ctrl.Terminate()
 }
 
@@ -119,7 +119,7 @@ func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 			if r := recover(); r != nil {
 				s.log.WithFields(logrus.Fields{
 					"func":  "recoveryAdapter",
-					"event": "panic",
+					"event": entities.EventPanic,
 				}).Errorf("%s", r)
 				s.terminate()
 			}

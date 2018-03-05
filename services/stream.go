@@ -27,7 +27,7 @@ type StreamService struct {
 	upgrader websocket.Upgrader
 }
 
-func NewStreamService(srv entities.Address, storage entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
+func NewStreamService(srv entities.Address, st entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
 	pubChan string) *StreamService {
 	upg := websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -42,7 +42,7 @@ func NewStreamService(srv entities.Address, storage entities.Storager, ctrl enti
 
 	return &StreamService{
 		addr:    srv,
-		storage: storage,
+		storage: st,
 		ctrl:    ctrl,
 		log:     log.WithFields(logrus.Fields{"service": "stream"}),
 		conns:   *newStreamConns(),
@@ -57,7 +57,7 @@ func NewStreamService(srv entities.Address, storage entities.Storager, ctrl enti
 func (s *StreamService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": "start",
+		"event": entities.EventSVCStarted,
 	}).Infof("running on host: [%s], port: [%s]", s.addr.Host, s.addr.Port)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -65,7 +65,7 @@ func (s *StreamService) Run() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			cancel()
 			s.terminate()
@@ -107,7 +107,7 @@ func (s *StreamService) terminate() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "terminate",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -116,8 +116,8 @@ func (s *StreamService) terminate() {
 	s.storage.CloseConn()
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
-		"event": "service_terminated",
-	}).Info("StreamService is down")
+		"event": entities.EventSVCShutdown,
+	}).Info("service is down")
 	s.ctrl.Terminate()
 }
 
@@ -126,18 +126,18 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "addConnHandler",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
 
 	uri := strings.Split(r.URL.String(), "/")
-	mac := uri[2]
+	id := entities.DevID(uri[2])
 
 	s.conns.Lock()
-	if _, ok := s.conns.macConns[mac]; !ok {
-		s.conns.macConns[mac] = new(connList)
+	if _, ok := s.conns.idConns[id]; !ok {
+		s.conns.idConns[id] = new(connList)
 	}
 	s.conns.Unlock()
 
@@ -148,10 +148,10 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 		}).Errorf("%s", err)
 		return
 	}
-	s.conns.macConns[mac].addConn(conn)
+	s.conns.idConns[id].addConn(conn)
 	s.log.WithFields(logrus.Fields{
 		"func":  "addConnHandler",
-		"event": "ws_conn_added",
+		"event": entities.EventWSConnAdded,
 	}).Infof("addr: %v", conn.RemoteAddr())
 }
 
@@ -160,7 +160,7 @@ func (s *StreamService) listenPublications(ctx context.Context) {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "listenPublications",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -192,7 +192,7 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "stream",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -206,19 +206,19 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 		return err
 	}
 
-	if _, ok := s.conns.macConns[data.Meta.MAC]; ok {
-		for _, conn := range s.conns.macConns[data.Meta.MAC].Conns {
+	if _, ok := s.conns.idConns[entities.DevID(data.Meta.MAC)]; ok {
+		for _, conn := range s.conns.idConns[entities.DevID(data.Meta.MAC)].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				s.conns.macConns[data.Meta.MAC].Lock()
+				s.conns.idConns[entities.DevID(data.Meta.MAC)].Lock()
 				err := conn.WriteMessage(1, msg)
-				s.conns.macConns[data.Meta.MAC].Unlock()
+				s.conns.idConns[entities.DevID(data.Meta.MAC)].Unlock()
 				if err != nil {
 					s.log.WithFields(logrus.Fields{
 						"func":  "stream",
-						"event": "ws_conn_closed",
+						"event": entities.EventWSConnRemoved,
 					}).Infof("addr: %v", conn.RemoteAddr())
 					s.conns.closedConns <- conn
 					return err
@@ -235,7 +235,7 @@ func (s *StreamService) listenClosedConns(ctx context.Context) {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "listenClosedConns",
-				"event": "panic",
+				"event": entities.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -244,9 +244,9 @@ func (s *StreamService) listenClosedConns(ctx context.Context) {
 	for {
 		select {
 		case conn := <-s.conns.closedConns:
-			for mac, connList := range s.conns.macConns {
+			for mac, connList := range s.conns.idConns {
 				if ok := connList.removeConn(conn); ok {
-					s.conns.checkMACConns(mac)
+					s.conns.checkIDConns(mac)
 					break
 				}
 			}
@@ -259,20 +259,20 @@ func (s *StreamService) listenClosedConns(ctx context.Context) {
 type streamConns struct {
 	sync.RWMutex
 	closedConns chan *websocket.Conn
-	macConns    map[string]*connList
+	idConns     map[entities.DevID]*connList
 }
 
 func newStreamConns() *streamConns {
 	return &streamConns{
 		closedConns: make(chan *websocket.Conn),
-		macConns:    make(map[string]*connList),
+		idConns:     make(map[entities.DevID]*connList),
 	}
 }
 
-func (c *streamConns) checkMACConns(mac string) {
+func (c *streamConns) checkIDConns(id entities.DevID) {
 	c.Lock()
-	if len(c.macConns[mac].Conns) == 0 {
-		delete(c.macConns, mac)
+	if len(c.idConns[id].Conns) == 0 {
+		delete(c.idConns, id)
 	}
 	c.Unlock()
 }
@@ -282,17 +282,17 @@ type connList struct {
 	Conns []*websocket.Conn
 }
 
-func (l *connList) addConn(conn *websocket.Conn) {
+func (l *connList) addConn(c *websocket.Conn) {
 	l.Lock()
-	l.Conns = append(l.Conns, conn)
+	l.Conns = append(l.Conns, c)
 	l.Unlock()
 }
 
-func (l *connList) removeConn(conn *websocket.Conn) bool {
+func (l *connList) removeConn(c *websocket.Conn) bool {
 	l.Lock()
 	defer l.Unlock()
 	for i, c := range l.Conns {
-		if c == conn {
+		if c == c {
 			l.Conns = append(l.Conns[:i], l.Conns[i+1:]...)
 			return true
 		}

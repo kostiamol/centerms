@@ -9,6 +9,17 @@ const (
 	DevDataChan               = "dev_data"
 	DevConfigChan             = "dev_config"
 	timeForRoutineTermination = time.Second * 3
+
+	EventConfigPatchCreated = "config_patch_created"
+	EventDevRegistered      = "dev_registered"
+	EventMSTerminated       = "ms_terminated"
+	EventPanic              = "panic"
+	EventStorageInit        = "storage_init"
+	EventSVCStarted         = "svc_started"
+	EventSVCShutdown        = "svc_shutdown"
+	EventWSConnAdded        = "ws_conn_added"
+	EventWSConnRemoved      = "ws_conn_removed"
+	EventUpdConsulStatus    = "upd_consul_status"
 )
 
 // Query the Consul for services:

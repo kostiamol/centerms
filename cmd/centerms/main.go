@@ -12,7 +12,6 @@ import (
 	"github.com/kostiamol/centerms/storages/redis"
 )
 
-// todo: "extract" events
 // todo: add comments and tidy up
 // todo: substitute map[string][]string with []byte
 // todo: add consul agent to center
@@ -30,7 +29,7 @@ func main() {
 	if err := storage.Init(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"func":  "main",
-			"event": "storage_init",
+			"event": entities.EventStorageInit,
 		}).Errorf("%s", err)
 		os.Exit(1)
 	}
@@ -94,6 +93,6 @@ func main() {
 	ctrl.Wait()
 	logrus.WithFields(logrus.Fields{
 		"func":  "main",
-		"event": "ms_termination",
+		"event": entities.EventMSTerminated,
 	}).Info("center is down")
 }
