@@ -17,6 +17,7 @@ import (
 	"github.com/kostiamol/centerms/entities"
 )
 
+// StreamService is used to deal with streaming data from the device to web client (dashboard).
 type StreamService struct {
 	addr     entities.Address
 	storage  entities.Storager
@@ -27,6 +28,7 @@ type StreamService struct {
 	upgrader websocket.Upgrader
 }
 
+// NewStreamService creates and initializes a new instance of StreamService.
 func NewStreamService(srv entities.Address, st entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
 	pubChan string) *StreamService {
 	upg := websocket.Upgrader{
@@ -54,6 +56,8 @@ func NewStreamService(srv entities.Address, st entities.Storager, ctrl entities.
 	}
 }
 
+// Run launches the service by running goroutines for listening the service termination, new device data,
+// closed web client connections and publishing new device data to web clients with open connections.
 func (s *StreamService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
@@ -86,10 +90,6 @@ func (s *StreamService) Run() {
 		ReadTimeout:  15 * time.Second,
 	}
 	s.log.Fatal(srv.ListenAndServe())
-}
-
-func (s *StreamService) GetAddr() entities.Address {
-	return s.addr
 }
 
 func (s *StreamService) listenTermination() {

@@ -8,17 +8,13 @@ var (
 	}
 )
 
-type Fridge struct {
-	Data   FridgeData   `json:"data"`
-	Config FridgeConfig `json:"config"`
-	Meta   DevMeta      `json:"meta"`
-}
-
+// FridgeData is used to store temperature with timestamps for each compartment of the fridge.
 type FridgeData struct {
 	TopCompart map[int64]float32 `json:"topCompart"`
 	BotCompart map[int64]float32 `json:"botCompart"`
 }
 
+// FridgeConfig is used to store fridge config.
 type FridgeConfig struct {
 	TurnedOn    bool  `json:"turnedOn"`
 	CollectFreq int64 `json:"collectFreq"`

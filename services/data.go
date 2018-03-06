@@ -10,6 +10,7 @@ import (
 	"github.com/kostiamol/centerms/entities"
 )
 
+// DataService is used to deal with device data.
 type DataService struct {
 	addr    entities.Address
 	storage entities.Storager
@@ -18,6 +19,7 @@ type DataService struct {
 	pubChan string
 }
 
+// NewDataService creates and initializes a new instance of DataService.
 func NewDataService(srv entities.Address, st entities.Storager, ctrl entities.ServiceController,
 	log *logrus.Entry, pubChan string) *DataService {
 
@@ -30,6 +32,7 @@ func NewDataService(srv entities.Address, st entities.Storager, ctrl entities.Se
 	}
 }
 
+// Run launches the service by running goroutine that listens for the service termination.
 func (s *DataService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
@@ -51,6 +54,7 @@ func (s *DataService) Run() {
 	go s.listenTermination()
 }
 
+// GetAddr returns address of the service.
 func (s *DataService) GetAddr() entities.Address {
 	return s.addr
 }
@@ -84,6 +88,7 @@ func (s *DataService) terminate() {
 	s.ctrl.Terminate()
 }
 
+// SaveDevData is used to save device data in the storage.
 func (s *DataService) SaveDevData(d *entities.RawDevData) {
 	conn, err := s.storage.CreateConn()
 	if err != nil {

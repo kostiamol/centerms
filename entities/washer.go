@@ -35,22 +35,17 @@ var (
 	}
 )
 
-type Washer struct {
-	Data          WasherData
-	Config        WasherConfig
-	Meta          DevMeta
-	timeStartWash int64
-}
-
+// WasherData is used to store amount of turnovers and water temperature.
 type WasherData struct {
 	Turnovers map[int64]int64   `json:"turnovers"`
 	WaterTemp map[int64]float32 `json:"waterTemp"`
 }
 
+// WasherConfig is used to store washer config.
 type WasherConfig struct {
 	Name           string  `json:"name"`
 	MAC            string  `json:"mac"`
-	Temperature    float32 `json:"temperature"`
+	Temperature    float32 `json:"temp"`
 	WashTime       int64   `json:"washTime"`
 	WashTurnovers  int64   `json:"washTurnovers"`
 	RinseTime      int64   `json:"rinseTime"`
@@ -59,6 +54,7 @@ type WasherConfig struct {
 	SpinTurnovers  int64   `json:"spinTurnovers"`
 }
 
+// TimerMode is used to store timer settings.
 type TimerMode struct {
 	Name      string `json:"name"`
 	StartTime int64  `json:"time"`

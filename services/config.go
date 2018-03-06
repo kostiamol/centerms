@@ -1,3 +1,4 @@
+// Package services provides definitions for services that run on the center.
 package services
 
 import (
@@ -21,6 +22,7 @@ const (
 	event     = "config_patched"
 )
 
+// ConfigService is used to deal with device configs.
 type ConfigService struct {
 	addr    entities.Address
 	storage entities.Storager
@@ -30,6 +32,7 @@ type ConfigService struct {
 	retry   time.Duration
 }
 
+// NewConfigService creates and initializes a new instance of ConfigService.
 func NewConfigService(addr entities.Address, st entities.Storager, ctrl entities.ServiceController,
 	log *logrus.Entry, retry time.Duration, subj string) *ConfigService {
 
@@ -46,6 +49,7 @@ func NewConfigService(addr entities.Address, st entities.Storager, ctrl entities
 	}
 }
 
+// Run launches the service by running goroutines for listening the service termination and config patches.
 func (s *ConfigService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
@@ -69,6 +73,7 @@ func (s *ConfigService) Run() {
 	go s.listenConfigPatches(ctx)
 }
 
+// GetAddr returns address of the service.
 func (s *ConfigService) GetAddr() entities.Address {
 	return s.addr
 }
@@ -102,6 +107,8 @@ func (s *ConfigService) terminate() {
 	s.ctrl.Terminate()
 }
 
+// SetDevInitConfig check's whether device is already registered in the system. If it's already registered,
+// the func returns actual config. Otherwise it returns default config for that type of device.
 func (s *ConfigService) SetDevInitConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	conn, err := s.storage.CreateConn()
 	if err != nil {

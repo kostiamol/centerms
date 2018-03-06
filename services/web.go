@@ -12,6 +12,7 @@ import (
 	"github.com/kostiamol/centerms/entities"
 )
 
+// WebService is used to deal with user's queries from the web client (dashboard).
 type WebService struct {
 	addr    entities.Address
 	storage entities.Storager
@@ -20,6 +21,7 @@ type WebService struct {
 	pubChan string
 }
 
+// NewWebService creates and initializes a new instance of WebService.
 func NewWebService(srv entities.Address, st entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
 	pubChan string) *WebService {
 
@@ -32,6 +34,7 @@ func NewWebService(srv entities.Address, st entities.Storager, ctrl entities.Ser
 	}
 }
 
+// Run launches the service by running goroutines for listening the service termination and queries from the web client.
 func (s *WebService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
@@ -68,10 +71,6 @@ func (s *WebService) Run() {
 
 	http.ListenAndServe(s.addr.Host+":"+s.addr.Port, handlers.CORS(allowedMethods, allowedHeaders)(r))
 	s.log.Fatal(srv.ListenAndServe())
-}
-
-func (s *WebService) GetAddr() entities.Address {
-	return s.addr
 }
 
 func (s *WebService) listenTermination() {

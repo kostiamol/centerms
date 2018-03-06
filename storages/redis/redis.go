@@ -1,3 +1,4 @@
+// Package storages provides means for data storage and retrieving.
 package storages
 
 import (
@@ -20,6 +21,7 @@ const (
 	partialDevParamsKey = ":params"
 )
 
+// RedisStorage is used to provide a storage based on Redis according to Storager interface.
 type RedisStorage struct {
 	addr  entities.Address
 	name  string
@@ -30,6 +32,7 @@ type RedisStorage struct {
 	log   *logrus.Entry
 }
 
+// NewRedisStorage creates a new instance of RedisStorage.
 func NewRedisStorage(addr entities.Address, name string, ttl time.Duration, retry time.Duration,
 	log *logrus.Entry) *RedisStorage {
 
@@ -42,6 +45,7 @@ func NewRedisStorage(addr entities.Address, name string, ttl time.Duration, retr
 	}
 }
 
+// NewRedisStorage initializes an instance of RedisStorage.
 func (s *RedisStorage) Init() error {
 	if s.addr.Host == "" {
 		return errors.New("RedisStorage: SetServer(): host is empty")
@@ -70,14 +74,14 @@ func (s *RedisStorage) Init() error {
 	}
 	s.agent = c.Agent()
 
-	serviceDef := &consul.AgentServiceRegistration{
+	consulAgent := &consul.AgentServiceRegistration{
 		Name: s.name,
 		Check: &consul.AgentServiceCheck{
 			TTL: s.ttl.String(),
 		},
 	}
 
-	if err := s.agent.ServiceRegister(serviceDef); err != nil {
+	if err := s.agent.ServiceRegister(consulAgent); err != nil {
 		return errors.Errorf("Consul: %s", err)
 	}
 	go s.UpdateTTL(s.Check)
@@ -85,7 +89,7 @@ func (s *RedisStorage) Init() error {
 	return nil
 }
 
-// Check method issues PING Redis command to check if we’re ok.
+// Check issues PING Redis command to check if Redis is ok.
 func (s *RedisStorage) Check() (bool, error) {
 	if _, err := s.conn.Do("PING"); err != nil {
 		return false, err
@@ -93,6 +97,7 @@ func (s *RedisStorage) Check() (bool, error) {
 	return true, nil
 }
 
+// UpdateTTL updates TTL (Time to live).
 func (s *RedisStorage) UpdateTTL(check func() (bool, error)) {
 	ticker := time.NewTicker(s.ttl / 2)
 	for range ticker.C {
@@ -110,7 +115,7 @@ func (s *RedisStorage) update(check func() (bool, error)) {
 		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
-		// to avoid returning errors or invalid data
+		// to avoid returning errors or invalid data.
 		health = consul.HealthCritical
 	} else {
 		health = consul.HealthPassing
@@ -124,6 +129,7 @@ func (s *RedisStorage) update(check func() (bool, error)) {
 	}
 }
 
+// CreateConn creates, initializes and returns a new instance of RedisStorage.
 func (s *RedisStorage) CreateConn() (entities.Storager, error) {
 	newStorage := RedisStorage{
 		addr:  s.addr,
@@ -145,10 +151,12 @@ func (s *RedisStorage) CreateConn() (entities.Storager, error) {
 	return &newStorage, err
 }
 
+// CloseConn closes connection with Redis.
 func (s *RedisStorage) CloseConn() error {
 	return s.conn.Close()
 }
 
+// GetDevsData returns the data concerning all the devices.
 func (s *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 	devParamsKeys, err := redis.Strings(s.conn.Do("SMEMBERS", "devParamsKeys"))
 	if err != nil {
@@ -191,6 +199,7 @@ func (s *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 	return devsData, err
 }
 
+// GetDevMeta returns metadata for the given device.
 func (s *RedisStorage) GetDevMeta(id entities.DevID) (*entities.DevMeta, error) {
 	devType, err := redis.String(s.conn.Do("HGET", "id:"+id, "type"))
 	if err != nil {
@@ -213,6 +222,7 @@ func (s *RedisStorage) GetDevMeta(id entities.DevID) (*entities.DevMeta, error) 
 	return &meta, nil
 }
 
+// SetDevMeta sets metadata for the given device.
 func (s *RedisStorage) SetDevMeta(m *entities.DevMeta) error {
 	if _, err := s.conn.Do("HMSET", "id:"+m.MAC, "type", m.Type); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
@@ -229,6 +239,7 @@ func (s *RedisStorage) SetDevMeta(m *entities.DevMeta) error {
 	return nil
 }
 
+// DevIsRegistered returns 'true' if the given device is registered, otherwise - 'false'.
 func (s *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 	configKey := m.MAC + partialDevConfigKey
 	if ok, err := redis.Bool(s.conn.Do("EXISTS", configKey)); ok {
@@ -240,6 +251,7 @@ func (s *RedisStorage) DevIsRegistered(m *entities.DevMeta) (bool, error) {
 	return false, nil
 }
 
+// GetDevData returns data concerning given device.
 func (s *RedisStorage) GetDevData(id entities.DevID) (*entities.DevData, error) {
 	meta, err := s.GetDevMeta(id)
 	if err != nil {
@@ -256,6 +268,7 @@ func (s *RedisStorage) GetDevData(id entities.DevID) (*entities.DevData, error) 
 	}
 }
 
+// SaveDevData saves data concerning given device.
 func (s *RedisStorage) SaveDevData(d *entities.RawDevData) error {
 	switch d.Meta.Type {
 	case "fridge":
@@ -267,6 +280,7 @@ func (s *RedisStorage) SaveDevData(d *entities.RawDevData) error {
 	}
 }
 
+// GetDevConfig returns config for the given device.
 func (s *RedisStorage) GetDevConfig(id entities.DevID) (*entities.DevConfig, error) {
 	meta, err := s.GetDevMeta(id)
 	if err != nil {
@@ -283,6 +297,7 @@ func (s *RedisStorage) GetDevConfig(id entities.DevID) (*entities.DevConfig, err
 	}
 }
 
+// SetDevConfig sets config for the given device.
 func (s *RedisStorage) SetDevConfig(id entities.DevID, c *entities.DevConfig) error {
 	meta, err := s.GetDevMeta(id)
 	if err != nil {
@@ -299,6 +314,7 @@ func (s *RedisStorage) SetDevConfig(id entities.DevID, c *entities.DevConfig) er
 	}
 }
 
+// GetDevDefaultConfig returns default config for the given device.
 func (s *RedisStorage) GetDevDefaultConfig(m *entities.DevMeta) (*entities.DevConfig, error) {
 	switch m.Type {
 	case "fridge":
