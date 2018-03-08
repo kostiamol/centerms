@@ -7,10 +7,14 @@ import (
 	"time"
 )
 
+// Inner channels for data exchange.
 const (
 	DevDataChan   = "dev_data"
 	DevConfigChan = "dev_config"
+)
 
+// Inner events.
+const (
 	EventConfigPatchCreated = "config_patch_created"
 	EventDevRegistered      = "dev_registered"
 	EventMSTerminated       = "ms_terminated"
@@ -21,8 +25,6 @@ const (
 	EventWSConnAdded        = "ws_conn_added"
 	EventWSConnRemoved      = "ws_conn_removed"
 	EventUpdConsulStatus    = "upd_consul_status"
-
-	timeForRoutineTermination = time.Second * 3
 )
 
 // Query the Consul for services:
@@ -51,7 +53,7 @@ type DevDataStorager interface {
 	SetDevMeta(m *DevMeta) error
 }
 
-// DevConfigStorage deals with device configs.
+// DevConfigStorager deals with device configs.
 type DevConfigStorager interface {
 	GetDevConfig(id DevID) (*DevConfig, error)
 	SetDevConfig(id DevID, config *DevConfig) error
@@ -117,14 +119,16 @@ type ServiceController struct {
 	StopChan chan struct{}
 }
 
-// Terminate closes StopChan to signal all the services to shutdown.
+const timeForRoutineTermination = time.Second * 3
+
+// Wait waits until StopChan will be closed and then makes a pause for the amount seconds defined in variable
+// timeForRoutineTermination in order to give time for all the services to shutdown gracefully.
 func (c *ServiceController) Wait() {
 	<-c.StopChan
 	<-time.NewTimer(timeForRoutineTermination).C
 }
 
-// Wait waits until StopChan will be closed and then makes a pause for the amount seconds defined in variable
-// timeForRoutineTermination in order to give time for all the services to shutdown gracefully.
+// Terminate closes StopChan to signal all the services to shutdown.
 func (c *ServiceController) Terminate() {
 	select {
 	case <-c.StopChan:

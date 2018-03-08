@@ -1,6 +1,7 @@
 package entities
 
 var (
+	// DefaultFridgeConfig is used to store default fridge config.
 	DefaultFridgeConfig = FridgeConfig{
 		TurnedOn:    true,
 		CollectFreq: 1000,

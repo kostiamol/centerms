@@ -48,30 +48,22 @@ func (s *RedisStorage) saveWasherData(data *entities.RawDevData) error {
 
 	if _, err := s.conn.Do("MULTI"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Multi() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if err := s.setTurnoversData(wd.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setTurnoversData() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if err := s.setWaterTempData(wd.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): setWaterTempData() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if _, err := s.conn.Do("EXEC"); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): Exec() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 

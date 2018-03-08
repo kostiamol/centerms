@@ -45,7 +45,7 @@ func NewRedisStorage(addr entities.Address, name string, ttl time.Duration, retr
 	}
 }
 
-// NewRedisStorage initializes an instance of RedisStorage.
+// Init initializes an instance of RedisStorage.
 func (s *RedisStorage) Init() error {
 	if s.addr.Host == "" {
 		return errors.New("RedisStorage: SetServer(): host is empty")

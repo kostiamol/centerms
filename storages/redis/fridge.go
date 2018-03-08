@@ -48,37 +48,27 @@ func (s *RedisStorage) saveFridgeData(data *entities.RawDevData) error {
 
 	if _, err := s.conn.Do("HMSET", "devParamsKeys", paramsKey); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): SAdd() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if _, err := s.conn.Do("HMSET", devKey, "ReqTime", data.Time); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): HMSet() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if _, err := s.conn.Do("SADD", paramsKey, "TopCompart", "BotCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): SAdd() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if err := s.setFridgeCameraData(fd.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeCameraData(): Multi() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if err := s.setFridgeCameraData(fd.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): setFridgeCameraData() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 
@@ -153,23 +143,27 @@ func (s *RedisStorage) getFridgeConfig(m *entities.DevMeta) (*entities.DevConfig
 }
 
 func (s *RedisStorage) setFridgeConfig(c *entities.DevConfig, m *entities.DevMeta) error {
-	var dc *entities.DevConfig
+	var config *entities.DevConfig
 	if ok, err := s.DevIsRegistered(m); ok {
 		if err != nil {
 			errors.Wrapf(err, "RedisStorage: setFridgeConfig(): DevIsRegistered() has failed")
 			return err
 		}
-		dc, err = s.getFridgeConfig(m)
+		if config, err = s.getFridgeConfig(m); err != nil {
+			return err
+		}
 	} else {
 		if err != nil {
 			errors.Wrapf(err, "RedisStorage: setFridgeConfig(): DevIsRegistered() has failed")
 			return err
 		}
-		dc, err = s.getFridgeDefaultConfig(m)
+		if config, err = s.getFridgeDefaultConfig(m); err != nil {
+			return err
+		}
 	}
 
 	var fc entities.FridgeConfig
-	if err := json.Unmarshal(dc.Data, &fc); err != nil {
+	if err := json.Unmarshal(config.Data, &fc); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): Unmarshal() has failed")
 		return err
 	}
@@ -182,39 +176,29 @@ func (s *RedisStorage) setFridgeConfig(c *entities.DevConfig, m *entities.DevMet
 	configKey := c.MAC + partialDevConfigKey
 	if _, err := s.conn.Do("MULTI"); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): Multi() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if _, err := s.conn.Do("HMSET", configKey, "TurnedOn", fc.TurnedOn); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if _, err := s.conn.Do("HMSET", configKey, "CollectFreq", fc.CollectFreq); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 	if _, err := s.conn.Do("HMSET", configKey, "SendFreq", fc.SendFreq); err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): HMSet() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 
 	_, err := s.conn.Do("EXEC")
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: setFridgeConfig(): Exec() has failed")
-		if _, err := s.conn.Do("DISCARD"); err != nil {
-			return err
-		}
+		s.conn.Do("DISCARD")
 		return err
 	}
 

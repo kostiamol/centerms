@@ -1,6 +1,7 @@
 package entities
 
 var (
+	// LightMode stores config for light washing mode.
 	LightMode = WasherConfig{
 		Name:           "LightMode",
 		Temperature:    60,
@@ -12,6 +13,7 @@ var (
 		SpinTurnovers:  60,
 	}
 
+	// FastMode stores config for fast washing mode.
 	FastMode = WasherConfig{
 		Name:           "FastMode",
 		Temperature:    180,
@@ -23,6 +25,7 @@ var (
 		SpinTurnovers:  60,
 	}
 
+	// StandardMode stores config for standard washing mode.
 	StandardMode = WasherConfig{
 		Name:           "StandardMode",
 		Temperature:    240,
