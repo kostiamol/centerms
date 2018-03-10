@@ -24,17 +24,17 @@ const (
 // RedisStorage is used to provide a storage based on Redis according to Storager interface.
 type RedisStorage struct {
 	addr  entities.Address
-	name  string
 	conn  redis.Conn
+	log   *logrus.Entry
 	retry time.Duration
+	name  string
 	ttl   time.Duration
 	agent *consul.Agent
-	log   *logrus.Entry
 }
 
 // NewRedisStorage creates a new instance of RedisStorage.
-func NewRedisStorage(addr entities.Address, name string, ttl time.Duration, retry time.Duration,
-	log *logrus.Entry) *RedisStorage {
+func NewRedisStorage(addr entities.Address, log *logrus.Entry, retry time.Duration, name string,
+	ttl time.Duration) *RedisStorage {
 
 	return &RedisStorage{
 		addr:  addr,
@@ -179,20 +179,17 @@ func (s *RedisStorage) GetDevsData() ([]entities.DevData, error) {
 			Name: key[2],
 			MAC:  key[3],
 		}
-		devData.Data = make(map[string][]string)
-
+		data := make(map[string][]string)
 		params, err := redis.Strings(s.conn.Do("SMEMBERS", devParamsKeys[index]))
 		if err != nil {
 			errors.Wrapf(err, "RedisStorage: GetDevsData(): SMembers() for %s has failed", devParamsKeys[index])
 		}
 
-		vals := make([][]string, len(params))
 		for i, p := range params {
-			vals[i], _ = redis.Strings(s.conn.Do("ZRANGEBYSCORE", devParamsKeys[index]+":"+p, "-inf", "inf"))
+			data[p], err = redis.Strings(s.conn.Do("ZRANGEBYSCORE", devParamsKeys[index]+":"+p, "-inf", "inf"))
 			if err != nil {
 				errors.Wrapf(err, "RedisStorage: GetDevsData(): ZRangeByScore() for %s has failed", devParamsKeys[i])
 			}
-			devData.Data[p] = vals[i]
 		}
 		devsData = append(devsData, devData)
 	}
@@ -269,7 +266,7 @@ func (s *RedisStorage) GetDevData(id entities.DevID) (*entities.DevData, error) 
 }
 
 // SaveDevData saves data concerning given device.
-func (s *RedisStorage) SaveDevData(d *entities.RawDevData) error {
+func (s *RedisStorage) SaveDevData(d *entities.DevData) error {
 	switch d.Meta.Type {
 	case "fridge":
 		return s.saveFridgeData(d)

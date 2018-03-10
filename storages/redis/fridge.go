@@ -14,29 +14,32 @@ func (s *RedisStorage) getFridgeData(m *entities.DevMeta) (*entities.DevData, er
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	paramsKey := devKey + partialDevParamsKey
 
-	devData := entities.DevData{
-		Meta: *m,
-		Data: make(map[string][]string),
-	}
-
+	data := make(map[string][]string)
 	params, err := redis.Strings(s.conn.Do("SMEMBERS", paramsKey))
 	if err != nil {
 		errors.Wrap(err, "RedisStorage: getFridgeData(): SMembers() has failed")
 	}
 
-	data := make([][]string, len(params))
-	for i, p := range params {
-		data[i], err = redis.Strings(s.conn.Do("ZRANGEBYSCORE", paramsKey+":"+p, "-inf", "inf"))
+	for _, p := range params {
+		data[p], err = redis.Strings(s.conn.Do("ZRANGEBYSCORE", paramsKey+":"+p, "-inf", "inf"))
 		if err != nil {
 			errors.Wrap(err, "RedisStorage: getFridgeData(): ZRangeByScore() has failed")
 		}
-		devData.Data[p] = data[i]
 	}
 
-	return &devData, err
+	b, err := json.Marshal(&data)
+	if err != nil {
+		errors.Wrap(err, "RedisStorage: getFridgeData(): fridge data marshalling has failed")
+		return nil, err
+	}
+
+	return &entities.DevData{
+		Meta: *m,
+		Data: b,
+	}, err
 }
 
-func (s *RedisStorage) saveFridgeData(data *entities.RawDevData) error {
+func (s *RedisStorage) saveFridgeData(data *entities.DevData) error {
 	var fd entities.FridgeData
 	if err := json.Unmarshal([]byte(data.Data), &fd); err != nil {
 		errors.Wrap(err, "RedisStorage: saveFridgeData(): FridgeData unmarshalling has failed")

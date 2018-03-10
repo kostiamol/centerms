@@ -14,29 +14,32 @@ func (s *RedisStorage) getWasherData(m *entities.DevMeta) (*entities.DevData, er
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	devParamsKey := devKey + partialDevParamsKey
 
-	devData := entities.DevData{
-		Meta: *m,
-		Data: make(map[string][]string),
-	}
-
+	data := make(map[string][]string)
 	params, err := redis.Strings(s.conn.Do("SMEMBERS", devParamsKey))
 	if err != nil {
 		errors.Wrap(err, "RedisDevStorage: getWasherData(): can't read members from devParamsKeys")
 	}
 
-	data := make([][]string, len(params))
-	for i, p := range params {
-		data[i], err = redis.Strings(s.conn.Do("ZRANGEBYSCORE", devParamsKey+":"+p, "-inf", "inf"))
+	for _, p := range params {
+		data[p], err = redis.Strings(s.conn.Do("ZRANGEBYSCORE", devParamsKey+":"+p, "-inf", "inf"))
 		if err != nil {
 			errors.Wrap(err, "RedisDevStorage: getWasherData(): can't read members from sorted set")
 		}
-		devData.Data[p] = data[i]
 	}
 
-	return &devData, err
+	b, err := json.Marshal(&data)
+	if err != nil {
+		errors.Wrap(err, "RedisStorage: getWasherData(): washer data marshalling has failed")
+		return nil, err
+	}
+
+	return &entities.DevData{
+		Meta: *m,
+		Data: b,
+	}, err
 }
 
-func (s *RedisStorage) saveWasherData(data *entities.RawDevData) error {
+func (s *RedisStorage) saveWasherData(data *entities.DevData) error {
 	var wd entities.WasherData
 	if err := json.NewDecoder(bytes.NewBuffer(data.Data)).Decode(&wd); err != nil {
 		errors.Wrap(err, "RedisDevStorage: saveWasherData(): WasherData decoding has failed")

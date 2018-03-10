@@ -28,8 +28,8 @@ type ConfigService struct {
 	storage entities.Storager
 	ctrl    entities.ServiceController
 	log     *logrus.Entry
-	sub     entities.Subscription
 	retry   time.Duration
+	sub     entities.Subscription
 }
 
 // NewConfigService creates and initializes a new instance of ConfigService.

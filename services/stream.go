@@ -198,7 +198,7 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 		}
 	}()
 
-	var data entities.RawDevData
+	var data entities.DevData
 	if err := json.Unmarshal(msg, &data); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "stream",

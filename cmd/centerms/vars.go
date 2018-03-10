@@ -38,19 +38,22 @@ var (
 		Formatter: new(logrus.TextFormatter),
 		Level:     logrus.DebugLevel,
 	}
-
 	ctrl = entities.ServiceController{StopChan: make(chan struct{})}
 
-	storageHost = flag.String("storage-addr", defaultStorageHost, "Storage IP address")
-	storagePort = flag.String("storage-port", defaultStoragePort, "Storage TCP port")
+	storageHost   = flag.String("storage-addr", defaultStorageHost, "Storage IP address")
+	storagePort   = flag.String("storage-port", defaultStoragePort, "Storage TCP port")
+	storageServer = entities.Address{
+		Host: *storageHost,
+		Port: *storagePort,
+	}
 
 	devConfigPort = flag.String("dev-config-port", defaultDevConfigPort, "Port to listen on config from devices")
 	devDataPort   = flag.String("dev-data-port", defaultDevDataPort, "Port to listen on data from devices")
 	webPort       = flag.String("web-port", defaultWebPort, "Port to listen on web clients")
 	streamPort    = flag.String("stream-port", defaultStreamPort, "Port for data streaming")
 
-	ttl   = flag.Duration("ttl", defaultTTLInterval, "Service TTL check duration")
 	retry = flag.Duration("retry", defaultRetryInterval, "Retry interval")
+	ttl   = flag.Duration("ttl", defaultTTLInterval, "Service TTL check duration")
 )
 
 // checkCLIArgs checks whether the args were passed.

@@ -89,7 +89,7 @@ func (s *DataService) terminate() {
 }
 
 // SaveDevData is used to save device data in the storage.
-func (s *DataService) SaveDevData(d *entities.RawDevData) {
+func (s *DataService) SaveDevData(d *entities.DevData) {
 	conn, err := s.storage.CreateConn()
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
@@ -109,7 +109,7 @@ func (s *DataService) SaveDevData(d *entities.RawDevData) {
 	go s.publishDevData(d)
 }
 
-func (s *DataService) publishDevData(d *entities.RawDevData) error {
+func (s *DataService) publishDevData(d *entities.DevData) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{

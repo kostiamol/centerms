@@ -48,7 +48,7 @@ type Notifier interface {
 type DevDataStorager interface {
 	GetDevsData() ([]DevData, error)
 	GetDevData(id DevID) (*DevData, error)
-	SaveDevData(d *RawDevData) error
+	SaveDevData(d *DevData) error
 	GetDevMeta(id DevID) (*DevMeta, error)
 	SetDevMeta(m *DevMeta) error
 }
@@ -56,7 +56,7 @@ type DevDataStorager interface {
 // DevConfigStorager deals with device configs.
 type DevConfigStorager interface {
 	GetDevConfig(id DevID) (*DevConfig, error)
-	SetDevConfig(id DevID, config *DevConfig) error
+	SetDevConfig(id DevID, c *DevConfig) error
 	GetDevDefaultConfig(m *DevMeta) (*DevConfig, error)
 	DevIsRegistered(m *DevMeta) (bool, error)
 }
@@ -88,17 +88,11 @@ type Subscription struct {
 	Channel  chan []byte
 }
 
-// RawDevData is used to store time of the request, device's metadata and the data it transfers.
-type RawDevData struct {
+// DevData is used to store time of the request, device's metadata and the data it transfers.
+type DevData struct {
 	Time int64           `json:"time"`
 	Meta DevMeta         `json:"meta"`
 	Data json.RawMessage `json:"data"`
-}
-
-// DevData is used to store device's metadata and the data it transfers.
-type DevData struct {
-	Meta DevMeta             `json:"meta"`
-	Data map[string][]string `json:"data"`
 }
 
 // DevConfig holds device's MAC address and config.

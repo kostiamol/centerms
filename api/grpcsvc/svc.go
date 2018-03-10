@@ -66,7 +66,7 @@ func (a *api) SetDevInitConfig(ctx context.Context, req *pb.SetDevInitConfigRequ
 
 // SaveDevData saves data from device using DataService.
 func (a *api) SaveDevData(ctx context.Context, req *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
-	data := entities.RawDevData{
+	data := entities.DevData{
 		Time: req.Time,
 		Meta: entities.DevMeta{
 			Type: req.Meta.Type,
