@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/kostiamol/centerms/entities"
+	"github.com/kostiamol/centerms/storages/redis"
 )
 
 const (
@@ -30,6 +31,11 @@ const (
 
 	defaultRetryInterval = time.Second * 10
 	defaultTTLInterval   = time.Second * 4
+
+	// consul agent names
+	centerAgentName  = "center"
+	redisAgentName   = "redis"
+	storageAgentName = redisAgentName
 )
 
 var (
@@ -40,12 +46,13 @@ var (
 	}
 	ctrl = entities.ServiceController{StopChan: make(chan struct{})}
 
-	storageHost   = flag.String("storage-addr", defaultStorageHost, "Storage IP address")
-	storagePort   = flag.String("storage-port", defaultStoragePort, "Storage TCP port")
-	storageServer = entities.Address{
+	storageHost = flag.String("storage-addr", defaultStorageHost, "Storage IP address")
+	storagePort = flag.String("storage-port", defaultStoragePort, "Storage TCP port")
+	storageAddr = entities.Address{
 		Host: *storageHost,
 		Port: *storagePort,
 	}
+	storage = storages.NewRedisStorage(storageAddr, logrus.NewEntry(log), *retry, storageAgentName, *ttl)
 
 	devConfigPort = flag.String("dev-config-port", defaultDevConfigPort, "Port to listen on config from devices")
 	devDataPort   = flag.String("dev-data-port", defaultDevDataPort, "Port to listen on data from devices")

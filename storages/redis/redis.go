@@ -23,25 +23,25 @@ const (
 
 // RedisStorage is used to provide a storage based on Redis according to Storager interface.
 type RedisStorage struct {
-	addr  entities.Address
-	conn  redis.Conn
-	log   *logrus.Entry
-	retry time.Duration
-	name  string
-	ttl   time.Duration
-	agent *consul.Agent
+	addr      entities.Address
+	conn      redis.Conn
+	log       *logrus.Entry
+	retry     time.Duration
+	agentName string
+	agent     *consul.Agent
+	ttl       time.Duration
 }
 
 // NewRedisStorage creates a new instance of RedisStorage.
-func NewRedisStorage(addr entities.Address, log *logrus.Entry, retry time.Duration, name string,
+func NewRedisStorage(addr entities.Address, log *logrus.Entry, retry time.Duration, agentName string,
 	ttl time.Duration) *RedisStorage {
 
 	return &RedisStorage{
-		addr:  addr,
-		name:  name,
-		ttl:   ttl,
-		retry: retry,
-		log:   log.WithFields(logrus.Fields{"service": "storage", "type": "redis"}),
+		addr:      addr,
+		agentName: agentName,
+		ttl:       ttl,
+		retry:     retry,
+		log:       log.WithFields(logrus.Fields{"service": "storage", "type": "redis"}),
 	}
 }
 
@@ -75,7 +75,7 @@ func (s *RedisStorage) Init() error {
 	s.agent = c.Agent()
 
 	consulAgent := &consul.AgentServiceRegistration{
-		Name: s.name,
+		Name: s.agentName,
 		Check: &consul.AgentServiceCheck{
 			TTL: s.ttl.String(),
 		},
@@ -121,7 +121,7 @@ func (s *RedisStorage) update(check func() (bool, error)) {
 		health = consul.HealthPassing
 	}
 
-	if err := s.agent.UpdateTTL("service:"+s.name, "", health); err != nil {
+	if err := s.agent.UpdateTTL("service:"+s.agentName, "", health); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": entities.EventUpdConsulStatus,

@@ -35,7 +35,7 @@ func newCenterServiceGRPC(c GRPCConfig) *api {
 		configService: *c.ConfigService,
 		dataService:   *c.DataService,
 		retry:         c.Retry,
-		log:           c.Log.WithFields(logrus.Fields{"service": "grpc"}),
+		log:           c.Log.WithFields(logrus.Fields{"service": "api"}),
 	}
 }
 
