@@ -79,7 +79,7 @@ type DevID string
 // Address is used to store IP address and an open port of the remote server.
 type Address struct {
 	Host string
-	Port string
+	Port int
 }
 
 // Subscription is used to store channel name and chan for subscribing.

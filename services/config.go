@@ -11,6 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
+	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/api/pb"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/nats-io/go-nats"
@@ -24,17 +25,20 @@ const (
 
 // ConfigService is used to deal with device configs.
 type ConfigService struct {
-	addr    entities.Address
-	storage entities.Storager
-	ctrl    entities.ServiceController
-	log     *logrus.Entry
-	retry   time.Duration
-	sub     entities.Subscription
+	addr      entities.Address
+	storage   entities.Storager
+	ctrl      entities.ServiceController
+	log       *logrus.Entry
+	retry     time.Duration
+	sub       entities.Subscription
+	agentName string
+	agent     *consul.Agent
+	ttl       time.Duration
 }
 
 // NewConfigService creates and initializes a new instance of ConfigService.
 func NewConfigService(addr entities.Address, st entities.Storager, ctrl entities.ServiceController,
-	log *logrus.Entry, retry time.Duration, subj string) *ConfigService {
+	log *logrus.Entry, retry time.Duration, subj string, agentName string, ttl time.Duration) *ConfigService {
 
 	return &ConfigService{
 		addr:    addr,
@@ -46,6 +50,8 @@ func NewConfigService(addr entities.Address, st entities.Storager, ctrl entities
 			ChanName: subj,
 			Channel:  make(chan []byte),
 		},
+		agentName: agentName,
+		ttl:       ttl,
 	}
 }
 
@@ -54,7 +60,7 @@ func (s *ConfigService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": entities.EventSVCStarted,
-	}).Infof("running on host: [%s], port: [%s]", s.addr.Host, s.addr.Port)
+	}).Infof("running on host: [%s], port: [%d]", s.addr.Host, s.addr.Port)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -71,11 +77,76 @@ func (s *ConfigService) Run() {
 
 	go s.listenTermination()
 	go s.listenConfigPatches(ctx)
+
+	s.runConsulAgent()
 }
 
 // GetAddr returns address of the service.
 func (s *ConfigService) GetAddr() entities.Address {
 	return s.addr
+}
+
+func (s *ConfigService) runConsulAgent() {
+	c, err := consul.NewClient(consul.DefaultConfig())
+	if err != nil {
+		s.log.WithFields(logrus.Fields{
+			"func":  "Run",
+			"event": entities.EventPanic,
+		}).Errorf("%s", err)
+		panic("Consul init error")
+	}
+	consulAgent := &consul.AgentServiceRegistration{
+		Name: s.agentName,
+		Port: s.addr.Port,
+		Check: &consul.AgentServiceCheck{
+			TTL: s.ttl.String(),
+		},
+	}
+	s.agent = c.Agent()
+	if err := s.agent.ServiceRegister(consulAgent); err != nil {
+		s.log.WithFields(logrus.Fields{
+			"func":  "Run",
+			"event": entities.EventPanic,
+		}).Errorf("%s", err)
+		panic("Consul init error")
+	}
+	go s.updateTTL(s.check)
+}
+
+func (s *ConfigService) check() (bool, error) {
+	// while the service is alive - everything is ok
+	return true, nil
+}
+
+func (s *ConfigService) updateTTL(check func() (bool, error)) {
+	ticker := time.NewTicker(s.ttl / 2)
+	for range ticker.C {
+		s.update(check)
+	}
+}
+
+func (s *ConfigService) update(check func() (bool, error)) {
+	var health string
+	ok, err := check()
+	if !ok {
+		s.log.WithFields(logrus.Fields{
+			"func":  "update",
+			"event": entities.EventUpdConsulStatus,
+		}).Errorf("check has failed: %s", err)
+
+		// failed check will remove a service instance from DNS and HTTP query
+		// to avoid returning errors or invalid data.
+		health = consul.HealthCritical
+	} else {
+		health = consul.HealthPassing
+	}
+
+	if err := s.agent.UpdateTTL("service:"+s.agentName, "", health); err != nil {
+		s.log.WithFields(logrus.Fields{
+			"func":  "update",
+			"event": entities.EventUpdConsulStatus,
+		}).Error(err)
+	}
 }
 
 func (s *ConfigService) listenTermination() {

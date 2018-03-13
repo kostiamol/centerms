@@ -9,28 +9,37 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
+	"fmt"
+
+	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/entities"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // WebService is used to deal with user's queries from the web client (dashboard).
 type WebService struct {
-	addr    entities.Address
-	storage entities.Storager
-	ctrl    entities.ServiceController
-	log     *logrus.Entry
-	pubChan string
+	addr      entities.Address
+	storage   entities.Storager
+	ctrl      entities.ServiceController
+	log       *logrus.Entry
+	pubChan   string
+	agentName string
+	agent     *consul.Agent
+	ttl       time.Duration
 }
 
 // NewWebService creates and initializes a new instance of WebService.
 func NewWebService(srv entities.Address, st entities.Storager, ctrl entities.ServiceController, log *logrus.Entry,
-	pubChan string) *WebService {
+	pubChan, agentName string, ttl time.Duration) *WebService {
 
 	return &WebService{
-		addr:    srv,
-		storage: st,
-		ctrl:    ctrl,
-		log:     log.WithFields(logrus.Fields{"service": "web"}),
-		pubChan: pubChan,
+		addr:      srv,
+		storage:   st,
+		ctrl:      ctrl,
+		log:       log.WithFields(logrus.Fields{"service": "web"}),
+		pubChan:   pubChan,
+		agentName: agentName,
+		ttl:       ttl,
 	}
 }
 
@@ -39,7 +48,7 @@ func (s *WebService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": entities.EventSVCStarted,
-	}).Infof("running on host: [%s], port: [%s]", s.addr.Host, s.addr.Port)
+	}).Infof("running on host: [%s], port: [%d]", s.addr.Host, s.addr.Port)
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -53,15 +62,19 @@ func (s *WebService) Run() {
 
 	go s.listenTermination()
 
+	s.runConsulAgent()
+
 	r := mux.NewRouter()
 	r.Handle("/devices", adapt(s.getDevsDataHandler, s.recoveryAdapter)).Methods(http.MethodGet)
 	r.Handle("/devices/{id}/data", adapt(s.getDevDataHandler, s.recoveryAdapter)).Methods(http.MethodGet)
 	r.Handle("/devices/{id}/config", adapt(s.getDevConfigHandler, s.recoveryAdapter)).Methods(http.MethodGet)
 	r.Handle("/devices/{id}/config", adapt(s.patchDevConfigHandler, s.recoveryAdapter)).Methods(http.MethodPatch)
+	// for Prometheus
+	r.Handle("/metrics", promhttp.Handler()).Methods(http.MethodGet)
 
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         s.addr.Host + ":" + s.addr.Port,
+		Addr:         s.addr.Host + ":" + fmt.Sprint(s.addr.Port),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
@@ -69,8 +82,71 @@ func (s *WebService) Run() {
 	allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "OPTIONS", "PATCH"})
 	allowedHeaders := handlers.AllowedHeaders([]string{"Content-Type", "X-Requested-With"})
 
-	http.ListenAndServe(s.addr.Host+":"+s.addr.Port, handlers.CORS(allowedMethods, allowedHeaders)(r))
+	http.ListenAndServe(s.addr.Host+":"+fmt.Sprint(s.addr.Port), handlers.CORS(allowedMethods, allowedHeaders)(r))
 	s.log.Fatal(srv.ListenAndServe())
+}
+
+func (s *WebService) runConsulAgent() {
+	c, err := consul.NewClient(consul.DefaultConfig())
+	if err != nil {
+		s.log.WithFields(logrus.Fields{
+			"func":  "Run",
+			"event": entities.EventPanic,
+		}).Errorf("%s", err)
+		panic("Consul init error")
+	}
+	consulAgent := &consul.AgentServiceRegistration{
+		Name: s.agentName,
+		Port: s.addr.Port,
+		Check: &consul.AgentServiceCheck{
+			TTL: s.ttl.String(),
+		},
+	}
+	s.agent = c.Agent()
+	if err := s.agent.ServiceRegister(consulAgent); err != nil {
+		s.log.WithFields(logrus.Fields{
+			"func":  "Run",
+			"event": entities.EventPanic,
+		}).Errorf("%s", err)
+		panic("Consul init error")
+	}
+	go s.updateTTL(s.check)
+}
+
+func (s *WebService) check() (bool, error) {
+	// while the service is alive - everything is ok
+	return true, nil
+}
+
+func (s *WebService) updateTTL(check func() (bool, error)) {
+	ticker := time.NewTicker(s.ttl / 2)
+	for range ticker.C {
+		s.update(check)
+	}
+}
+
+func (s *WebService) update(check func() (bool, error)) {
+	var health string
+	ok, err := check()
+	if !ok {
+		s.log.WithFields(logrus.Fields{
+			"func":  "update",
+			"event": entities.EventUpdConsulStatus,
+		}).Errorf("check has failed: %s", err)
+
+		// failed check will remove a service instance from DNS and HTTP query
+		// to avoid returning errors or invalid data.
+		health = consul.HealthCritical
+	} else {
+		health = consul.HealthPassing
+	}
+
+	if err := s.agent.UpdateTTL("service:"+s.agentName, "", health); err != nil {
+		s.log.WithFields(logrus.Fields{
+			"func":  "update",
+			"event": entities.EventUpdConsulStatus,
+		}).Error(err)
+	}
 }
 
 func (s *WebService) listenTermination() {

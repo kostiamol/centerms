@@ -9,6 +9,8 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/entities"
@@ -49,19 +51,19 @@ func NewRedisStorage(addr entities.Address, log *logrus.Entry, retry time.Durati
 func (s *RedisStorage) Init() error {
 	if s.addr.Host == "" {
 		return errors.New("RedisStorage: SetServer(): host is empty")
-	} else if s.addr.Port == "" {
+	} else if s.addr.Port == 0 {
 		return errors.New("RedisStorage: SetServer(): port is empty")
 	}
 
 	var err error
-	s.conn, err = redis.Dial("tcp", s.addr.Host+":"+s.addr.Port)
+	s.conn, err = redis.Dial("tcp", s.addr.Host+":"+fmt.Sprint(s.addr.Port))
 	for err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "Init",
 		}).Errorf("Connect() has failed: %s", err)
 		duration := time.Duration(rand.Intn(int(s.retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		s.conn, err = redis.Dial("tcp", s.addr.Host+":"+s.addr.Port)
+		s.conn, err = redis.Dial("tcp", s.addr.Host+":"+fmt.Sprint(s.addr.Port))
 	}
 
 	if ok, err := s.Check(); !ok {
@@ -138,14 +140,14 @@ func (s *RedisStorage) CreateConn() (entities.Storager, error) {
 	}
 
 	var err error
-	newStorage.conn, err = redis.Dial("tcp", s.addr.Host+":"+s.addr.Port)
+	newStorage.conn, err = redis.Dial("tcp", s.addr.Host+":"+fmt.Sprint(s.addr.Port))
 	for err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "Init",
 		}).Errorf("Connect() has failed: %s", err)
 		duration := time.Duration(rand.Intn(int(s.retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		newStorage.conn, err = redis.Dial("tcp", s.addr.Host+":"+s.addr.Port)
+		newStorage.conn, err = redis.Dial("tcp", s.addr.Host+":"+fmt.Sprint(s.addr.Port))
 	}
 
 	return &newStorage, err

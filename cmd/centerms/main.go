@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 
+	"flag"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/kostiamol/centerms/api/grpcsvc"
 	"github.com/kostiamol/centerms/entities"
@@ -14,6 +16,8 @@ import (
 // todo: reconnect + conn pool
 
 func main() {
+	flag.Parse()
+
 	if err := storage.Init(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"func":  "main",
@@ -32,6 +36,8 @@ func main() {
 		logrus.NewEntry(log),
 		*retry,
 		entities.DevConfigChan,
+		configAgentName,
+		*ttl,
 	)
 	go config.Run()
 
@@ -44,6 +50,8 @@ func main() {
 		ctrl,
 		logrus.NewEntry(log),
 		entities.DevDataChan,
+		dataAgentName,
+		*ttl,
 	)
 	go data.Run()
 
@@ -63,6 +71,8 @@ func main() {
 		ctrl,
 		logrus.NewEntry(log),
 		entities.DevDataChan,
+		streamAgentName,
+		*ttl,
 	)
 	go stream.Run()
 
@@ -75,18 +85,13 @@ func main() {
 		ctrl,
 		logrus.NewEntry(log),
 		entities.DevConfigChan,
+		webAgentName,
+		*ttl,
 	)
 	go web.Run()
 
-	health := services.NewHealthService(
-		ctrl,
-		logrus.NewEntry(log),
-		centerAgentName,
-		*ttl,
-	)
-	go health.Run()
-
 	ctrl.Wait()
+
 	logrus.WithFields(logrus.Fields{
 		"func":  "main",
 		"event": entities.EventMSTerminated,

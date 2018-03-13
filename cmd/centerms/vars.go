@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"time"
 
@@ -15,17 +14,18 @@ const (
 	localhost = "127.0.0.1"
 	webHost   = "0.0.0.0"
 
-	// ms ports
-	defaultDevConfigPort = "3092"
-	defaultDevDataPort   = "3126"
-	defaultWebPort       = "3301"
-	defaultStreamPort    = "3546"
+	// service ports
+	defaultDevConfigPort = 3092
+	defaultDevDataPort   = 3126
+	defaultWebPort       = 3301
+	defaultStreamPort    = 3546
 
-	// storage ports
-	defaultRedisPort      = "6379"
-	defaultInfluxDBPort   = "8086"
-	defaultPostgreSQLPort = "5432"
+	// storage vendor ports
+	defaultRedisPort      = 6379
+	defaultInfluxDBPort   = 8086
+	defaultPostgreSQLPort = 5432
 
+	// storage address
 	defaultStoragePort = defaultRedisPort
 	defaultStorageHost = "127.0.0.1"
 
@@ -33,7 +33,11 @@ const (
 	defaultTTLInterval   = time.Second * 4
 
 	// consul agent names
-	centerAgentName  = "center"
+	configAgentName = "center_config"
+	dataAgentName   = "center_data"
+	webAgentName    = "center_web"
+	streamAgentName = "center_stream"
+
 	redisAgentName   = "redis"
 	storageAgentName = redisAgentName
 )
@@ -47,55 +51,18 @@ var (
 	ctrl = entities.ServiceController{StopChan: make(chan struct{})}
 
 	storageHost = flag.String("storage-addr", defaultStorageHost, "Storage IP address")
-	storagePort = flag.String("storage-port", defaultStoragePort, "Storage TCP port")
+	storagePort = flag.Int("storage-port", defaultStoragePort, "Storage TCP port")
 	storageAddr = entities.Address{
 		Host: *storageHost,
 		Port: *storagePort,
 	}
 	storage = storages.NewRedisStorage(storageAddr, logrus.NewEntry(log), *retry, storageAgentName, *ttl)
 
-	devConfigPort = flag.String("dev-config-port", defaultDevConfigPort, "Port to listen on config from devices")
-	devDataPort   = flag.String("dev-data-port", defaultDevDataPort, "Port to listen on data from devices")
-	webPort       = flag.String("web-port", defaultWebPort, "Port to listen on web clients")
-	streamPort    = flag.String("stream-port", defaultStreamPort, "Port for data streaming")
+	devConfigPort = flag.Int("dev-config-port", defaultDevConfigPort, "Port to listen on config from devices")
+	devDataPort   = flag.Int("dev-data-port", defaultDevDataPort, "Port to listen on data from devices")
+	webPort       = flag.Int("web-port", defaultWebPort, "Port to listen on web clients")
+	streamPort    = flag.Int("stream-port", defaultStreamPort, "Port for data streaming")
 
 	retry = flag.Duration("retry", defaultRetryInterval, "Retry interval")
 	ttl   = flag.Duration("ttl", defaultTTLInterval, "Service TTL check duration")
 )
-
-// checkCLIArgs checks whether the args were passed.
-func checkCLIArgs() {
-	if len(*storageHost) == 0 {
-		fmt.Fprintln(os.Stderr, "storage-addr argument is required")
-		flag.PrintDefaults()
-		os.Exit(1)
-	} else if len(*storagePort) == 0 {
-		fmt.Fprintln(os.Stderr, "storage-port argument is required")
-		flag.PrintDefaults()
-		os.Exit(1)
-	} else if len(*devConfigPort) == 0 {
-		fmt.Fprintln(os.Stderr, "dev-config-port argument is required")
-		flag.PrintDefaults()
-		os.Exit(1)
-	} else if len(*devDataPort) == 0 {
-		fmt.Fprintln(os.Stderr, "dev-data-port argument is required")
-		flag.PrintDefaults()
-		os.Exit(1)
-	} else if len(*webPort) == 0 {
-		fmt.Fprintln(os.Stderr, "web-port argument is required")
-		flag.PrintDefaults()
-		os.Exit(1)
-	} else if len(*streamPort) == 0 {
-		fmt.Fprintln(os.Stderr, "stream-port argument is required")
-		flag.PrintDefaults()
-		os.Exit(1)
-	} else if *ttl == 0 {
-		fmt.Fprintln(os.Stderr, "ttl argument is required")
-		flag.PrintDefaults()
-		os.Exit(1)
-	} else if *retry == 0 {
-		fmt.Fprintln(os.Stderr, "retry argument is required")
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
-}
