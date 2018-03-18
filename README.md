@@ -9,7 +9,7 @@ The project implements a server-side management automation for a home.
 1. [Install and run the NATS server](https://github.com/nats-io/gnatsd#quickstart)
 2. [Install and run the Redis server](https://redis.io/topics/quickstart#installing-redis)
 3. [Install and run Consul](https://www.consul.io/intro/getting-started/install.html)
-4. Optional: Install and run Prometheus & Grafana
+4. Optional: Install and run Prometheus + Grafana
 5. Download and install the centerms:
 
 ```bash
