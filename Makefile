@@ -15,3 +15,10 @@ build:
 	
 run: 
 	docker run -p 50051:50051 centerms
+
+swaggen:
+	@ cd ./cmd/centerms && \
+	swagger generate spec -o ../../swagger.json
+
+swagserv: 
+	swagger serve -p=8090 -F=swagger swagger.json
