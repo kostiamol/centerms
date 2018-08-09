@@ -1,12 +1,12 @@
 package services
 
 import (
-	"encoding/json"
+	"context"
+	"crypto/tls"
 	"net/http"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	"fmt"
@@ -14,18 +14,22 @@ import (
 	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 // WebService is used to deal with user's queries from the web client (dashboard).
 type WebService struct {
-	addr      entities.Address
-	storage   entities.Storager
-	ctrl      entities.ServiceController
-	log       *logrus.Entry
-	pubChan   string
-	agentName string
-	agent     *consul.Agent
-	ttl       time.Duration
+	addr                entities.Address
+	storage             entities.Storager
+	ctrl                entities.ServiceController
+	log                 *logrus.Entry
+	pubChan             string
+	agentName           string
+	agent               *consul.Agent
+	ttl                 time.Duration
+	isProd              bool
+	redirectHTTPToHTTPS bool
+	allowedHost         string
 }
 
 // NewWebService creates and initializes a new instance of WebService.
@@ -64,6 +68,58 @@ func (s *WebService) Run() {
 
 	s.runConsulAgent()
 
+	var m *autocert.Manager
+	var httpsSrv *http.Server
+	if s.isProd {
+		hostPolicy := func(ctx context.Context, host string) error {
+			allowedHost := s.allowedHost
+			if host == allowedHost {
+				return nil
+			}
+			return fmt.Errorf("acme/autocert: only %s host is allowed", allowedHost)
+		}
+
+		dataDir := "./crt"
+		m = &autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: hostPolicy,
+			Cache:      autocert.DirCache(dataDir),
+		}
+
+		httpsSrv = s.makeHTTPServer()
+		httpsSrv.Addr = s.addr.Host + ":" + fmt.Sprint(s.addr.Port)
+		httpsSrv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
+
+		go func() {
+			fmt.Printf("Starting HTTPS server on %s\n", httpsSrv.Addr)
+			s.log.Fatal(httpsSrv.ListenAndServe())
+		}()
+	}
+
+	var httpSrv *http.Server
+	if s.redirectHTTPToHTTPS {
+		httpSrv = s.makeHTTPToHTTPSRedirectServer()
+	} else {
+		httpSrv = s.makeHTTPServer()
+	}
+	// allow autocert handle Let's Encrypt callbacks over http
+	if m != nil {
+		httpSrv.Handler = m.HTTPHandler(httpSrv.Handler)
+	}
+
+	httpSrv.Addr = s.addr.Host + ":" + fmt.Sprint(s.addr.Port)
+	if err := httpSrv.ListenAndServe(); err != nil {
+		s.log.Fatal("httpSrv.ListenAndServe() failed with %s", err)
+	}
+
+	// allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "OPTIONS", "PATCH"})
+	// allowedHeaders := handlers.AllowedHeaders([]string{"Content-Type", "X-Requested-With"})
+
+	// http.ListenAndServe(s.addr.Host+":"+fmt.Sprint(s.addr.Port), handlers.CORS(allowedMethods, allowedHeaders)(r))
+	// s.log.Fatal(httpSrv.ListenAndServe())
+}
+
+func (s *WebService) makeHTTPServer() *http.Server {
 	r := mux.NewRouter()
 	r.Handle("/devices", adapt(s.getDevsDataHandler, s.recoveryAdapter)).Methods(http.MethodGet)
 	r.Handle("/devices/{id}/data", adapt(s.getDevDataHandler, s.recoveryAdapter)).Methods(http.MethodGet)
@@ -72,18 +128,22 @@ func (s *WebService) Run() {
 	// for Prometheus
 	r.Handle("/metrics", promhttp.Handler()).Methods(http.MethodGet)
 
-	srv := &http.Server{
+	return makeServerFromMux(r)
+}
+
+func makeServerFromMux(r *mux.Router) *http.Server {
+	return &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		IdleTimeout:  120 * time.Second,
 		Handler:      r,
-		Addr:         s.addr.Host + ":" + fmt.Sprint(s.addr.Port),
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
 	}
+}
 
-	allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "OPTIONS", "PATCH"})
-	allowedHeaders := handlers.AllowedHeaders([]string{"Content-Type", "X-Requested-With"})
-
-	http.ListenAndServe(s.addr.Host+":"+fmt.Sprint(s.addr.Port), handlers.CORS(allowedMethods, allowedHeaders)(r))
-	s.log.Fatal(srv.ListenAndServe())
+func (s *WebService) makeHTTPToHTTPSRedirectServer() *http.Server {
+	r := mux.NewRouter()
+	r.Handle("/", adapt(s.redirectHandler, s.recoveryAdapter))
+	return makeServerFromMux(r)
 }
 
 func (s *WebService) runConsulAgent() {
@@ -201,125 +261,4 @@ func (s *WebService) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 		}()
 		h.ServeHTTP(w, r)
 	})
-}
-
-func (s *WebService) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.storage.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "getDevsDataHandler",
-		}).Errorf("%s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	data, err := conn.GetDevsData()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "getDevsDataHandler",
-		}).Errorf("%s", err)
-		return
-	}
-
-	if err = json.NewEncoder(w).Encode(data); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "getDevsDataHandler",
-		}).Errorf("%s", err)
-		return
-	}
-}
-
-func (s *WebService) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.storage.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "getDevDataHandler",
-		}).Errorf("%s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	id := entities.DevID(mux.Vars(r)["id"])
-	data, err := conn.GetDevData(id)
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "getDevDataHandler",
-		}).Errorf("%s", err)
-		return
-	}
-
-	if err = json.NewEncoder(w).Encode(data); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "getDevDataHandler",
-		}).Errorf("%s", err)
-		return
-	}
-}
-
-func (s *WebService) getDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.storage.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "getDevConfigHandler",
-		}).Errorf("%s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	id := entities.DevID(mux.Vars(r)["id"])
-	config, err := conn.GetDevConfig(id)
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "getDevConfigHandler",
-		}).Errorf("%s", err)
-		return
-	}
-
-	if _, err = w.Write(config.Data); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "getDevConfigHandler",
-		}).Errorf("%s", err)
-		return
-	}
-}
-
-func (s *WebService) patchDevConfigHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.storage.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "patchDevConfigHandler",
-		}).Errorf("%s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	var config entities.DevConfig
-	if err = json.NewDecoder(r.Body).Decode(&config); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "patchDevConfigHandler",
-		}).Errorf("%s", err)
-		return
-	}
-
-	id := entities.DevID(mux.Vars(r)["id"])
-	if err = conn.SetDevConfig(entities.DevID(id), &config); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "patchDevConfigHandler",
-		}).Errorf("%s", err)
-		return
-	}
-
-	b, err := json.Marshal(config)
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "patchDevConfigHandler",
-		}).Errorf("%s", err)
-		return
-	}
-	if _, err = conn.Publish(b, s.pubChan); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "patchDevConfigHandler",
-		}).Errorf("%s", err)
-		return
-	}
 }

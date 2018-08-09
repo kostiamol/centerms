@@ -27,7 +27,7 @@ const (
 
 	// storage address
 	defaultStoragePort = defaultRedisPort
-	defaultStorageHost = "127.0.0.1"
+	defaultStorageHost = localhost
 
 	defaultRetryInterval = time.Second * 10
 	defaultTTLInterval   = time.Second * 4
@@ -43,6 +43,9 @@ const (
 )
 
 var (
+	flagProd                = flag.Bool("prod", false, "If true, HTTPS server will be started")
+	flagRedirectHTTPToHTTPS = flag.Bool("redirect-to-https", false, "If true, HTTP will be redirected to HTTPS")
+
 	log = &logrus.Logger{
 		Out:       os.Stdout,
 		Formatter: new(logrus.TextFormatter),
