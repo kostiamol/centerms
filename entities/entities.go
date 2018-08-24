@@ -130,3 +130,10 @@ func (c *ServiceController) Terminate() {
 		close(c.StopChan)
 	}
 }
+
+// User is used to authenticate requests
+type User struct {
+	UUID     string `json:"uuid" form:"-"`
+	Username string `json:"username" form:"username"`
+	Password string `json:"password" form:"password"`
+}
