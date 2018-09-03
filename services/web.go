@@ -11,8 +11,6 @@ import (
 
 	"fmt"
 
-	"api.jwt.auth/core/authentication"
-	"github.com/codegangsta/negroni"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -121,24 +119,15 @@ func (s *WebService) Run() {
 	// s.log.Fatal(httpSrv.ListenAndServe())
 }
 
-func (s *WebService) initRouter(r *mux.Router) *http.Server {
-	r.Handle("/devices", adapt(s.getDevsDataHandler, s.recoveryAdapter)).Methods(http.MethodGet)
+func (s *WebService) initRouter(r *mux.Router) {
+	r.Handle("/devices", jwtMiddleware.Handler(adapt(s.getDevsDataHandler, s.recoveryAdapter))).Methods(http.MethodGet)
 	r.Handle("/devices/{id}/data", adapt(s.getDevDataHandler, s.recoveryAdapter)).Methods(http.MethodGet)
 	r.Handle("/devices/{id}/config", adapt(s.getDevConfigHandler, s.recoveryAdapter)).Methods(http.MethodGet)
 	r.Handle("/devices/{id}/config", adapt(s.patchDevConfigHandler, s.recoveryAdapter)).Methods(http.MethodPatch)
 	// for Prometheus
 	r.Handle("/metrics", promhttp.Handler()).Methods(http.MethodGet)
 	// for auth + token
-	r.HandleFunc("/token-auth", controllers.Login).Methods(http.MethodPost)
-	r.Handle("/refresh-token-auth", negroni.New(negroni.HandlerFunc(controllers.RefreshToken))).Methods(http.MethodGet)
-	r.Handle(
-		"/logout",
-		negroni.New(
-			negroni.HandlerFunc(
-				authentication.RequireTokenAuthentication,
-			),
-			negroni.HandlerFunc(controllers.Logout),
-		)).Methods(http.MethodGet)
+	r.Handle("/get-token", getTokenHandler).Methods(http.MethodGet)
 }
 
 func (s *WebService) makeHTTPServer() *http.Server {

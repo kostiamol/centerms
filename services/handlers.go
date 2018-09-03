@@ -3,45 +3,47 @@ package services
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/go-swagger/go-swagger/examples/generated/models"
+	"github.com/auth0/go-jwt-middleware"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/kostiamol/centerms/entities"
-	"github.com/kostiamol/centerms/services"
 )
+
+var mySigningKey = []byte("secret")
 
 func (s *WebService) redirectHandler(w http.ResponseWriter, r *http.Request) {
 	newURI := "https://" + r.Host + r.URL.String()
 	http.Redirect(w, r, newURI, http.StatusFound)
 }
 
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	user := new(models.User)
-	decoder := json.NewDecoder(r.Body)
-	decoder.Decode(&user)
-	status, token := services.Login(user)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	w.Write(token)
-}
+var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	/* Create the token */
+	token := jwt.New(jwt.SigningMethodHS256)
 
-func refreshToken(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	user := new(models.User)
-	decoder := json.NewDecoder(r.Body)
-	decoder.Decode(&user)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(services.RefreshToken(user))
-}
+	// Create a map to store our claims
+	claims := token.Claims.(jwt.MapClaims)
 
-func logoutHandler(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	w.Header().Set("Content-Type", "application/json")
-	if err := services.Logout(r); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	} else {
-		w.WriteHeader(http.StatusOK)
-	}
-}
+	/* Set token claims */
+	claims["admin"] = true
+	claims["name"] = "Ado Kukic"
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+
+	/* Sign the token with our secret */
+	tokenString, _ := token.SignedString(mySigningKey)
+
+	/* Finally, write the token to the browser window */
+	w.Write([]byte(tokenString))
+})
+
+var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+		return mySigningKey, nil
+	},
+	SigningMethod: jwt.SigningMethodHS256,
+})
 
 func (s *WebService) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.storage.CreateConn()
