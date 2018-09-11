@@ -6,7 +6,7 @@ import (
 	"flag"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kostiamol/centerms/api/grpcsvc"
+	"github.com/kostiamol/centerms/api/grpc"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/kostiamol/centerms/services"
 )
@@ -55,7 +55,7 @@ func main() {
 	)
 	go data.Run()
 
-	grpcsvc.Init(grpcsvc.GRPCConfig{
+	grpc.Init(grpc.GRPCConfig{
 		ConfigService: config,
 		DataService:   data,
 		Retry:         *retry,

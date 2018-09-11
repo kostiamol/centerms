@@ -3,12 +3,12 @@
 # go get -u github.com/golang/protobuf/protoc-gen-go
 
 build:
-	protoc  -I api/pb/ api/pb/api.proto \
+	protoc  -I api/ api/api.proto \
 		-I/usr/local/include \
 		-I${GOPATH}/src \
 		-I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
-		--go_out=plugins=grpc:api/pb \
-		--swagger_out=logtostderr=true:api/pb
+		--go_out=plugins=grpc:api \
+		--swagger_out=logtostderr=true:api
 
 	# GOOS=linux GOARCH=amd64 go build ./cmd/centerms
 	# docker build -t centerms .

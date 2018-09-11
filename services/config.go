@@ -12,7 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
 	consul "github.com/hashicorp/consul/api"
-	"github.com/kostiamol/centerms/api/pb"
+	"github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/nats-io/go-nats"
 	"github.com/satori/go.uuid"
@@ -307,7 +307,7 @@ func (s *ConfigService) publishNewConfigPatchEvent(c *entities.DevConfig) {
 	}
 	defer conn.Close()
 
-	event := pb.EventStore{
+	event := api.EventStore{
 		AggregateId:   c.MAC,
 		AggregateType: aggregate,
 		EventId:       uuid.NewV4().String(),

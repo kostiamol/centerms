@@ -1,4 +1,4 @@
-package grpcsvc
+package grpc
 
 import (
 	"math/rand"
@@ -8,7 +8,7 @@ import (
 	"net"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kostiamol/centerms/api/pb"
+	"github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/entities"
 	"github.com/kostiamol/centerms/services"
 	"golang.org/x/net/context"
@@ -30,8 +30,8 @@ func Init(c GRPCConfig) {
 	go s.listenData()
 }
 
-func newCenterServiceGRPC(c GRPCConfig) *api {
-	return &api{
+func newCenterServiceGRPC(c GRPCConfig) *svc {
+	return &svc{
 		configService: *c.ConfigService,
 		dataService:   *c.DataService,
 		retry:         c.Retry,
@@ -39,7 +39,7 @@ func newCenterServiceGRPC(c GRPCConfig) *api {
 	}
 }
 
-type api struct {
+type svc struct {
 	configService services.ConfigService
 	dataService   services.DataService
 	ctrl          entities.ServiceController
@@ -49,7 +49,7 @@ type api struct {
 
 // SetDevInitConfig sets device's initial config when it connects to the center for the first time using ConfigService
 // and returns that config to the device.
-func (a *api) SetDevInitConfig(ctx context.Context, req *pb.SetDevInitConfigRequest) (*pb.SetDevInitConfigResponse,
+func (s *svc) SetDevInitConfig(ctx context.Context, req *api.SetDevInitConfigRequest) (*api.SetDevInitConfigResponse,
 	error) {
 	meta := entities.DevMeta{
 		Type: req.Meta.Type,
@@ -57,15 +57,15 @@ func (a *api) SetDevInitConfig(ctx context.Context, req *pb.SetDevInitConfigRequ
 		MAC:  req.Meta.Mac,
 	}
 
-	config, _ := a.configService.SetDevInitConfig(&meta)
+	config, _ := s.configService.SetDevInitConfig(&meta)
 
-	return &pb.SetDevInitConfigResponse{
+	return &api.SetDevInitConfigResponse{
 		Config: config.Data,
 	}, nil
 }
 
 // SaveDevData saves data from device using DataService.
-func (a *api) SaveDevData(ctx context.Context, req *pb.SaveDevDataRequest) (*pb.SaveDevDataResponse, error) {
+func (s *svc) SaveDevData(ctx context.Context, req *api.SaveDevDataRequest) (*api.SaveDevDataResponse, error) {
 	data := entities.DevData{
 		Time: req.Time,
 		Meta: entities.DevMeta{
@@ -76,68 +76,68 @@ func (a *api) SaveDevData(ctx context.Context, req *pb.SaveDevDataRequest) (*pb.
 		Data: req.Data,
 	}
 
-	a.dataService.SaveDevData(&data)
+	s.dataService.SaveDevData(&data)
 
-	return &pb.SaveDevDataResponse{
+	return &api.SaveDevDataResponse{
 		Status: "OK",
 	}, nil
 }
 
-func (a *api) listenConfig() {
+func (s *svc) listenConfig() {
 	defer func() {
 		if r := recover(); r != nil {
-			a.log.WithFields(logrus.Fields{
+			s.log.WithFields(logrus.Fields{
 				"func":  "listenConfig",
 				"event": entities.EventPanic,
 			}).Errorf("%s", r)
-			a.ctrl.StopChan <- struct{}{}
+			s.ctrl.StopChan <- struct{}{}
 		}
 	}()
 
-	ln, err := net.Listen("tcp", a.configService.GetAddr().Host+":"+fmt.Sprint(a.configService.GetAddr().Port))
+	ln, err := net.Listen("tcp", s.configService.GetAddr().Host+":"+fmt.Sprint(s.configService.GetAddr().Port))
 	for err != nil {
-		a.log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "listenConfig",
 		}).Errorf("Listen() has failed: %s", err)
-		duration := time.Duration(rand.Intn(int(a.retry.Seconds())))
+		duration := time.Duration(rand.Intn(int(s.retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		ln, err = net.Listen("tcp", a.configService.GetAddr().Host+":"+fmt.Sprint(a.configService.GetAddr().Port))
+		ln, err = net.Listen("tcp", s.configService.GetAddr().Host+":"+fmt.Sprint(s.configService.GetAddr().Port))
 	}
 
 	gs := grpc.NewServer()
-	pb.RegisterCenterServiceServer(gs, a)
+	api.RegisterCenterServiceServer(gs, s)
 	if gs.Serve(ln); err != nil {
-		a.log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "listenConfig",
 		}).Fatalf("failed to serve: %s", err)
 	}
 }
 
-func (a *api) listenData() {
+func (s *svc) listenData() {
 	defer func() {
 		if r := recover(); r != nil {
-			a.log.WithFields(logrus.Fields{
+			s.log.WithFields(logrus.Fields{
 				"func":  "listenData",
 				"event": entities.EventPanic,
 			}).Errorf("%s", r)
-			a.ctrl.StopChan <- struct{}{}
+			s.ctrl.StopChan <- struct{}{}
 		}
 	}()
 
-	ln, err := net.Listen("tcp", a.dataService.GetAddr().Host+":"+fmt.Sprint(a.dataService.GetAddr().Port))
+	ln, err := net.Listen("tcp", s.dataService.GetAddr().Host+":"+fmt.Sprint(s.dataService.GetAddr().Port))
 	for err != nil {
-		a.log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "listenData",
 		}).Errorf("Listen() has failed: %s", err)
-		duration := time.Duration(rand.Intn(int(a.retry.Seconds())))
+		duration := time.Duration(rand.Intn(int(s.retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
-		ln, err = net.Listen("tcp", a.dataService.GetAddr().Host+":"+fmt.Sprint(a.dataService.GetAddr().Port))
+		ln, err = net.Listen("tcp", s.dataService.GetAddr().Host+":"+fmt.Sprint(s.dataService.GetAddr().Port))
 	}
 
 	gs := grpc.NewServer()
-	pb.RegisterCenterServiceServer(gs, a)
+	api.RegisterCenterServiceServer(gs, s)
 	if gs.Serve(ln); err != nil {
-		a.log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "listenConfig",
 		}).Fatalf("failed to serve: %s", err)
 	}
