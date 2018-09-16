@@ -109,7 +109,7 @@ func (s *WebService) Run() {
 
 	httpSrv.Addr = s.addr.Host + ":" + fmt.Sprint(s.addr.Port)
 	if err := httpSrv.ListenAndServe(); err != nil {
-		s.log.Fatal("httpSrv.ListenAndServe() failed with %s", err)
+		s.log.Fatalf("httpSrv.ListenAndServe() failed with %s", err)
 	}
 
 	// allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "OPTIONS", "PATCH"})
