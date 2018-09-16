@@ -55,7 +55,7 @@ func main() {
 	)
 	go data.Run()
 
-	grpc.Init(grpc.GRPCConfig{
+	grpc.Init(grpc.Config{
 		ConfigService: config,
 		DataService:   data,
 		Retry:         *retry,

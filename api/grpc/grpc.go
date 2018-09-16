@@ -15,8 +15,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-// GRPCConfig holds services for handling device data and configs, retry interval and log.
-type GRPCConfig struct {
+// Config holds services for handling device data and configs, retry interval and log.
+type Config struct {
 	ConfigService *services.ConfigService
 	DataService   *services.DataService
 	Retry         time.Duration
@@ -24,13 +24,13 @@ type GRPCConfig struct {
 }
 
 // Init initializes gRPC and starts goroutines for listening device data and configs.
-func Init(c GRPCConfig) {
+func Init(c Config) {
 	s := newCenterServiceGRPC(c)
 	go s.listenConfig()
 	go s.listenData()
 }
 
-func newCenterServiceGRPC(c GRPCConfig) *svc {
+func newCenterServiceGRPC(c Config) *svc {
 	return &svc{
 		configService: *c.ConfigService,
 		dataService:   *c.DataService,
