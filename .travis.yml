@@ -15,5 +15,7 @@ before_script:
     - go get -u github.com/mattn/goveralls
 script:
     - go test -v -race ./...
+    - go vet ./...
     - gocyclo -over 19 $GO_FILES
+    - golint -set_exit_status $(go list ./...)
     - "$GOPATH/bin/goveralls -service=travis-ci"
