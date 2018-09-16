@@ -4,6 +4,8 @@
 # centerms
 The project implements a server-side management automation for a home.
 
+<p align="left"><img src="docs/assets/Schema.png" width="360"></p>
+
 ## Quickstart
 1. [Install and run the NATS server](https://github.com/nats-io/gnatsd#quickstart)
 2. [Install and run the Redis server](https://redis.io/topics/quickstart#installing-redis)
