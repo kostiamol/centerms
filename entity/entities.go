@@ -1,30 +1,29 @@
-// Package entities provides definitions for common basic entities
+// Package entity provides definitions for common basic entities
 // and some of their functions.
-package entities
+package entity
 
 import (
 	"encoding/json"
-	"time"
 )
 
 // Inner channels for data exchange.
 const (
-	DevDataChan   = "dev_data"
-	DevConfigChan = "dev_config"
+	DevDataChan = "dev_data"
+	DevCfgChan  = "dev_conf"
 )
 
 // Inner events.
 const (
-	EventConfigPatchCreated = "config_patch_created"
-	EventDevRegistered      = "dev_registered"
-	EventMSTerminated       = "ms_terminated"
-	EventPanic              = "panic"
-	EventStorageInit        = "storage_init"
-	EventSVCStarted         = "svc_started"
-	EventSVCShutdown        = "svc_shutdown"
-	EventWSConnAdded        = "ws_conn_added"
-	EventWSConnRemoved      = "ws_conn_removed"
-	EventUpdConsulStatus    = "upd_consul_status"
+	EventCfgPatchCreated = "conf_patch_created"
+	EventDevRegistered   = "dev_registered"
+	EventMSTerminated    = "ms_terminated"
+	EventPanic           = "panic"
+	EventStoreInit       = "store_init"
+	EventSVCStarted      = "svc_started"
+	EventSVCShutdown     = "svc_shutdown"
+	EventWSConnAdded     = "ws_conn_added"
+	EventWSConnRemoved   = "ws_conn_removed"
+	EventUpdConsulStatus = "upd_consul_status"
 )
 
 // Query the Consul for services:
@@ -44,8 +43,8 @@ type Notifier interface {
 	Subscribe(cn chan []byte, channel ...string)
 }
 
-// DevDataStorager deals with device data.
-type DevDataStorager interface {
+// DevDataStorer deals with device data.
+type DevDataStorer interface {
 	GetDevsData() ([]DevData, error)
 	GetDevData(id DevID) (*DevData, error)
 	SaveDevData(d *DevData) error
@@ -53,31 +52,31 @@ type DevDataStorager interface {
 	SetDevMeta(m *DevMeta) error
 }
 
-// DevConfigStorager deals with device configs.
-type DevConfigStorager interface {
-	GetDevConfig(id DevID) (*DevConfig, error)
-	SetDevConfig(id DevID, c *DevConfig) error
-	GetDevDefaultConfig(m *DevMeta) (*DevConfig, error)
+// DevCfgStorer deals with device configurations.
+type DevCfgStorer interface {
+	GetDevCfg(id DevID) (*DevCfg, error)
+	SetDevCfg(id DevID, c *DevCfg) error
+	GetDevDefaultCfg(m *DevMeta) (*DevCfg, error)
 	DevIsRegistered(m *DevMeta) (bool, error)
 }
 
-// Storager is an external entity for storing device data and configs and subscribing/publishing internal for the
+// Storer is an external entity for storing device data and configs and subscribing/publishing internal for the
 // center data.
-type Storager interface {
+type Storer interface {
 	Externer
 	Notifier
-	DevDataStorager
-	DevConfigStorager
+	DevDataStorer
+	DevCfgStorer
 	Init() error
-	CreateConn() (Storager, error)
+	CreateConn() (Storer, error)
 	CloseConn() error
 }
 
 // DevID is used to device's id.
 type DevID string
 
-// Address is used to store IP address and an open port of the remote server.
-type Address struct {
+// Addr is used to store IP address and an open port of the remote server.
+type Addr struct {
 	Host string
 	Port int
 }
@@ -85,7 +84,7 @@ type Address struct {
 // Subscription is used to store channel name and chan for subscribing.
 type Subscription struct {
 	ChanName string
-	Channel  chan []byte
+	Chan     chan []byte
 }
 
 // DevData is used to store time of the request, device's metadata and the data it transfers.
@@ -95,8 +94,8 @@ type DevData struct {
 	Data json.RawMessage `json:"data"`
 }
 
-// DevConfig holds device's MAC address and config.
-type DevConfig struct {
+// DevCfg holds device's MAC address and config.
+type DevCfg struct {
 	MAC  string          `json:"mac"`
 	Data json.RawMessage `json:"data"`
 }
@@ -106,29 +105,6 @@ type DevMeta struct {
 	Type string `json:"type"`
 	Name string `json:"name"`
 	MAC  string `json:"mac"`
-}
-
-// ServiceController is used to store StopChan that allows to terminate all the services that listen the channel.
-type ServiceController struct {
-	StopChan chan struct{}
-}
-
-const timeForRoutineTermination = time.Second * 3
-
-// Wait waits until StopChan will be closed and then makes a pause for the amount seconds defined in variable
-// timeForRoutineTermination in order to give time for all the services to shutdown gracefully.
-func (c *ServiceController) Wait() {
-	<-c.StopChan
-	<-time.NewTimer(timeForRoutineTermination).C
-}
-
-// Terminate closes StopChan to signal all the services to shutdown.
-func (c *ServiceController) Terminate() {
-	select {
-	case <-c.StopChan:
-	default:
-		close(c.StopChan)
-	}
 }
 
 // User is used to authenticate requests

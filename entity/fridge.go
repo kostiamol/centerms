@@ -1,8 +1,8 @@
-package entities
+package entity
 
 var (
-	// DefaultFridgeConfig is used to store default fridge config.
-	DefaultFridgeConfig = FridgeConfig{
+	// DefaultFridgeCfg is used to store default fridge configuration.
+	DefaultFridgeCfg = FridgeCfg{
 		TurnedOn:    true,
 		CollectFreq: 1000,
 		SendFreq:    2000,
@@ -15,8 +15,8 @@ type FridgeData struct {
 	BotCompart map[int64]float32 `json:"botCompart"`
 }
 
-// FridgeConfig is used to store fridge config.
-type FridgeConfig struct {
+// FridgeCfg is used to store fridge configuration.
+type FridgeCfg struct {
 	TurnedOn    bool  `json:"turnedOn"`
 	CollectFreq int64 `json:"collectFreq"`
 	SendFreq    int64 `json:"sendFreq"`

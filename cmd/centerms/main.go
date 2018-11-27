@@ -1,14 +1,14 @@
 package main
 
 import (
+	"github.com/kostiamol/centerms/api/rpc"
 	"os"
 
 	"flag"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kostiamol/centerms/api/grpc"
-	"github.com/kostiamol/centerms/entities"
-	"github.com/kostiamol/centerms/services"
+	"github.com/kostiamol/centerms/entity"
+	"github.com/kostiamol/centerms/svc"
 )
 
 // todo: add Prometheus
@@ -18,73 +18,73 @@ import (
 func main() {
 	flag.Parse()
 
-	if err := storage.Init(); err != nil {
+	if err := store.Init(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"func":  "main",
-			"event": entities.EventStorageInit,
+			"event": entity.EventStoreInit,
 		}).Errorf("%s", err)
 		os.Exit(1)
 	}
 
-	config := services.NewConfigService(
-		entities.Address{
+	cfg := svc.NewCfg(
+		entity.Addr{
 			Host: localhost,
-			Port: *devConfigPort,
+			Port: *devCfgPort,
 		},
-		storage,
+		store,
 		ctrl,
 		logrus.NewEntry(log),
 		*retry,
-		entities.DevConfigChan,
-		configAgentName,
+		entity.DevCfgChan,
+		cfgAgentName,
 		*ttl,
 	)
-	go config.Run()
+	go cfg.Run()
 
-	data := services.NewDataService(
-		entities.Address{
+	data := svc.NewData(
+		entity.Addr{
 			Host: localhost,
 			Port: *devDataPort,
 		},
-		storage,
+		store,
 		ctrl,
 		logrus.NewEntry(log),
-		entities.DevDataChan,
+		entity.DevDataChan,
 		dataAgentName,
 		*ttl,
 	)
 	go data.Run()
 
-	grpc.Init(grpc.Config{
-		ConfigService: config,
-		DataService:   data,
-		Retry:         *retry,
-		Log:           logrus.NewEntry(log),
+	rpc.Init(rpc.Cfg{
+		Cfg:   cfg,
+		Data:  data,
+		Retry: *retry,
+		Log:   logrus.NewEntry(log),
 	})
 
-	stream := services.NewStreamService(
-		entities.Address{
+	stream := svc.NewStream(
+		entity.Addr{
 			Host: webHost,
 			Port: *streamPort,
 		},
-		storage,
+		store,
 		ctrl,
 		logrus.NewEntry(log),
-		entities.DevDataChan,
+		entity.DevDataChan,
 		streamAgentName,
 		*ttl,
 	)
 	go stream.Run()
 
-	web := services.NewWebService(
-		entities.Address{
+	web := svc.NewWeb(
+		entity.Addr{
 			Host: webHost,
 			Port: *webPort,
 		},
-		storage,
+		store,
 		ctrl,
 		logrus.NewEntry(log),
-		entities.DevConfigChan,
+		entity.DevCfgChan,
 		webAgentName,
 		*ttl,
 	)
@@ -94,6 +94,6 @@ func main() {
 
 	logrus.WithFields(logrus.Fields{
 		"func":  "main",
-		"event": entities.EventMSTerminated,
+		"event": entity.EventMSTerminated,
 	}).Info("center is down")
 }

@@ -360,7 +360,7 @@ func NewCenterServiceClient(cc *grpc.ClientConn) CenterServiceClient {
 
 func (c *centerServiceClient) SetDevInitConfig(ctx context.Context, in *SetDevInitConfigRequest, opts ...grpc.CallOption) (*SetDevInitConfigResponse, error) {
 	out := new(SetDevInitConfigResponse)
-	err := c.cc.Invoke(ctx, "/api.CenterService/SetDevInitConfig", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/api.CenterService/SetDevInitConf", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +396,7 @@ func _CenterService_SetDevInitConfig_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.CenterService/SetDevInitConfig",
+		FullMethod: "/api.CenterService/SetDevInitConf",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CenterServiceServer).SetDevInitConfig(ctx, req.(*SetDevInitConfigRequest))
@@ -427,7 +427,7 @@ var _CenterService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*CenterServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SetDevInitConfig",
+			MethodName: "SetDevInitConf",
 			Handler:    _CenterService_SetDevInitConfig_Handler,
 		},
 		{

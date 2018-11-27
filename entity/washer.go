@@ -1,8 +1,8 @@
-package entities
+package entity
 
 var (
-	// LightMode stores config for light washing mode.
-	LightMode = WasherConfig{
+	// LightMode stores configuration for light washing mode.
+	LightMode = WasherCfg{
 		Name:           "LightMode",
 		Temperature:    60,
 		WashTime:       90,
@@ -13,8 +13,8 @@ var (
 		SpinTurnovers:  60,
 	}
 
-	// FastMode stores config for fast washing mode.
-	FastMode = WasherConfig{
+	// FastMode stores configuration for fast washing mode.
+	FastMode = WasherCfg{
 		Name:           "FastMode",
 		Temperature:    180,
 		WashTime:       30,
@@ -25,8 +25,8 @@ var (
 		SpinTurnovers:  60,
 	}
 
-	// StandardMode stores config for standard washing mode.
-	StandardMode = WasherConfig{
+	// StandardMode stores configuration for standard washing mode.
+	StandardMode = WasherCfg{
 		Name:           "StandardMode",
 		Temperature:    240,
 		WashTime:       120,
@@ -44,8 +44,8 @@ type WasherData struct {
 	WaterTemp map[int64]float32 `json:"waterTemp"`
 }
 
-// WasherConfig is used to store washer config.
-type WasherConfig struct {
+// WasherCfg is used to store washer configuration.
+type WasherCfg struct {
 	Name           string  `json:"name"`
 	MAC            string  `json:"mac"`
 	Temperature    float32 `json:"temp"`
