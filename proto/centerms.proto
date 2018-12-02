@@ -1,7 +1,5 @@
 syntax = "proto3";
-package api;
-
-import "google/api/annotations.proto";
+package cproto;
 
 // EventStore is used for NATS Publish-Subscribe
 message EventStore {
@@ -13,7 +11,7 @@ message EventStore {
 }
 
 service CenterService {
-    rpc SetDevInitConfig(SetDevInitConfigRequest) returns (SetDevInitConfigResponse) {}
+    rpc SetDevInitCfg(SetDevInitCfgRequest) returns (SetDevInitCfgResponse) {}
     rpc SaveDevData(SaveDevDataRequest) returns (SaveDevDataResponse) {}
 }
 
@@ -23,12 +21,12 @@ message DevMeta {
     string mac = 3;
 }
 
-message SetDevInitConfigRequest {
+message SetDevInitCfgRequest {
     int64 time = 1;
     DevMeta meta = 2;
 }
-message SetDevInitConfigResponse {
-    bytes config = 1;
+message SetDevInitCfgResponse {
+    bytes cfg = 1;
 }
 
 message SaveDevDataRequest {
