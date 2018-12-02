@@ -152,7 +152,12 @@ func (d *Data) terminate() {
 		}
 	}()
 
-	d.store.CloseConn()
+	if err := d.store.CloseConn(); err != nil {
+		d.log.WithFields(logrus.Fields{
+			"func": "terminate",
+		}).Errorf("%s", err)
+	}
+
 	d.log.WithFields(logrus.Fields{
 		"func":  "terminate",
 		"event": entity.EventSVCShutdown,

@@ -47,7 +47,7 @@ func NewRedis(a entity.Addr, l *logrus.Entry, retry time.Duration, agentName str
 	}
 }
 
-// Init initializes an instance of Redis.
+// Run initializes an instance of Redis.
 func (r *Redis) Init() error {
 	if r.addr.Host == "" {
 		return errors.New("Redis: SetServer(): host is empty")
@@ -59,7 +59,7 @@ func (r *Redis) Init() error {
 	r.conn, err = redis.Dial("tcp", r.addr.Host+":"+fmt.Sprint(r.addr.Port))
 	for err != nil {
 		r.log.WithFields(logrus.Fields{
-			"func": "Init",
+			"func": "Run",
 		}).Errorf("Connect() has failed: %s", err)
 		duration := time.Duration(rand.Intn(int(r.retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
@@ -143,7 +143,7 @@ func (r *Redis) CreateConn() (entity.Storer, error) {
 	store.conn, err = redis.Dial("tcp", r.addr.Host+":"+fmt.Sprint(r.addr.Port))
 	for err != nil {
 		r.log.WithFields(logrus.Fields{
-			"func": "Init",
+			"func": "Run",
 		}).Errorf("Connect() has failed: %s", err)
 		duration := time.Duration(rand.Intn(int(r.retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)

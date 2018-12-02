@@ -2,6 +2,7 @@
 package svc
 
 import (
+	"github.com/kostiamol/centerms/proto"
 	"golang.org/x/net/context"
 
 	"math/rand"
@@ -12,7 +13,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
 	consul "github.com/hashicorp/consul/api"
-	"github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/entity"
 	"github.com/nats-io/go-nats"
 	"github.com/satori/go.uuid"
@@ -113,7 +113,7 @@ func (c *Cfg) runConsulAgent() {
 	go c.updateTTL(c.check)
 }
 
-// TODO: substitute bool with byte
+// todo: substitute bool with byte
 func (c *Cfg) check() (bool, error) {
 	// while the service is alive - everything is ok
 	return true, nil
@@ -171,7 +171,12 @@ func (c *Cfg) terminate() {
 		}
 	}()
 
-	c.store.CloseConn()
+	if err := c.store.CloseConn(); err != nil {
+		c.log.WithFields(logrus.Fields{
+			"func": "terminate",
+		}).Errorf("%s", err)
+	}
+
 	c.log.WithFields(logrus.Fields{
 		"func":  "terminate",
 		"event": entity.EventSVCShutdown,
@@ -179,22 +184,22 @@ func (c *Cfg) terminate() {
 	c.ctrl.Terminate()
 }
 
-// SetDevInitConf check's whether device is already registered in the system. If it's already registered,
+// SetDevInitCfg check's whether device is already registered in the system. If it's already registered,
 // the func returns actual configuration. Otherwise it returns default config for that type of device.
 func (c *Cfg) SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 	conn, err := c.store.CreateConn()
 	if err != nil {
 		c.log.WithFields(logrus.Fields{
 			"func": "SetDevInitCfg",
-		}).Errorf("%c", err)
+		}).Errorf("%s", err)
 		return nil, err
 	}
 	defer conn.CloseConn()
 
-	if err := conn.SetDevMeta(m); err != nil {
+	if err = conn.SetDevMeta(m); err != nil {
 		c.log.WithFields(logrus.Fields{
 			"func": "SetDevInitCfg",
-		}).Errorf("%c", err)
+		}).Errorf("%s", err)
 		return nil, err
 	}
 
@@ -285,7 +290,7 @@ func (c *Cfg) listenCfgPatches(ctx context.Context) {
 	}
 }
 
-func (c *Cfg) pubNewCfgPatchEvent(conf *entity.DevCfg) {
+func (c *Cfg) pubNewCfgPatchEvent(cfg *entity.DevCfg) {
 	defer func() {
 		if r := recover(); r != nil {
 			c.log.WithFields(logrus.Fields{
@@ -307,24 +312,26 @@ func (c *Cfg) pubNewCfgPatchEvent(conf *entity.DevCfg) {
 	}
 	defer conn.Close()
 
-	ev := api.EventStore{
-		AggregateId:   conf.MAC,
+	s := cproto.EventStore{
+		AggregateId:   cfg.MAC,
 		AggregateType: aggregate,
 		EventId:       uuid.NewV4().String(),
 		EventType:     event,
-		EventData:     string(conf.Data),
+		EventData:     string(cfg.Data),
 	}
-	subj := "Cfg.Patch." + conf.MAC
-	b, err := proto.Marshal(&ev)
+	subj := "Cfg.Patch." + cfg.MAC
+	b, err := proto.Marshal(&s)
 	if err != nil {
 		c.log.WithFields(logrus.Fields{
 			"func": "pubNewCfgPatchEvent",
-		}).Error("marshal has failed: %s", err)
+		}).Errorf("marshal has failed: %s", err)
 	}
 
-	conn.Publish(subj, b)
+	if err := conn.Publish(subj, b); err != nil {
+
+	}
 	c.log.WithFields(logrus.Fields{
 		"func":  "pubNewCfgPatchEvent",
 		"event": entity.EventCfgPatchCreated,
-	}).Infof("cfg patch [%s] for device with id [%s]", conf.Data, conf.MAC)
+	}).Infof("cfg patch [%s] for device with id [%s]", cfg.Data, cfg.MAC)
 }

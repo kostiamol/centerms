@@ -52,14 +52,14 @@ func (w *Web) Run() {
 	w.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": entity.EventSVCStarted,
-	}).Infof("running on host: [%w], port: [%d]", w.addr.Host, w.addr.Port)
+	}).Infof("running on host: [%s], port: [%d]", w.addr.Host, w.addr.Port)
 
 	defer func() {
 		if r := recover(); r != nil {
 			w.log.WithFields(logrus.Fields{
 				"func":  "Run",
 				"event": entity.EventPanic,
-			}).Errorf("%w", r)
+			}).Errorf("%s", r)
 			w.terminate()
 		}
 	}()
@@ -76,7 +76,7 @@ func (w *Web) Run() {
 			if host == allowedHost {
 				return nil
 			}
-			return fmt.Errorf("acme/autocert: only %w host is allowed", allowedHost)
+			return fmt.Errorf("acme/autocert: only %s host is allowed", allowedHost)
 		}
 
 		dataDir := "./crt"
@@ -91,7 +91,7 @@ func (w *Web) Run() {
 		httpsSrv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
 
 		go func() {
-			fmt.Printf("Starting HTTPS server on %w\n", httpsSrv.Addr)
+			fmt.Printf("starting HTTPS server on %s\n", httpsSrv.Addr)
 			w.log.Fatal(httpsSrv.ListenAndServe())
 		}()
 	}
@@ -109,7 +109,7 @@ func (w *Web) Run() {
 
 	httpSrv.Addr = w.addr.Host + ":" + fmt.Sprint(w.addr.Port)
 	if err := httpSrv.ListenAndServe(); err != nil {
-		w.log.Fatalf("httpSrv.ListenAndServe() failed with %w", err)
+		w.log.Fatalf("httpSrv.ListenAndServe() failed with %s", err)
 	}
 
 	// allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "OPTIONS", "PATCH"})
@@ -157,7 +157,7 @@ func (w *Web) runConsulAgent() {
 		w.log.WithFields(logrus.Fields{
 			"func":  "Run",
 			"event": entity.EventPanic,
-		}).Errorf("%w", err)
+		}).Errorf("%s", err)
 		panic("consul init error")
 	}
 	a := &consul.AgentServiceRegistration{
@@ -172,7 +172,7 @@ func (w *Web) runConsulAgent() {
 		w.log.WithFields(logrus.Fields{
 			"func":  "Run",
 			"event": entity.EventPanic,
-		}).Errorf("%w", err)
+		}).Errorf("%s", err)
 		panic("consul init error")
 	}
 	go w.updateTTL(w.check)
@@ -197,7 +197,7 @@ func (w *Web) update(check func() (bool, error)) {
 		w.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": entity.EventUpdConsulStatus,
-		}).Errorf("check has failed: %w", err)
+		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
 		// to avoid returning errors or invalid data.
@@ -230,12 +230,17 @@ func (w *Web) terminate() {
 			w.log.WithFields(logrus.Fields{
 				"func":  "terminate",
 				"event": entity.EventPanic,
-			}).Errorf("%w", r)
+			}).Errorf("%s", r)
 			w.ctrl.Terminate()
 		}
 	}()
 
-	w.store.CloseConn()
+	if err := w.store.CloseConn(); err != nil {
+		w.log.WithFields(logrus.Fields{
+			"func": "terminate",
+		}).Errorf("%s", err)
+	}
+
 	w.log.WithFields(logrus.Fields{
 		"func":  "terminate",
 		"event": entity.EventSVCShutdown,
@@ -260,7 +265,7 @@ func (w *Web) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 				w.log.WithFields(logrus.Fields{
 					"func":  "recoveryAdapter",
 					"event": entity.EventPanic,
-				}).Errorf("%w", r)
+				}).Errorf("%s", r)
 				w.terminate()
 			}
 		}()

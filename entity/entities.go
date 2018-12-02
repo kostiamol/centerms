@@ -9,7 +9,7 @@ import (
 // Inner channels for data exchange.
 const (
 	DevDataChan = "dev_data"
-	DevCfgChan  = "dev_conf"
+	DevCfgChan  = "dev_cfg"
 )
 
 // Inner events.

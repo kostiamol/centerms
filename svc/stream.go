@@ -189,7 +189,12 @@ func (s *Stream) terminate() {
 		}
 	}()
 
-	s.store.CloseConn()
+	if err := s.store.CloseConn(); err != nil {
+		s.log.WithFields(logrus.Fields{
+			"func": "terminate",
+		}).Errorf("%s", err)
+	}
+
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
 		"event": entity.EventSVCShutdown,

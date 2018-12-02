@@ -1,72 +1,134 @@
-package rpc
+package api
 
 import (
 	"math/rand"
 	"time"
+
+	"github.com/kostiamol/centerms/proto"
 
 	"fmt"
 	"net"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/kostiamol/centerms/entity"
-	"github.com/kostiamol/centerms/svc"
-	"github.com/kostiamol/centerms/api"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
-// Cfg holds services for handling device data and configurations, retry interval and log.
-type Cfg struct {
-	Cfg   *svc.Cfg
-	Data  *svc.Data
-	Retry time.Duration
-	Log   *logrus.Entry
+type cfgProvider interface {
+	SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error)
+	GetAddr() entity.Addr
 }
 
-// Init initializes gRPC and starts goroutines for listening device data and configs.
-func Init(c Cfg) {
-	s := newCenterServiceGRPC(c)
-	go s.listenConf()
-	go s.listenData()
+type dataProvider interface {
+	SaveDevData(data *entity.DevData)
+	GetAddr() entity.Addr
 }
 
-func newCenterServiceGRPC(c Cfg) *service {
-	return &service{
-		conf:  *c.Cfg,
-		data:  *c.Data,
-		retry: c.Retry,
-		log:   c.Log.WithFields(logrus.Fields{"service": "api"}),
-	}
-}
-
-type service struct {
-	conf  svc.Cfg
-	data  svc.Data
-	ctrl  svc.Ctrl
+type _api struct {
+	cfg   cfgProvider
+	data  dataProvider
 	retry time.Duration
 	log   *logrus.Entry
 }
 
+// NewAPI creates and initializes a new instance of API service.
+func NewAPI(c cfgProvider, d dataProvider, retry time.Duration, l *logrus.Entry) *_api {
+	return &_api{
+		cfg:   c,
+		data:  d,
+		retry: retry,
+		log:   l.WithFields(logrus.Fields{"svc": "api"}),
+	}
+}
+
+// Run launches the goroutines for listening device data and configurations.
+func (a *_api) Run() {
+	go a.listenCfg()
+	go a.listenData()
+}
+
+func (a *_api) listenCfg() {
+	defer func() {
+		if r := recover(); r != nil {
+			a.log.WithFields(logrus.Fields{
+				"func":  "listenCfg",
+				"event": entity.EventPanic,
+			}).Errorf("%s", r)
+		}
+	}()
+
+	l, err := net.Listen("tcp", a.cfg.GetAddr().Host+":"+fmt.Sprint(a.cfg.GetAddr().Port))
+	for err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "listenCfg",
+		}).Errorf("Listen() has failed: %s", err)
+		d := time.Duration(rand.Intn(int(a.retry.Seconds())))
+		time.Sleep(time.Second*d + 1)
+		l, err = net.Listen("tcp", a.cfg.GetAddr().Host+":"+fmt.Sprint(a.cfg.GetAddr().Port))
+	}
+
+	s := grpc.NewServer()
+	cproto.RegisterCenterServiceServer(s, a)
+	if s.Serve(l); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "listenCfg",
+		}).Fatalf("failed to serve: %s", err)
+	}
+}
+
+func (a *_api) listenData() {
+	defer func() {
+		if r := recover(); r != nil {
+			a.log.WithFields(logrus.Fields{
+				"func":  "listenData",
+				"event": entity.EventPanic,
+			}).Errorf("%s", r)
+		}
+	}()
+
+	l, err := net.Listen("tcp", a.data.GetAddr().Host+":"+fmt.Sprint(a.data.GetAddr().Port))
+	for err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "listenData",
+		}).Errorf("Listen() has failed: %s", err)
+		d := time.Duration(rand.Intn(int(a.retry.Seconds())))
+		time.Sleep(time.Second*d + 1)
+		l, err = net.Listen("tcp", a.data.GetAddr().Host+":"+fmt.Sprint(a.data.GetAddr().Port))
+	}
+
+	s := grpc.NewServer()
+	cproto.RegisterCenterServiceServer(s, a)
+	if s.Serve(l); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "listenCfg",
+		}).Fatalf("failed to serve: %s", err)
+	}
+}
+
 // SetDevInitConf sets device's initial configuration when it connects to the center for the first time using Cfg
 // and returns that configuration to the device.
-func (a *service) SetDevInitConfig(ctx context.Context, req *api.SetDevInitConfigRequest) (*api.SetDevInitConfigResponse,
+func (a *_api) SetDevInitCfg(ctx context.Context, req *cproto.SetDevInitCfgRequest) (*cproto.SetDevInitCfgResponse,
 	error) {
-	meta := entity.DevMeta{
+	m := entity.DevMeta{
 		Type: req.Meta.Type,
 		Name: req.Meta.Name,
 		MAC:  req.Meta.Mac,
 	}
 
-	c, _ := a.conf.SetDevInitCfg(&meta)
+	c, err := a.cfg.SetDevInitCfg(&m)
+	if err != nil {
 
-	return &api.SetDevInitConfigResponse{
-		Config: c.Data,
+	}
+
+	return &cproto.SetDevInitCfgResponse{
+		Cfg: c.Data,
 	}, nil
 }
 
 // SaveDevData saves data from device using Data.
-func (a *service) SaveDevData(ctx context.Context, req *api.SaveDevDataRequest) (*api.SaveDevDataResponse, error) {
-	data := entity.DevData{
+func (a *_api) SaveDevData(ctx context.Context, req *cproto.SaveDevDataRequest) (*cproto.SaveDevDataResponse, error) {
+	d := entity.DevData{
 		Time: req.Time,
 		Meta: entity.DevMeta{
 			Type: req.Meta.Type,
@@ -76,69 +138,9 @@ func (a *service) SaveDevData(ctx context.Context, req *api.SaveDevDataRequest) 
 		Data: req.Data,
 	}
 
-	a.data.SaveDevData(&data)
+	a.data.SaveDevData(&d)
 
-	return &api.SaveDevDataResponse{
+	return &cproto.SaveDevDataResponse{
 		Status: "OK",
 	}, nil
-}
-
-func (a *service) listenConf() {
-	defer func() {
-		if r := recover(); r != nil {
-			a.log.WithFields(logrus.Fields{
-				"func":  "listenConf",
-				"event": entity.EventPanic,
-			}).Errorf("%a", r)
-			a.ctrl.StopChan <- struct{}{}
-		}
-	}()
-
-	ln, err := net.Listen("tcp", a.conf.GetAddr().Host+":"+fmt.Sprint(a.conf.GetAddr().Port))
-	for err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "listenConf",
-		}).Errorf("Listen() has failed: %a", err)
-		duration := time.Duration(rand.Intn(int(a.retry.Seconds())))
-		time.Sleep(time.Second*duration + 1)
-		ln, err = net.Listen("tcp", a.conf.GetAddr().Host+":"+fmt.Sprint(a.conf.GetAddr().Port))
-	}
-
-	gs := grpc.NewServer()
-	api.RegisterCenterServiceServer(gs, a)
-	if gs.Serve(ln); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "listenConf",
-		}).Fatalf("failed to serve: %a", err)
-	}
-}
-
-func (a *service) listenData() {
-	defer func() {
-		if r := recover(); r != nil {
-			a.log.WithFields(logrus.Fields{
-				"func":  "listenData",
-				"event": entity.EventPanic,
-			}).Errorf("%a", r)
-			a.ctrl.StopChan <- struct{}{}
-		}
-	}()
-
-	ln, err := net.Listen("tcp", a.data.GetAddr().Host+":"+fmt.Sprint(a.data.GetAddr().Port))
-	for err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "listenData",
-		}).Errorf("Listen() has failed: %a", err)
-		duration := time.Duration(rand.Intn(int(a.retry.Seconds())))
-		time.Sleep(time.Second*duration + 1)
-		ln, err = net.Listen("tcp", a.data.GetAddr().Host+":"+fmt.Sprint(a.data.GetAddr().Port))
-	}
-
-	gs := grpc.NewServer()
-	api.RegisterCenterServiceServer(gs, a)
-	if gs.Serve(ln); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "listenConf",
-		}).Fatalf("failed to serve: %a", err)
-	}
 }

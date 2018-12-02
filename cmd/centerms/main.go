@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/kostiamol/centerms/api/rpc"
 	"os"
+
+	"github.com/kostiamol/centerms/api"
 
 	"flag"
 
@@ -26,7 +27,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg := svc.NewCfg(
+	c := svc.NewCfg(
 		entity.Addr{
 			Host: localhost,
 			Port: *devCfgPort,
@@ -39,9 +40,9 @@ func main() {
 		cfgAgentName,
 		*ttl,
 	)
-	go cfg.Run()
+	go c.Run()
 
-	data := svc.NewData(
+	d := svc.NewData(
 		entity.Addr{
 			Host: localhost,
 			Port: *devDataPort,
@@ -53,16 +54,17 @@ func main() {
 		dataAgentName,
 		*ttl,
 	)
-	go data.Run()
+	go d.Run()
 
-	rpc.Init(rpc.Cfg{
-		Cfg:   cfg,
-		Data:  data,
-		Retry: *retry,
-		Log:   logrus.NewEntry(log),
-	})
+	a := api.NewAPI(
+		c,
+		d,
+		*retry,
+		logrus.NewEntry(log),
+	)
+	a.Run()
 
-	stream := svc.NewStream(
+	s := svc.NewStream(
 		entity.Addr{
 			Host: webHost,
 			Port: *streamPort,
@@ -74,9 +76,9 @@ func main() {
 		streamAgentName,
 		*ttl,
 	)
-	go stream.Run()
+	go s.Run()
 
-	web := svc.NewWeb(
+	w := svc.NewWeb(
 		entity.Addr{
 			Host: webHost,
 			Port: *webPort,
@@ -88,7 +90,7 @@ func main() {
 		webAgentName,
 		*ttl,
 	)
-	go web.Run()
+	go w.Run()
 
 	ctrl.Wait()
 

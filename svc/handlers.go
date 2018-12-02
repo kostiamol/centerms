@@ -32,10 +32,19 @@ var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
 	// sign the token with the secret
-	tokenString, _ := token.SignedString(mySigningKey)
+	tokenString, err := token.SignedString(mySigningKey)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"func": "getTokenHandler",
+		}).Errorf("%s", err)
+	}
 
 	// finally, write the token to the browser window
-	w.Write([]byte(tokenString))
+	if _, err := w.Write([]byte(tokenString)); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"func": "getTokenHandler",
+		}).Errorf("%s", err)
+	}
 })
 
 var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
