@@ -36,8 +36,9 @@ type Stream struct {
 }
 
 // NewStream creates and initializes a new instance of Stream service.
-func NewStream(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry,
-	pubChan string, agentName string, ttl time.Duration) *Stream {
+func NewStream(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
+	ttl time.Duration) *Stream {
+
 	upg := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -53,7 +54,7 @@ func NewStream(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry,
 		addr:  a,
 		store: s,
 		ctrl:  c,
-		log:   l.WithFields(logrus.Fields{"service": "stream"}),
+		log:   l.WithFields(logrus.Fields{"svc": "stream"}),
 		conns: *newStreamConns(),
 		sub: entity.Subscription{
 			ChanName: pubChan,
@@ -88,7 +89,6 @@ func (s *Stream) Run() {
 	go s.listenTermination()
 	go s.listenPubs(ctx)
 	go s.listenClosedConns(ctx)
-
 	s.runConsulAgent()
 
 	r := mux.NewRouter()
@@ -145,7 +145,7 @@ func (s *Stream) updateTTL(check func() (bool, error)) {
 }
 
 func (s *Stream) update(check func() (bool, error)) {
-	var h string
+	var health string
 	ok, err := check()
 	if !ok {
 		s.log.WithFields(logrus.Fields{
@@ -155,12 +155,12 @@ func (s *Stream) update(check func() (bool, error)) {
 
 		// failed check will remove a service instance from DNS and HTTP query
 		// to avoid returning errors or invalid data.
-		h = consul.HealthCritical
+		health = consul.HealthCritical
 	} else {
-		h = consul.HealthPassing
+		health = consul.HealthPassing
 	}
 
-	if err := s.agent.UpdateTTL("svc:"+s.agentName, "", h); err != nil {
+	if err := s.agent.UpdateTTL("svc:"+s.agentName, "", health); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": entity.EventUpdConsulStatus,
@@ -279,23 +279,23 @@ func (s *Stream) stream(ctx context.Context, msg []byte) error {
 		}
 	}()
 
-	var data entity.DevData
-	if err := json.Unmarshal(msg, &data); err != nil {
+	var d entity.DevData
+	if err := json.Unmarshal(msg, &d); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "stream",
 		}).Errorf("%s", err)
 		return err
 	}
 
-	if _, ok := s.conns.idConns[entity.DevID(data.Meta.MAC)]; ok {
-		for _, conn := range s.conns.idConns[entity.DevID(data.Meta.MAC)].Conns {
+	if _, ok := s.conns.idConns[entity.DevID(d.Meta.MAC)]; ok {
+		for _, conn := range s.conns.idConns[entity.DevID(d.Meta.MAC)].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				s.conns.idConns[entity.DevID(data.Meta.MAC)].Lock()
+				s.conns.idConns[entity.DevID(d.Meta.MAC)].Lock()
 				err := conn.WriteMessage(1, msg)
-				s.conns.idConns[entity.DevID(data.Meta.MAC)].Unlock()
+				s.conns.idConns[entity.DevID(d.Meta.MAC)].Unlock()
 				if err != nil {
 					s.log.WithFields(logrus.Fields{
 						"func":  "stream",

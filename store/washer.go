@@ -14,20 +14,20 @@ func (r *Redis) getWasherData(m *entity.DevMeta) (*entity.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	devParamsKey := devKey + partialDevParamsKey
 
-	d := make(map[string][]string)
+	data := make(map[string][]string)
 	params, err := redis.Strings(r.conn.Do("SMEMBERS", devParamsKey))
 	if err != nil {
 		errors.Wrap(err, "RedisDevStore: getWasherData(): can't read members from devParamsKeys")
 	}
 
 	for _, p := range params {
-		d[p], err = redis.Strings(r.conn.Do("ZRANGEBYSCORE", devParamsKey+":"+p, "-inf", "inf"))
+		data[p], err = redis.Strings(r.conn.Do("ZRANGEBYSCORE", devParamsKey+":"+p, "-inf", "inf"))
 		if err != nil {
 			errors.Wrap(err, "RedisDevStore: getWasherData(): can't read members from sorted set")
 		}
 	}
 
-	b, err := json.Marshal(&d)
+	b, err := json.Marshal(&data)
 	if err != nil {
 		errors.Wrap(err, "Redis: getWasherData(): washer data marshalling has failed")
 		return nil, err
@@ -69,7 +69,6 @@ func (r *Redis) saveWasherData(d *entity.DevData) error {
 		r.conn.Do("DISCARD")
 		return err
 	}
-
 	return nil
 }
 
@@ -82,7 +81,6 @@ func (r *Redis) setTurnoversData(tempCam map[int64]int64, key string) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -96,7 +94,6 @@ func (r *Redis) setWaterTempData(tempCam map[int64]float32, key string) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -117,12 +114,11 @@ func (r *Redis) getWasherCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 		return c, err
 	}
 
-	lm := entity.LightMode
-	c.Data, err = json.Marshal(lm)
+	l := entity.LightMode
+	c.Data, err = json.Marshal(l)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStore: getWasherCfg(): WasherCfg marshalling has failed")
 	}
-
 	return c, err
 }
 
@@ -138,7 +134,6 @@ func (r *Redis) setWasherCfg(c *entity.DevCfg) error {
 	if err != nil {
 		errors.Wrap(err, "RedisDevStore: setWasherCfg(): ZAdd() has failed")
 	}
-
 	return err
 }
 

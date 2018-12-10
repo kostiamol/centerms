@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
-	s "github.com/kostiamol/centerms/store/redis"
-	"github.com/kostiamol/centerms/svc"
 	"os"
 	"time"
+
+	s "github.com/kostiamol/centerms/store"
+	"github.com/kostiamol/centerms/svc"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/kostiamol/centerms/entity"
@@ -21,12 +22,8 @@ const (
 	defaultWebPort     = 3301
 	defaultStreamPort  = 3546
 
-	// store vendor ports
-	defaultRedisPort      = 6379
-	defaultInfluxDBPort   = 8086
-	defaultPostgreSQLPort = 5432
+	defaultRedisPort = 6379
 
-	// store address
 	defaultStorePort = defaultRedisPort
 	defaultStoreHost = localhost
 
@@ -52,6 +49,7 @@ var (
 		Formatter: new(logrus.TextFormatter),
 		Level:     logrus.DebugLevel,
 	}
+
 	ctrl = svc.Ctrl{StopChan: make(chan struct{})}
 
 	storeHost = flag.String("store-addr", defaultStoreHost, "Store IP address")
@@ -60,6 +58,7 @@ var (
 		Host: *storeHost,
 		Port: *storePort,
 	}
+
 	store = s.NewRedis(storeAddr, logrus.NewEntry(log), *retry, storeAgentName, *ttl)
 
 	devCfgPort  = flag.Int("dev-cfg-port", defaultDevCfgPort, "Port to listen on configuration from devices")

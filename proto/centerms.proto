@@ -1,5 +1,5 @@
 syntax = "proto3";
-package cproto;
+package proto;
 
 // EventStore is used for NATS Publish-Subscribe
 message EventStore {

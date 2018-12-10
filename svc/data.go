@@ -25,8 +25,8 @@ type Data struct {
 }
 
 // NewData creates and initializes a new instance of Data service.
-func NewData(a entity.Addr, s entity.Storer, c Ctrl,
-	l *logrus.Entry, pubChan string, agentName string, ttl time.Duration) *Data {
+func NewData(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
+	ttl time.Duration) *Data {
 
 	return &Data{
 		addr:      a,
@@ -59,7 +59,6 @@ func (d *Data) Run() {
 	}()
 
 	go d.listenTermination()
-
 	d.runConsulAgent()
 }
 
@@ -108,7 +107,7 @@ func (d *Data) updateTTL(check func() (bool, error)) {
 }
 
 func (d *Data) update(check func() (bool, error)) {
-	var h string
+	var health string
 	ok, err := check()
 	if !ok {
 		d.log.WithFields(logrus.Fields{
@@ -118,12 +117,12 @@ func (d *Data) update(check func() (bool, error)) {
 
 		// failed check will remove a service instance from DNS and HTTP query
 		// to avoid returning errors or invalid data.
-		h = consul.HealthCritical
+		health = consul.HealthCritical
 	} else {
-		h = consul.HealthPassing
+		health = consul.HealthPassing
 	}
 
-	if err := d.agent.UpdateTTL("svc:"+d.agentName, "", h); err != nil {
+	if err := d.agent.UpdateTTL("svc:"+d.agentName, "", health); err != nil {
 		d.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": entity.EventUpdConsulStatus,
@@ -182,7 +181,6 @@ func (d *Data) SaveDevData(data *entity.DevData) {
 		}).Errorf("%s", err)
 		return
 	}
-
 	go d.pubDevData(data)
 }
 

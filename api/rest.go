@@ -1,4 +1,4 @@
-package svc
+package api
 
 import (
 	"context"
@@ -21,7 +21,6 @@ import (
 type Web struct {
 	addr                entity.Addr
 	store               entity.Storer
-	ctrl                Ctrl
 	log                 *logrus.Entry
 	pubChan             string
 	agentName           string
@@ -33,14 +32,13 @@ type Web struct {
 }
 
 // NewWeb creates and initializes a new instance of Web service.
-func NewWeb(srv entity.Addr, st entity.Storer, ctrl Ctrl, log *logrus.Entry,
-	pubChan, agentName string, ttl time.Duration) *Web {
+func NewWeb(srv entity.Addr, st entity.Storer, log *logrus.Entry, pubChan, agentName string,
+	ttl time.Duration) *Web {
 
 	return &Web{
 		addr:      srv,
 		store:     st,
-		ctrl:      ctrl,
-		log:       log.WithFields(logrus.Fields{"service": "web"}),
+		log:       log.WithFields(logrus.Fields{"svc": "web"}),
 		pubChan:   pubChan,
 		agentName: agentName,
 		ttl:       ttl,
@@ -60,11 +58,8 @@ func (w *Web) Run() {
 				"func":  "Run",
 				"event": entity.EventPanic,
 			}).Errorf("%s", r)
-			w.terminate()
 		}
 	}()
-
-	go w.listenTermination()
 
 	w.runConsulAgent()
 
@@ -191,7 +186,7 @@ func (w *Web) updateTTL(check func() (bool, error)) {
 }
 
 func (w *Web) update(check func() (bool, error)) {
-	var h string
+	var health string
 	ok, err := check()
 	if !ok {
 		w.log.WithFields(logrus.Fields{
@@ -201,51 +196,17 @@ func (w *Web) update(check func() (bool, error)) {
 
 		// failed check will remove a service instance from DNS and HTTP query
 		// to avoid returning errors or invalid data.
-		h = consul.HealthCritical
+		health = consul.HealthCritical
 	} else {
-		h = consul.HealthPassing
+		health = consul.HealthPassing
 	}
 
-	if err := w.agent.UpdateTTL("service:"+w.agentName, "", h); err != nil {
+	if err := w.agent.UpdateTTL("svc:"+w.agentName, "", health); err != nil {
 		w.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": entity.EventUpdConsulStatus,
 		}).Error(err)
 	}
-}
-
-func (w *Web) listenTermination() {
-	for {
-		select {
-		case <-w.ctrl.StopChan:
-			w.terminate()
-			return
-		}
-	}
-}
-
-func (w *Web) terminate() {
-	defer func() {
-		if r := recover(); r != nil {
-			w.log.WithFields(logrus.Fields{
-				"func":  "terminate",
-				"event": entity.EventPanic,
-			}).Errorf("%s", r)
-			w.ctrl.Terminate()
-		}
-	}()
-
-	if err := w.store.CloseConn(); err != nil {
-		w.log.WithFields(logrus.Fields{
-			"func": "terminate",
-		}).Errorf("%s", err)
-	}
-
-	w.log.WithFields(logrus.Fields{
-		"func":  "terminate",
-		"event": entity.EventSVCShutdown,
-	}).Infoln("svc is down")
-	w.ctrl.Terminate()
 }
 
 // https://medium.com/@matryer/writing-middleware-in-golang-and-how-go-makes-it-so-much-fun-4375c1246e81
@@ -266,7 +227,6 @@ func (w *Web) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 					"func":  "recoveryAdapter",
 					"event": entity.EventPanic,
 				}).Errorf("%s", r)
-				w.terminate()
 			}
 		}()
 		h.ServeHTTP(wr, r)

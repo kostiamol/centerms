@@ -25,16 +25,16 @@ type dataProvider interface {
 	GetAddr() entity.Addr
 }
 
-type _api struct {
+type api_ struct {
 	cfg   cfgProvider
 	data  dataProvider
 	retry time.Duration
 	log   *logrus.Entry
 }
 
-// NewAPI creates and initializes a new instance of API service.
-func NewAPI(c cfgProvider, d dataProvider, retry time.Duration, l *logrus.Entry) *_api {
-	return &_api{
+// New creates and initializes a new instance of API service.
+func New(c cfgProvider, d dataProvider, retry time.Duration, l *logrus.Entry) *api_ {
+	return &api_{
 		cfg:   c,
 		data:  d,
 		retry: retry,
@@ -43,12 +43,12 @@ func NewAPI(c cfgProvider, d dataProvider, retry time.Duration, l *logrus.Entry)
 }
 
 // Run launches the goroutines for listening device data and configurations.
-func (a *_api) Run() {
+func (a *api_) Run() {
 	go a.listenCfg()
 	go a.listenData()
 }
 
-func (a *_api) listenCfg() {
+func (a *api_) listenCfg() {
 	defer func() {
 		if r := recover(); r != nil {
 			a.log.WithFields(logrus.Fields{
@@ -69,7 +69,7 @@ func (a *_api) listenCfg() {
 	}
 
 	s := grpc.NewServer()
-	cproto.RegisterCenterServiceServer(s, a)
+	proto.RegisterCenterServiceServer(s, a)
 	if s.Serve(l); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "listenCfg",
@@ -77,7 +77,7 @@ func (a *_api) listenCfg() {
 	}
 }
 
-func (a *_api) listenData() {
+func (a *api_) listenData() {
 	defer func() {
 		if r := recover(); r != nil {
 			a.log.WithFields(logrus.Fields{
@@ -98,7 +98,7 @@ func (a *_api) listenData() {
 	}
 
 	s := grpc.NewServer()
-	cproto.RegisterCenterServiceServer(s, a)
+	proto.RegisterCenterServiceServer(s, a)
 	if s.Serve(l); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "listenCfg",
@@ -108,7 +108,7 @@ func (a *_api) listenData() {
 
 // SetDevInitConf sets device's initial configuration when it connects to the center for the first time using Cfg
 // and returns that configuration to the device.
-func (a *_api) SetDevInitCfg(ctx context.Context, req *cproto.SetDevInitCfgRequest) (*cproto.SetDevInitCfgResponse,
+func (a *api_) SetDevInitCfg(ctx context.Context, req *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse,
 	error) {
 	m := entity.DevMeta{
 		Type: req.Meta.Type,
@@ -118,16 +118,18 @@ func (a *_api) SetDevInitCfg(ctx context.Context, req *cproto.SetDevInitCfgReque
 
 	c, err := a.cfg.SetDevInitCfg(&m)
 	if err != nil {
-
+		a.log.WithFields(logrus.Fields{
+			"func": "SetDevInitCfg",
+		}).Errorf("failed to set initial cfg: %s", err)
 	}
 
-	return &cproto.SetDevInitCfgResponse{
+	return &proto.SetDevInitCfgResponse{
 		Cfg: c.Data,
 	}, nil
 }
 
 // SaveDevData saves data from device using Data.
-func (a *_api) SaveDevData(ctx context.Context, req *cproto.SaveDevDataRequest) (*cproto.SaveDevDataResponse, error) {
+func (a *api_) SaveDevData(ctx context.Context, req *proto.SaveDevDataRequest) (*proto.SaveDevDataResponse, error) {
 	d := entity.DevData{
 		Time: req.Time,
 		Meta: entity.DevMeta{
@@ -140,7 +142,7 @@ func (a *_api) SaveDevData(ctx context.Context, req *cproto.SaveDevDataRequest) 
 
 	a.data.SaveDevData(&d)
 
-	return &cproto.SaveDevDataResponse{
+	return &proto.SaveDevDataResponse{
 		Status: "OK",
 	}, nil
 }

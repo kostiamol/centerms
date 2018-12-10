@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/golang/protobuf/proto"
+	gproto "github.com/golang/protobuf/proto"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/entity"
 	"github.com/nats-io/go-nats"
@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	aggregate = "cfg_service"
+	aggregate = "cfg_svc"
 	event     = "cfg_patched"
 )
 
@@ -37,8 +37,8 @@ type Cfg struct {
 }
 
 // NewCfg creates and initializes a new instance of Cfg service.
-func NewCfg(a entity.Addr, s entity.Storer, c Ctrl,
-	l *logrus.Entry, retry time.Duration, subj string, agentName string, ttl time.Duration) *Cfg {
+func NewCfg(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, retry time.Duration, subj string,
+	agentName string, ttl time.Duration) *Cfg {
 
 	return &Cfg{
 		addr:  a,
@@ -74,10 +74,8 @@ func (c *Cfg) Run() {
 			c.terminate()
 		}
 	}()
-
 	go c.listenTermination()
 	go c.listenCfgPatches(ctx)
-
 	c.runConsulAgent()
 }
 
@@ -127,7 +125,7 @@ func (c *Cfg) updateTTL(check func() (bool, error)) {
 }
 
 func (c *Cfg) update(check func() (bool, error)) {
-	var h string
+	var health string
 	ok, err := check()
 	if !ok {
 		c.log.WithFields(logrus.Fields{
@@ -137,12 +135,12 @@ func (c *Cfg) update(check func() (bool, error)) {
 
 		// failed check will remove a service instance from DNS and HTTP query
 		// to avoid returning errors or invalid data.
-		h = consul.HealthCritical
+		health = consul.HealthCritical
 	} else {
-		h = consul.HealthPassing
+		health = consul.HealthPassing
 	}
 
-	if err := c.agent.UpdateTTL("svc:"+c.agentName, "", h); err != nil {
+	if err := c.agent.UpdateTTL("svc:"+c.agentName, "", health); err != nil {
 		c.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": entity.EventUpdConsulStatus,
@@ -203,7 +201,7 @@ func (c *Cfg) SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 		return nil, err
 	}
 
-	var dc *entity.DevCfg
+	var d *entity.DevCfg
 	id := entity.DevID(m.MAC)
 
 	if ok, err := conn.DevIsRegistered(m); ok {
@@ -214,7 +212,7 @@ func (c *Cfg) SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 			return nil, err
 		}
 
-		dc, err = conn.GetDevCfg(id)
+		d, err = conn.GetDevCfg(id)
 		if err != nil {
 			c.log.WithFields(logrus.Fields{
 				"func": "SetDevInitCfg",
@@ -229,7 +227,7 @@ func (c *Cfg) SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 			return nil, err
 		}
 
-		dc, err = conn.GetDevDefaultCfg(m)
+		d, err = conn.GetDevDefaultCfg(m)
 		if err != nil {
 			c.log.WithFields(logrus.Fields{
 				"func": "SetDevInitCfg",
@@ -237,7 +235,7 @@ func (c *Cfg) SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 			return nil, err
 		}
 
-		if err = conn.SetDevCfg(id, dc); err != nil {
+		if err = conn.SetDevCfg(id, d); err != nil {
 			c.log.WithFields(logrus.Fields{
 				"func": "SetDevInitCfg",
 			}).Errorf("%s", err)
@@ -248,7 +246,7 @@ func (c *Cfg) SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 			"event": entity.EventDevRegistered,
 		}).Infof("devices' meta: %+v", m)
 	}
-	return dc, err
+	return d, err
 }
 
 func (c *Cfg) listenCfgPatches(ctx context.Context) {
@@ -273,16 +271,16 @@ func (c *Cfg) listenCfgPatches(ctx context.Context) {
 
 	go conn.Subscribe(c.sub.Chan, c.sub.ChanName)
 
-	var dc entity.DevCfg
+	var d entity.DevCfg
 	for {
 		select {
 		case msg := <-c.sub.Chan:
-			if err := json.Unmarshal(msg, &dc); err != nil {
+			if err := json.Unmarshal(msg, &d); err != nil {
 				c.log.WithFields(logrus.Fields{
 					"func": "listenCfgPatches",
 				}).Errorf("%s", err)
 			} else {
-				go c.pubNewCfgPatchEvent(&dc)
+				go c.pubNewCfgPatchEvent(&d)
 			}
 		case <-ctx.Done():
 			return
@@ -312,7 +310,7 @@ func (c *Cfg) pubNewCfgPatchEvent(cfg *entity.DevCfg) {
 	}
 	defer conn.Close()
 
-	s := cproto.EventStore{
+	s := proto.EventStore{
 		AggregateId:   cfg.MAC,
 		AggregateType: aggregate,
 		EventId:       uuid.NewV4().String(),
@@ -320,7 +318,7 @@ func (c *Cfg) pubNewCfgPatchEvent(cfg *entity.DevCfg) {
 		EventData:     string(cfg.Data),
 	}
 	subj := "Cfg.Patch." + cfg.MAC
-	b, err := proto.Marshal(&s)
+	b, err := gproto.Marshal(&s)
 	if err != nil {
 		c.log.WithFields(logrus.Fields{
 			"func": "pubNewCfgPatchEvent",
@@ -333,5 +331,5 @@ func (c *Cfg) pubNewCfgPatchEvent(cfg *entity.DevCfg) {
 	c.log.WithFields(logrus.Fields{
 		"func":  "pubNewCfgPatchEvent",
 		"event": entity.EventCfgPatchCreated,
-	}).Infof("cfg patch [%s] for device with id [%s]", cfg.Data, cfg.MAC)
+	}).Infof("cfg patch [%s] for device with ID [%s]", cfg.Data, cfg.MAC)
 }

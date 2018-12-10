@@ -14,20 +14,20 @@ func (r *Redis) getFridgeData(m *entity.DevMeta) (*entity.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	paramsKey := devKey + partialDevParamsKey
 
-	d := make(map[string][]string)
+	data := make(map[string][]string)
 	params, err := redis.Strings(r.conn.Do("SMEMBERS", paramsKey))
 	if err != nil {
 		errors.Wrap(err, "Redis: getFridgeData(): SMembers() has failed")
 	}
 
 	for _, p := range params {
-		d[p], err = redis.Strings(r.conn.Do("ZRANGEBYSCORE", paramsKey+":"+p, "-inf", "inf"))
+		data[p], err = redis.Strings(r.conn.Do("ZRANGEBYSCORE", paramsKey+":"+p, "-inf", "inf"))
 		if err != nil {
 			errors.Wrap(err, "Redis: getFridgeData(): ZRangeByScore() has failed")
 		}
 	}
 
-	b, err := json.Marshal(&d)
+	b, err := json.Marshal(&data)
 	if err != nil {
 		errors.Wrap(err, "Redis: getFridgeData(): fridge data marshalling has failed")
 		return nil, err
@@ -74,7 +74,6 @@ func (r *Redis) saveFridgeData(d *entity.DevData) error {
 		r.conn.Do("DISCARD")
 		return err
 	}
-
 	return nil
 }
 
@@ -87,7 +86,6 @@ func (r *Redis) setFridgeCompartData(tempCam map[int64]float32, key string) erro
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -204,7 +202,6 @@ func (r *Redis) setFridgeCfg(c *entity.DevCfg, m *entity.DevMeta) error {
 		r.conn.Do("DISCARD")
 		return err
 	}
-
 	return nil
 }
 

@@ -56,7 +56,7 @@ func main() {
 	)
 	go d.Run()
 
-	a := api.NewAPI(
+	a := api.New(
 		c,
 		d,
 		*retry,

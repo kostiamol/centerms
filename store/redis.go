@@ -34,9 +34,9 @@ type Redis struct {
 	ttl       time.Duration
 }
 
-// NewRedis creates a new instance of Redis.
+// NewRedis creates a new instance of Redis store.
 func NewRedis(a entity.Addr, l *logrus.Entry, retry time.Duration, agentName string,
-	ttl time.Duration) *Redis {
+	ttl time.Duration) entity.Storer {
 
 	return &Redis{
 		addr:      a,
@@ -75,14 +75,12 @@ func (r *Redis) Init() error {
 		return errors.Errorf("consul: %s", err)
 	}
 	r.agent = c.Agent()
-
 	agent := &consul.AgentServiceRegistration{
 		Name: r.agentName,
 		Check: &consul.AgentServiceCheck{
 			TTL: r.ttl.String(),
 		},
 	}
-
 	if err := r.agent.ServiceRegister(agent); err != nil {
 		return errors.Errorf("consul: %s", err)
 	}
@@ -108,7 +106,7 @@ func (r *Redis) UpdateTTL(check func() (bool, error)) {
 }
 
 func (r *Redis) update(check func() (bool, error)) {
-	var h string
+	var health string
 	ok, err := check()
 	if !ok {
 		r.log.WithFields(logrus.Fields{
@@ -118,12 +116,12 @@ func (r *Redis) update(check func() (bool, error)) {
 
 		// failed check will remove a service instance from DNS and HTTP query
 		// to avoid returning errors or invalid data.
-		h = consul.HealthCritical
+		health = consul.HealthCritical
 	} else {
-		h = consul.HealthPassing
+		health = consul.HealthPassing
 	}
 
-	if err := r.agent.UpdateTTL("svc:"+r.agentName, "", h); err != nil {
+	if err := r.agent.UpdateTTL("svc:"+r.agentName, "", health); err != nil {
 		r.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": entity.EventUpdConsulStatus,
@@ -149,7 +147,6 @@ func (r *Redis) CreateConn() (entity.Storer, error) {
 		time.Sleep(time.Second*duration + 1)
 		store.conn, err = redis.Dial("tcp", r.addr.Host+":"+fmt.Sprint(r.addr.Port))
 	}
-
 	return &store, err
 }
 
