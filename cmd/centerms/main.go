@@ -27,9 +27,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	c := svc.NewCfg(
+	cfg := svc.NewCfgService(
 		entity.Addr{
-			Host: localhost,
+			Host: host,
 			Port: *devCfgPort,
 		},
 		store,
@@ -40,11 +40,11 @@ func main() {
 		cfgAgentName,
 		*ttl,
 	)
-	go c.Run()
+	go cfg.Run()
 
-	d := svc.NewData(
+	data := svc.NewDataService(
 		entity.Addr{
-			Host: localhost,
+			Host: host,
 			Port: *devDataPort,
 		},
 		store,
@@ -54,19 +54,11 @@ func main() {
 		dataAgentName,
 		*ttl,
 	)
-	go d.Run()
+	go data.Run()
 
-	a := api.New(
-		c,
-		d,
-		*retry,
-		logrus.NewEntry(log),
-	)
-	a.Run()
-
-	s := svc.NewStream(
+	stream := svc.NewStreamService(
 		entity.Addr{
-			Host: webHost,
+			Host: host,
 			Port: *streamPort,
 		},
 		store,
@@ -76,26 +68,26 @@ func main() {
 		streamAgentName,
 		*ttl,
 	)
-	go s.Run()
+	go stream.Run()
 
-	w := svc.NewWeb(
-		entity.Addr{
-			Host: webHost,
-			Port: *webPort,
-		},
+	a := api.NewAPI(
+		host,
+		*rpcPort,
+		*restPort,
+		cfg,
 		store,
-		ctrl,
 		logrus.NewEntry(log),
+		*retry,
 		entity.DevCfgChan,
 		webAgentName,
 		*ttl,
 	)
-	go w.Run()
+	go a.Run()
 
 	ctrl.Wait()
 
 	logrus.WithFields(logrus.Fields{
 		"func":  "main",
 		"event": entity.EventMSTerminated,
-	}).Info("center is down")
+	}).Info("centerms is down")
 }

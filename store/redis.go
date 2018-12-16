@@ -43,7 +43,7 @@ func NewRedis(a entity.Addr, l *logrus.Entry, retry time.Duration, agentName str
 		agentName: agentName,
 		ttl:       ttl,
 		retry:     retry,
-		log:       l.WithFields(logrus.Fields{"svc": "store", "type": "redis"}),
+		log:       l.WithFields(logrus.Fields{"component": "store"}),
 	}
 }
 

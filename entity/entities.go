@@ -30,18 +30,8 @@ const (
 // dig +noall +answer @127.0.0.1 -p 8600 myCoolServiceName.service.dc1.consul
 // curl localhost:8500/v1/health/service/myCoolServiceName?passing
 
-// Externer is an external towards center entity which it depends on. The entity must provide method for checking it's
-// state and updating TTL for integration with service discovery system such as Consul.
-type Externer interface {
-	Check() (bool, error)
-	UpdateTTL(check func() (bool, error))
-}
-
-// Notifier is an entity that notifies subscribers with published messages.
-type Notifier interface {
-	Publish(msg interface{}, channel string) (int64, error)
-	Subscribe(cn chan []byte, channel ...string)
-}
+// DevID is used for device's id.
+type DevID string
 
 // DevDataStorer deals with device data.
 type DevDataStorer interface {
@@ -63,17 +53,14 @@ type DevCfgStorer interface {
 // Storer is an external entity for storing device data and configs and subscribing/publishing internal for the
 // center data.
 type Storer interface {
-	Externer
-	Notifier
 	DevDataStorer
 	DevCfgStorer
 	Init() error
 	CreateConn() (Storer, error)
 	CloseConn() error
+	Publish(msg interface{}, channel string) (int64, error)
+	Subscribe(cn chan []byte, channel ...string)
 }
-
-// DevID is used to device's id.
-type DevID string
 
 // Addr is used to store IP address and an open port of the remote server.
 type Addr struct {
@@ -105,11 +92,4 @@ type DevMeta struct {
 	Type string `json:"type"`
 	Name string `json:"name"`
 	MAC  string `json:"mac"`
-}
-
-// User is used to authenticate requests
-type User struct {
-	UUID     string `json:"uuid" form:"-"`
-	Username string `json:"username" form:"username"`
-	Password string `json:"password" form:"password"`
 }

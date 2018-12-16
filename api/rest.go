@@ -1,234 +1,176 @@
 package api
 
 import (
-	"context"
-	"crypto/tls"
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/auth0/go-jwt-middleware"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
-
-	"fmt"
-
-	consul "github.com/hashicorp/consul/api"
 	"github.com/kostiamol/centerms/entity"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"golang.org/x/crypto/acme/autocert"
 )
 
-// Web is used to deal with user's queries from the web client (dashboard).
-type Web struct {
-	addr                entity.Addr
-	store               entity.Storer
-	log                 *logrus.Entry
-	pubChan             string
-	agentName           string
-	agent               *consul.Agent
-	ttl                 time.Duration
-	isProd              bool
-	redirectHTTPToHTTPS bool
-	allowedHost         string
+var mySigningKey = []byte("secret")
+
+func (a *API) redirectHandler(rw http.ResponseWriter, r *http.Request) {
+	newURI := "https://" + r.Host + r.URL.String()
+	http.Redirect(rw, r, newURI, http.StatusFound)
 }
 
-// NewWeb creates and initializes a new instance of Web service.
-func NewWeb(srv entity.Addr, st entity.Storer, log *logrus.Entry, pubChan, agentName string,
-	ttl time.Duration) *Web {
+var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// create the token
+	token := jwt.New(jwt.SigningMethodHS256)
 
-	return &Web{
-		addr:      srv,
-		store:     st,
-		log:       log.WithFields(logrus.Fields{"svc": "web"}),
-		pubChan:   pubChan,
-		agentName: agentName,
-		ttl:       ttl,
-	}
-}
+	// create a map to store the claims
+	claims := token.Claims.(jwt.MapClaims)
 
-// Run launches the service by running goroutines for listening the service termination and queries from the web client.
-func (w *Web) Run() {
-	w.log.WithFields(logrus.Fields{
-		"func":  "Run",
-		"event": entity.EventSVCStarted,
-	}).Infof("running on host: [%s], port: [%d]", w.addr.Host, w.addr.Port)
+	// sett token claims
+	claims["admin"] = true
+	claims["name"] = "Ado Kukic"
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
-	defer func() {
-		if r := recover(); r != nil {
-			w.log.WithFields(logrus.Fields{
-				"func":  "Run",
-				"event": entity.EventPanic,
-			}).Errorf("%s", r)
-		}
-	}()
-
-	w.runConsulAgent()
-
-	var m *autocert.Manager
-	var httpsSrv *http.Server
-	if w.isProd {
-		hostPolicy := func(ctx context.Context, host string) error {
-			allowedHost := w.allowedHost
-			if host == allowedHost {
-				return nil
-			}
-			return fmt.Errorf("acme/autocert: only %s host is allowed", allowedHost)
-		}
-
-		dataDir := "./crt"
-		m = &autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: hostPolicy,
-			Cache:      autocert.DirCache(dataDir),
-		}
-
-		httpsSrv = w.makeHTTPServer()
-		httpsSrv.Addr = w.addr.Host + ":" + fmt.Sprint(w.addr.Port)
-		httpsSrv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
-
-		go func() {
-			fmt.Printf("starting HTTPS server on %s\n", httpsSrv.Addr)
-			w.log.Fatal(httpsSrv.ListenAndServe())
-		}()
-	}
-
-	var httpSrv *http.Server
-	if w.redirectHTTPToHTTPS {
-		httpSrv = w.makeHTTPToHTTPSRedirectServer()
-	} else {
-		httpSrv = w.makeHTTPServer()
-	}
-	// allow autocert handle Let'w Encrypt callbacks over http
-	if m != nil {
-		httpSrv.Handler = m.HTTPHandler(httpSrv.Handler)
-	}
-
-	httpSrv.Addr = w.addr.Host + ":" + fmt.Sprint(w.addr.Port)
-	if err := httpSrv.ListenAndServe(); err != nil {
-		w.log.Fatalf("httpSrv.ListenAndServe() failed with %s", err)
-	}
-
-	// allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "OPTIONS", "PATCH"})
-	// allowedHeaders := handlers.AllowedHeaders([]string{"Content-Type", "X-Requested-With"})
-
-	// http.ListenAndServe(w.addr.Host+":"+fmt.Sprint(w.addr.Port), handlers.CORS(allowedMethods, allowedHeaders)(r))
-	// w.log.Fatal(httpSrv.ListenAndServe())
-}
-
-func (w *Web) initRouter(r *mux.Router) {
-	r.Handle("/devices", jwtMiddleware.Handler(adapt(w.getDevsDataHandler, w.recoveryAdapter))).Methods(http.MethodGet)
-	r.Handle("/devices/{id}/data", adapt(w.getDevDataHandler, w.recoveryAdapter)).Methods(http.MethodGet)
-	r.Handle("/devices/{id}/config", adapt(w.getDevCfgHandler, w.recoveryAdapter)).Methods(http.MethodGet)
-	r.Handle("/devices/{id}/config", adapt(w.patchDevCfgHandler, w.recoveryAdapter)).Methods(http.MethodPatch)
-	// for Prometheus
-	r.Handle("/metrics", promhttp.Handler()).Methods(http.MethodGet)
-	// for auth + token
-	r.Handle("/get-token", getTokenHandler).Methods(http.MethodGet)
-}
-
-func (w *Web) makeHTTPServer() *http.Server {
-	r := mux.NewRouter()
-	w.initRouter(r)
-	return makeServerFromMux(r)
-}
-
-func makeServerFromMux(r *mux.Router) *http.Server {
-	return &http.Server{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
-		IdleTimeout:  120 * time.Second,
-		Handler:      r,
-	}
-}
-
-func (w *Web) makeHTTPToHTTPSRedirectServer() *http.Server {
-	r := mux.NewRouter()
-	r.Handle("/", adapt(w.redirectHandler, w.recoveryAdapter))
-	return makeServerFromMux(r)
-}
-
-func (w *Web) runConsulAgent() {
-	c, err := consul.NewClient(consul.DefaultConfig())
+	// sign the token with the secret
+	tokenString, err := token.SignedString(mySigningKey)
 	if err != nil {
-		w.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": entity.EventPanic,
+		logrus.WithFields(logrus.Fields{
+			"func": "getTokenHandler",
 		}).Errorf("%s", err)
-		panic("consul init error")
 	}
-	a := &consul.AgentServiceRegistration{
-		Name: w.agentName,
-		Port: w.addr.Port,
-		Check: &consul.AgentServiceCheck{
-			TTL: w.ttl.String(),
-		},
-	}
-	w.agent = c.Agent()
-	if err := w.agent.ServiceRegister(a); err != nil {
-		w.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": entity.EventPanic,
+
+	// finally, write the token to the browser window
+	if _, err := w.Write([]byte(tokenString)); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"func": "getTokenHandler",
 		}).Errorf("%s", err)
-		panic("consul init error")
 	}
-	go w.updateTTL(w.check)
-}
+})
 
-func (w *Web) check() (bool, error) {
-	// while the service is alive - everything is ok
-	return true, nil
-}
+var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+		return mySigningKey, nil
+	},
+	SigningMethod: jwt.SigningMethodHS256,
+})
 
-func (w *Web) updateTTL(check func() (bool, error)) {
-	t := time.NewTicker(w.ttl / 2)
-	for range t.C {
-		w.update(check)
+func (a *API) getDevsDataHandler(rw http.ResponseWriter, r *http.Request) {
+	conn, err := a.store.CreateConn()
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevsDataHandler",
+		}).Errorf("%s", err)
+		return
 	}
-}
+	defer conn.CloseConn()
 
-func (w *Web) update(check func() (bool, error)) {
-	var health string
-	ok, err := check()
-	if !ok {
-		w.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": entity.EventUpdConsulStatus,
-		}).Errorf("check has failed: %s", err)
-
-		// failed check will remove a service instance from DNS and HTTP query
-		// to avoid returning errors or invalid data.
-		health = consul.HealthCritical
-	} else {
-		health = consul.HealthPassing
+	d, err := conn.GetDevsData()
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevsDataHandler",
+		}).Errorf("%s", err)
+		return
 	}
 
-	if err := w.agent.UpdateTTL("svc:"+w.agentName, "", health); err != nil {
-		w.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": entity.EventUpdConsulStatus,
-		}).Error(err)
+	if err = json.NewEncoder(rw).Encode(d); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevsDataHandler",
+		}).Errorf("%s", err)
+		return
 	}
 }
 
-// https://medium.com/@matryer/writing-middleware-in-golang-and-how-go-makes-it-so-much-fun-4375c1246e81
-type adapter func(handlerFunc http.HandlerFunc) http.HandlerFunc
-
-func adapt(hf http.HandlerFunc, adapters ...adapter) http.Handler {
-	for _, adapter := range adapters {
-		hf = adapter(hf)
+func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
+	conn, err := a.store.CreateConn()
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevDataHandler",
+		}).Errorf("%s", err)
+		return
 	}
-	return hf
+	defer conn.CloseConn()
+
+	id := entity.DevID(mux.Vars(r)["id"])
+	d, err := conn.GetDevData(id)
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevDataHandler",
+		}).Errorf("%s", err)
+		return
+	}
+
+	if err = json.NewEncoder(rw).Encode(d); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevDataHandler",
+		}).Errorf("%s", err)
+		return
+	}
 }
 
-func (w *Web) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if r := recover(); r != nil {
-				w.log.WithFields(logrus.Fields{
-					"func":  "recoveryAdapter",
-					"event": entity.EventPanic,
-				}).Errorf("%s", r)
-			}
-		}()
-		h.ServeHTTP(wr, r)
-	})
+func (a *API) getDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
+	conn, err := a.store.CreateConn()
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
+	defer conn.CloseConn()
+
+	id := entity.DevID(mux.Vars(r)["id"])
+	c, err := conn.GetDevCfg(id)
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
+
+	if _, err = rw.Write(c.Data); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
+}
+
+func (a *API) patchDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
+	conn, err := a.store.CreateConn()
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "patchDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
+	defer conn.CloseConn()
+
+	var c entity.DevCfg
+	if err = json.NewDecoder(r.Body).Decode(&c); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "patchDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
+
+	id := entity.DevID(mux.Vars(r)["id"])
+	if err = conn.SetDevCfg(entity.DevID(id), &c); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "patchDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
+
+	b, err := json.Marshal(c)
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "patchDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
+	if _, err = conn.Publish(b, a.pubChan); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "patchDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
 }

@@ -31,20 +31,20 @@ type Cfg struct {
 	log       *logrus.Entry
 	retry     time.Duration
 	sub       entity.Subscription
-	agentName string
 	agent     *consul.Agent
+	agentName string
 	ttl       time.Duration
 }
 
-// NewCfg creates and initializes a new instance of Cfg service.
-func NewCfg(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, retry time.Duration, subj string,
+// NewCfgService creates and initializes a new instance of Cfg service.
+func NewCfgService(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, retry time.Duration, subj string,
 	agentName string, ttl time.Duration) *Cfg {
 
 	return &Cfg{
 		addr:  a,
 		store: s,
 		ctrl:  c,
-		log:   l.WithFields(logrus.Fields{"svc": "cfg"}),
+		log:   l.WithFields(logrus.Fields{"component": "svc", "name": "cfg"}),
 		retry: retry,
 		sub: entity.Subscription{
 			ChanName: subj,

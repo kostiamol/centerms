@@ -17,38 +17,9 @@ import (
 
 type cfgProvider interface {
 	SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error)
-	GetAddr() entity.Addr
 }
 
-type dataProvider interface {
-	SaveDevData(data *entity.DevData)
-	GetAddr() entity.Addr
-}
-
-type api_ struct {
-	cfg   cfgProvider
-	data  dataProvider
-	retry time.Duration
-	log   *logrus.Entry
-}
-
-// New creates and initializes a new instance of API service.
-func New(c cfgProvider, d dataProvider, retry time.Duration, l *logrus.Entry) *api_ {
-	return &api_{
-		cfg:   c,
-		data:  d,
-		retry: retry,
-		log:   l.WithFields(logrus.Fields{"svc": "api"}),
-	}
-}
-
-// Run launches the goroutines for listening device data and configurations.
-func (a *api_) Run() {
-	go a.listenCfg()
-	go a.listenData()
-}
-
-func (a *api_) listenCfg() {
+func (a *API) runRPC() {
 	defer func() {
 		if r := recover(); r != nil {
 			a.log.WithFields(logrus.Fields{
@@ -58,69 +29,49 @@ func (a *api_) listenCfg() {
 		}
 	}()
 
-	l, err := net.Listen("tcp", a.cfg.GetAddr().Host+":"+fmt.Sprint(a.cfg.GetAddr().Port))
+	l, err := net.Listen("tcp", a.host+":"+fmt.Sprint(a.rpcPort))
 	for err != nil {
 		a.log.WithFields(logrus.Fields{
-			"func": "listenCfg",
+			"func": "runRPC",
 		}).Errorf("Listen() has failed: %s", err)
 		d := time.Duration(rand.Intn(int(a.retry.Seconds())))
 		time.Sleep(time.Second*d + 1)
-		l, err = net.Listen("tcp", a.cfg.GetAddr().Host+":"+fmt.Sprint(a.cfg.GetAddr().Port))
+		l, err = net.Listen("tcp", a.host+":"+fmt.Sprint(a.rpcPort))
 	}
 
 	s := grpc.NewServer()
 	proto.RegisterCenterServiceServer(s, a)
-	if s.Serve(l); err != nil {
+	if err := s.Serve(l); err != nil {
 		a.log.WithFields(logrus.Fields{
-			"func": "listenCfg",
+			"func": "runRPC",
 		}).Fatalf("failed to serve: %s", err)
 	}
 }
 
-func (a *api_) listenData() {
-	defer func() {
-		if r := recover(); r != nil {
-			a.log.WithFields(logrus.Fields{
-				"func":  "listenData",
-				"event": entity.EventPanic,
-			}).Errorf("%s", r)
-		}
-	}()
-
-	l, err := net.Listen("tcp", a.data.GetAddr().Host+":"+fmt.Sprint(a.data.GetAddr().Port))
-	for err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "listenData",
-		}).Errorf("Listen() has failed: %s", err)
-		d := time.Duration(rand.Intn(int(a.retry.Seconds())))
-		time.Sleep(time.Second*d + 1)
-		l, err = net.Listen("tcp", a.data.GetAddr().Host+":"+fmt.Sprint(a.data.GetAddr().Port))
-	}
-
-	s := grpc.NewServer()
-	proto.RegisterCenterServiceServer(s, a)
-	if s.Serve(l); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "listenCfg",
-		}).Fatalf("failed to serve: %s", err)
-	}
-}
-
-// SetDevInitConf sets device's initial configuration when it connects to the center for the first time using Cfg
+// SetDevInitCfg sets device's initial configuration when it connects to the center for the first time using Cfg
 // and returns that configuration to the device.
-func (a *api_) SetDevInitCfg(ctx context.Context, req *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse,
+func (a *API) SetDevInitCfg(ctx context.Context, req *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse,
 	error) {
+	conn, err := a.store.CreateConn()
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "SetDevInitCfg",
+		}).Errorf("%s", err)
+		return nil, err
+	}
+	defer conn.CloseConn()
+
 	m := entity.DevMeta{
 		Type: req.Meta.Type,
 		Name: req.Meta.Name,
 		MAC:  req.Meta.Mac,
 	}
 
-	c, err := a.cfg.SetDevInitCfg(&m)
+	c, err := a.cfgProvider.SetDevInitCfg(&m)
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "SetDevInitCfg",
-		}).Errorf("failed to set initial cfg: %s", err)
+		}).Errorf("failed to set init cfg: %s", err)
 	}
 
 	return &proto.SetDevInitCfgResponse{
@@ -129,7 +80,16 @@ func (a *api_) SetDevInitCfg(ctx context.Context, req *proto.SetDevInitCfgReques
 }
 
 // SaveDevData saves data from device using Data.
-func (a *api_) SaveDevData(ctx context.Context, req *proto.SaveDevDataRequest) (*proto.SaveDevDataResponse, error) {
+func (a *API) SaveDevData(ctx context.Context, req *proto.SaveDevDataRequest) (*proto.SaveDevDataResponse, error) {
+	conn, err := a.store.CreateConn()
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "SaveDevData",
+		}).Errorf("%s", err)
+		return nil, err
+	}
+	defer conn.CloseConn()
+
 	d := entity.DevData{
 		Time: req.Time,
 		Meta: entity.DevMeta{
@@ -140,7 +100,11 @@ func (a *api_) SaveDevData(ctx context.Context, req *proto.SaveDevDataRequest) (
 		Data: req.Data,
 	}
 
-	a.data.SaveDevData(&d)
+	if err := conn.SaveDevData(&d); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "SaveDevData",
+		}).Errorf("failed to set init cfg: %s", err)
+	}
 
 	return &proto.SaveDevDataResponse{
 		Status: "OK",

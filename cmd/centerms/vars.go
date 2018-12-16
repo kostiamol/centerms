@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	localhost = "127.0.0.1"
-	webHost   = "0.0.0.0"
+	host = "127.0.0.1"
 
 	// service ports
 	defaultDevCfgPort  = 3092
@@ -25,7 +24,7 @@ const (
 	defaultRedisPort = 6379
 
 	defaultStorePort = defaultRedisPort
-	defaultStoreHost = localhost
+	defaultStoreHost = host
 
 	defaultRetryInterval = time.Second * 10
 	defaultTTLInterval   = time.Second * 4
@@ -63,7 +62,8 @@ var (
 
 	devCfgPort  = flag.Int("dev-cfg-port", defaultDevCfgPort, "Port to listen on configuration from devices")
 	devDataPort = flag.Int("dev-data-port", defaultDevDataPort, "Port to listen on data from devices")
-	webPort     = flag.Int("web-port", defaultWebPort, "Port to listen on web clients")
+	rpcPort     = flag.Int("rpc-port", defaultWebPort, "Port to listen on web clients")
+	restPort    = flag.Int("rest-port", defaultWebPort, "Port to listen on web clients")
 	streamPort  = flag.Int("stream-port", defaultStreamPort, "Port for data streaming")
 
 	retry = flag.Duration("retry", defaultRetryInterval, "Retry interval")

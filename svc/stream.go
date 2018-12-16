@@ -30,13 +30,13 @@ type Stream struct {
 	sub       entity.Subscription
 	conns     streamConns
 	upgrader  websocket.Upgrader
-	agentName string
 	agent     *consul.Agent
+	agentName string
 	ttl       time.Duration
 }
 
-// NewStream creates and initializes a new instance of Stream service.
-func NewStream(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
+// NewStreamService creates and initializes a new instance of Stream service.
+func NewStreamService(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
 	ttl time.Duration) *Stream {
 
 	upg := websocket.Upgrader{
@@ -54,7 +54,7 @@ func NewStream(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, pubChan 
 		addr:  a,
 		store: s,
 		ctrl:  c,
-		log:   l.WithFields(logrus.Fields{"svc": "stream"}),
+		log:   l.WithFields(logrus.Fields{"component": "svc", "name": "stream"}),
 		conns: *newStreamConns(),
 		sub: entity.Subscription{
 			ChanName: pubChan,

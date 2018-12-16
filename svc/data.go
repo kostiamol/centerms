@@ -19,20 +19,20 @@ type Data struct {
 	ctrl      Ctrl
 	log       *logrus.Entry
 	pubChan   string
-	agentName string
 	agent     *consul.Agent
+	agentName string
 	ttl       time.Duration
 }
 
-// NewData creates and initializes a new instance of Data service.
-func NewData(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
+// NewDataService creates and initializes a new instance of Data service.
+func NewDataService(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
 	ttl time.Duration) *Data {
 
 	return &Data{
 		addr:      a,
 		store:     s,
 		ctrl:      c,
-		log:       l.WithFields(logrus.Fields{"svc": "data"}),
+		log:       l.WithFields(logrus.Fields{"component": "svc", "name": "data"}),
 		pubChan:   pubChan,
 		agentName: agentName,
 		ttl:       ttl,
