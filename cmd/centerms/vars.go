@@ -9,8 +9,11 @@ import (
 	"github.com/kostiamol/centerms/svc"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kostiamol/centerms/entity"
 )
+
+// Query the Consul for services:
+// dig +noall +answer @127.0.0.1 -p 8600 myCoolServiceName.service.dc1.consul
+// curl localhost:8500/v1/health/service/myCoolServiceName?passing
 
 const (
 	host = "127.0.0.1"
@@ -53,7 +56,7 @@ var (
 
 	storeHost = flag.String("store-addr", defaultStoreHost, "Store IP address")
 	storePort = flag.Int("store-port", defaultStorePort, "Store TCP port")
-	storeAddr = entity.Addr{
+	storeAddr = svc.Addr{
 		Host: *storeHost,
 		Port: *storePort,
 	}

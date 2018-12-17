@@ -6,6 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kostiamol/centerms/params"
+
+	"github.com/kostiamol/centerms/api"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -17,17 +21,16 @@ import (
 	"fmt"
 
 	consul "github.com/hashicorp/consul/api"
-	"github.com/kostiamol/centerms/entity"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Stream is used to deal with streaming data from the device to web client (dashboard).
-type Stream struct {
-	addr      entity.Addr
-	store     entity.Storer
+// StreamService is used to deal with streaming data from the device to web client (dashboard).
+type StreamService struct {
+	addr      Addr
+	store     Storer
 	ctrl      Ctrl
 	log       *logrus.Entry
-	sub       entity.Subscription
+	sub       subscription
 	conns     streamConns
 	upgrader  websocket.Upgrader
 	agent     *consul.Agent
@@ -35,9 +38,9 @@ type Stream struct {
 	ttl       time.Duration
 }
 
-// NewStreamService creates and initializes a new instance of Stream service.
-func NewStreamService(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
-	ttl time.Duration) *Stream {
+// NewStreamService creates and initializes a new instance of StreamService service.
+func NewStreamService(a Addr, s Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
+	ttl time.Duration) *StreamService {
 
 	upg := websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -50,13 +53,13 @@ func NewStreamService(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, p
 		},
 	}
 
-	return &Stream{
+	return &StreamService{
 		addr:  a,
 		store: s,
 		ctrl:  c,
 		log:   l.WithFields(logrus.Fields{"component": "svc", "name": "stream"}),
 		conns: *newStreamConns(),
-		sub: entity.Subscription{
+		sub: subscription{
 			ChanName: pubChan,
 			Chan:     make(chan []byte),
 		},
@@ -68,10 +71,10 @@ func NewStreamService(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, p
 
 // Run launches the service by running goroutines for listening the service termination, new device data,
 // closed web client connections and publishing new device data to web clients with open connections.
-func (s *Stream) Run() {
+func (s *StreamService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": entity.EventSVCStarted,
+		"event": params.EventSVCStarted,
 	}).Infof("running on host: [%s], port: [%d]", s.addr.Host, s.addr.Port)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -79,7 +82,7 @@ func (s *Stream) Run() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 			cancel()
 			s.terminate()
@@ -105,12 +108,12 @@ func (s *Stream) Run() {
 	s.log.Fatal(srv.ListenAndServe())
 }
 
-func (s *Stream) runConsulAgent() {
+func (s *StreamService) runConsulAgent() {
 	c, err := consul.NewClient(consul.DefaultConfig())
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": entity.EventPanic,
+			"event": params.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
@@ -125,32 +128,32 @@ func (s *Stream) runConsulAgent() {
 	if err := s.agent.ServiceRegister(a); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": entity.EventPanic,
+			"event": params.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
 	go s.updateTTL(s.check)
 }
 
-func (s *Stream) check() (bool, error) {
+func (s *StreamService) check() (bool, error) {
 	// while the service is alive - everything is ok
 	return true, nil
 }
 
-func (s *Stream) updateTTL(check func() (bool, error)) {
+func (s *StreamService) updateTTL(check func() (bool, error)) {
 	t := time.NewTicker(s.ttl / 2)
 	for range t.C {
 		s.update(check)
 	}
 }
 
-func (s *Stream) update(check func() (bool, error)) {
+func (s *StreamService) update(check func() (bool, error)) {
 	var health string
 	ok, err := check()
 	if !ok {
 		s.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": entity.EventUpdConsulStatus,
+			"event": params.EventUpdConsulStatus,
 		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
@@ -163,12 +166,12 @@ func (s *Stream) update(check func() (bool, error)) {
 	if err := s.agent.UpdateTTL("svc:"+s.agentName, "", health); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": entity.EventUpdConsulStatus,
+			"event": params.EventUpdConsulStatus,
 		}).Error(err)
 	}
 }
 
-func (s *Stream) listenTermination() {
+func (s *StreamService) listenTermination() {
 	for {
 		select {
 		case <-s.ctrl.StopChan:
@@ -178,12 +181,12 @@ func (s *Stream) listenTermination() {
 	}
 }
 
-func (s *Stream) terminate() {
+func (s *StreamService) terminate() {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "terminate",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -197,24 +200,24 @@ func (s *Stream) terminate() {
 
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
-		"event": entity.EventSVCShutdown,
+		"event": params.EventSVCShutdown,
 	}).Info("svc is down")
 	s.ctrl.Terminate()
 }
 
-func (s *Stream) addConnHandler(w http.ResponseWriter, r *http.Request) {
+func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "addConnHandler",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
 
 	uri := strings.Split(r.URL.String(), "/")
-	id := entity.DevID(uri[2])
+	id := api.DevID(uri[2])
 
 	s.conns.Lock()
 	if _, ok := s.conns.idConns[id]; !ok {
@@ -232,16 +235,16 @@ func (s *Stream) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	s.conns.idConns[id].addConn(conn)
 	s.log.WithFields(logrus.Fields{
 		"func":  "addConnHandler",
-		"event": entity.EventWSConnAdded,
+		"event": params.EventWSConnAdded,
 	}).Infof("addr: %v", conn.RemoteAddr())
 }
 
-func (s *Stream) listenPubs(ctx context.Context) {
+func (s *StreamService) listenPubs(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "listenPubs",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -268,18 +271,18 @@ func (s *Stream) listenPubs(ctx context.Context) {
 	}
 }
 
-func (s *Stream) stream(ctx context.Context, msg []byte) error {
+func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "stream",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
 
-	var d entity.DevData
+	var d api.DevData
 	if err := json.Unmarshal(msg, &d); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "stream",
@@ -287,19 +290,19 @@ func (s *Stream) stream(ctx context.Context, msg []byte) error {
 		return err
 	}
 
-	if _, ok := s.conns.idConns[entity.DevID(d.Meta.MAC)]; ok {
-		for _, conn := range s.conns.idConns[entity.DevID(d.Meta.MAC)].Conns {
+	if _, ok := s.conns.idConns[api.DevID(d.Meta.MAC)]; ok {
+		for _, conn := range s.conns.idConns[api.DevID(d.Meta.MAC)].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				s.conns.idConns[entity.DevID(d.Meta.MAC)].Lock()
+				s.conns.idConns[api.DevID(d.Meta.MAC)].Lock()
 				err := conn.WriteMessage(1, msg)
-				s.conns.idConns[entity.DevID(d.Meta.MAC)].Unlock()
+				s.conns.idConns[api.DevID(d.Meta.MAC)].Unlock()
 				if err != nil {
 					s.log.WithFields(logrus.Fields{
 						"func":  "stream",
-						"event": entity.EventWSConnRemoved,
+						"event": params.EventWSConnRemoved,
 					}).Infof("addr: %v", conn.RemoteAddr())
 					s.conns.closedConns <- conn
 					return err
@@ -311,12 +314,12 @@ func (s *Stream) stream(ctx context.Context, msg []byte) error {
 	return nil
 }
 
-func (s *Stream) listenClosedConns(ctx context.Context) {
+func (s *StreamService) listenClosedConns(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "listenClosedConns",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -340,17 +343,17 @@ func (s *Stream) listenClosedConns(ctx context.Context) {
 type streamConns struct {
 	sync.RWMutex
 	closedConns chan *websocket.Conn
-	idConns     map[entity.DevID]*connList
+	idConns     map[api.DevID]*connList
 }
 
 func newStreamConns() *streamConns {
 	return &streamConns{
 		closedConns: make(chan *websocket.Conn),
-		idConns:     make(map[entity.DevID]*connList),
+		idConns:     make(map[api.DevID]*connList),
 	}
 }
 
-func (c *streamConns) checkIDConns(id entity.DevID) {
+func (c *streamConns) checkIDConns(id api.DevID) {
 	c.Lock()
 	if len(c.idConns[id].Conns) == 0 {
 		delete(c.idConns, id)

@@ -9,7 +9,6 @@ import (
 	"github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
-	"github.com/kostiamol/centerms/entity"
 )
 
 var mySigningKey = []byte("secret")
@@ -55,16 +54,7 @@ var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 })
 
 func (a *API) getDevsDataHandler(rw http.ResponseWriter, r *http.Request) {
-	conn, err := a.store.CreateConn()
-	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "getDevsDataHandler",
-		}).Errorf("%s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	d, err := conn.GetDevsData()
+	d, err := a.dataProvider.GetDevsData()
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "getDevsDataHandler",
@@ -81,17 +71,8 @@ func (a *API) getDevsDataHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
-	conn, err := a.store.CreateConn()
-	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "getDevDataHandler",
-		}).Errorf("%s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	id := entity.DevID(mux.Vars(r)["id"])
-	d, err := conn.GetDevData(id)
+	id := DevID(mux.Vars(r)["id"])
+	d, err := a.dataProvider.GetDevData(id)
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "getDevDataHandler",
@@ -108,69 +89,51 @@ func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
-	conn, err := a.store.CreateConn()
-	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "getDevCfgHandler",
-		}).Errorf("%s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	id := entity.DevID(mux.Vars(r)["id"])
-	c, err := conn.GetDevCfg(id)
-	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "getDevCfgHandler",
-		}).Errorf("%s", err)
-		return
-	}
-
-	if _, err = rw.Write(c.Data); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "getDevCfgHandler",
-		}).Errorf("%s", err)
-		return
-	}
+	//id := DevID(mux.Vars(r)["id"])
+	//c, err := a.cfgProvider.GetDevCfg(id)
+	//if err != nil {
+	//	a.log.WithFields(logrus.Fields{
+	//		"func": "getDevCfgHandler",
+	//	}).Errorf("%s", err)
+	//	return
+	//}
+	//
+	//if _, err = rw.Write(c.Data); err != nil {
+	//	a.log.WithFields(logrus.Fields{
+	//		"func": "getDevCfgHandler",
+	//	}).Errorf("%s", err)
+	//	return
+	//}
 }
 
 func (a *API) patchDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
-	conn, err := a.store.CreateConn()
+	var c DevCfg
+	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "patchDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
+
+	//id := DevID(mux.Vars(r)["id"])
+	//if err := a.cfgProvider.SetDevCfg(DevID(id), &c); err != nil {
+	//	a.log.WithFields(logrus.Fields{
+	//		"func": "patchDevCfgHandler",
+	//	}).Errorf("%s", err)
+	//	return
+	//}
+
+	_, err := json.Marshal(c)
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "patchDevCfgHandler",
 		}).Errorf("%s", err)
 		return
 	}
-	defer conn.CloseConn()
-
-	var c entity.DevCfg
-	if err = json.NewDecoder(r.Body).Decode(&c); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "patchDevCfgHandler",
-		}).Errorf("%s", err)
-		return
-	}
-
-	id := entity.DevID(mux.Vars(r)["id"])
-	if err = conn.SetDevCfg(entity.DevID(id), &c); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "patchDevCfgHandler",
-		}).Errorf("%s", err)
-		return
-	}
-
-	b, err := json.Marshal(c)
-	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "patchDevCfgHandler",
-		}).Errorf("%s", err)
-		return
-	}
-	if _, err = conn.Publish(b, a.pubChan); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "patchDevCfgHandler",
-		}).Errorf("%s", err)
-		return
-	}
+	//if _, err = a.cfgProvider.Publish(b, a.pubChan); err != nil {
+	//	a.log.WithFields(logrus.Fields{
+	//		"func": "patchDevCfgHandler",
+	//	}).Errorf("%s", err)
+	//	return
+	//}
 }

@@ -3,12 +3,13 @@ package main
 import (
 	"os"
 
+	"github.com/kostiamol/centerms/params"
+
 	"github.com/kostiamol/centerms/api"
 
 	"flag"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kostiamol/centerms/entity"
 	"github.com/kostiamol/centerms/svc"
 )
 
@@ -22,13 +23,13 @@ func main() {
 	if err := store.Init(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"func":  "main",
-			"event": entity.EventStoreInit,
+			"event": params.EventStoreInit,
 		}).Errorf("%s", err)
 		os.Exit(1)
 	}
 
 	cfg := svc.NewCfgService(
-		entity.Addr{
+		svc.Addr{
 			Host: host,
 			Port: *devCfgPort,
 		},
@@ -36,35 +37,35 @@ func main() {
 		ctrl,
 		logrus.NewEntry(log),
 		*retry,
-		entity.DevCfgChan,
+		svc.DevCfgChan,
 		cfgAgentName,
 		*ttl,
 	)
 	go cfg.Run()
 
 	data := svc.NewDataService(
-		entity.Addr{
+		svc.Addr{
 			Host: host,
 			Port: *devDataPort,
 		},
 		store,
 		ctrl,
 		logrus.NewEntry(log),
-		entity.DevDataChan,
+		svc.DevDataChan,
 		dataAgentName,
 		*ttl,
 	)
 	go data.Run()
 
 	stream := svc.NewStreamService(
-		entity.Addr{
+		svc.Addr{
 			Host: host,
 			Port: *streamPort,
 		},
 		store,
 		ctrl,
 		logrus.NewEntry(log),
-		entity.DevDataChan,
+		svc.DevDataChan,
 		streamAgentName,
 		*ttl,
 	)
@@ -75,10 +76,9 @@ func main() {
 		*rpcPort,
 		*restPort,
 		cfg,
-		store,
 		logrus.NewEntry(log),
 		*retry,
-		entity.DevCfgChan,
+		svc.DevCfgChan,
 		webAgentName,
 		*ttl,
 	)
@@ -88,6 +88,6 @@ func main() {
 
 	logrus.WithFields(logrus.Fields{
 		"func":  "main",
-		"event": entity.EventMSTerminated,
+		"event": params.EventMSTerminated,
 	}).Info("centerms is down")
 }

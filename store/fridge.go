@@ -5,12 +5,35 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kostiamol/centerms/api"
+
 	"github.com/garyburd/redigo/redis"
-	"github.com/kostiamol/centerms/entity"
 	"github.com/pkg/errors"
 )
 
-func (r *Redis) getFridgeData(m *entity.DevMeta) (*entity.DevData, error) {
+// fridgeData is used to store temperature with timestamps for each compartment of the fridge.
+type fridgeData struct {
+	TopCompart map[int64]float32 `json:"topCompart"`
+	BotCompart map[int64]float32 `json:"botCompart"`
+}
+
+// fridgeCfg is used to store fridge configuration.
+type fridgeCfg struct {
+	TurnedOn    bool  `json:"turnedOn"`
+	CollectFreq int64 `json:"collectFreq"`
+	SendFreq    int64 `json:"sendFreq"`
+}
+
+var (
+	// defaultFridgeCfg is used to store default fridge configuration.
+	defaultFridgeCfg = fridgeCfg{
+		TurnedOn:    true,
+		CollectFreq: 1000,
+		SendFreq:    2000,
+	}
+)
+
+func (r *Redis) getFridgeData(m *api.DevMeta) (*api.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	paramsKey := devKey + partialDevParamsKey
 
@@ -33,16 +56,16 @@ func (r *Redis) getFridgeData(m *entity.DevMeta) (*entity.DevData, error) {
 		return nil, err
 	}
 
-	return &entity.DevData{
+	return &api.DevData{
 		Meta: *m,
 		Data: b,
 	}, err
 }
 
-func (r *Redis) saveFridgeData(d *entity.DevData) error {
-	var f entity.FridgeData
+func (r *Redis) saveFridgeData(d *api.DevData) error {
+	var f fridgeData
 	if err := json.Unmarshal([]byte(d.Data), &f); err != nil {
-		errors.Wrap(err, "Redis: saveFridgeData(): FridgeData unmarshalling has failed")
+		errors.Wrap(err, "Redis: saveFridgeData(): fridgeData unmarshalling has failed")
 		return err
 	}
 
@@ -89,7 +112,7 @@ func (r *Redis) setFridgeCompartData(tempCam map[int64]float32, key string) erro
 	return nil
 }
 
-func (r *Redis) getFridgeCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
+func (r *Redis) getFridgeCfg(m *api.DevMeta) (*api.DevCfg, error) {
 	cfgKey := m.MAC + partialDevCfgKey
 
 	to, err := redis.Strings(r.conn.Do("HMGET", cfgKey, "TurnedOn"))
@@ -125,7 +148,7 @@ func (r *Redis) getFridgeCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 		return nil, err
 	}
 
-	c := entity.FridgeCfg{
+	c := fridgeCfg{
 		TurnedOn:    pto,
 		CollectFreq: pcf,
 		SendFreq:    psf,
@@ -133,18 +156,18 @@ func (r *Redis) getFridgeCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 
 	b, err := json.Marshal(&c)
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeCfg(): FridgeCfg marshalling has failed")
+		errors.Wrap(err, "Redis: getFridgeCfg(): fridgeCfg marshalling has failed")
 		return nil, err
 	}
 
-	return &entity.DevCfg{
+	return &api.DevCfg{
 		MAC:  m.MAC,
 		Data: b,
 	}, err
 }
 
-func (r *Redis) setFridgeCfg(c *entity.DevCfg, m *entity.DevMeta) error {
-	var cfg *entity.DevCfg
+func (r *Redis) setFridgeCfg(c *api.DevCfg, m *api.DevMeta) error {
+	var cfg *api.DevCfg
 	if ok, err := r.DevIsRegistered(m); ok {
 		if err != nil {
 			errors.Wrapf(err, "Redis: setFridgeCfg(): DevIsRegistered() has failed")
@@ -163,7 +186,7 @@ func (r *Redis) setFridgeCfg(c *entity.DevCfg, m *entity.DevMeta) error {
 		}
 	}
 
-	var f entity.FridgeCfg
+	var f fridgeCfg
 	if err := json.Unmarshal(cfg.Data, &f); err != nil {
 		errors.Wrap(err, "Redis: setFridgeCfg(): Unmarshal() has failed")
 		return err
@@ -205,14 +228,14 @@ func (r *Redis) setFridgeCfg(c *entity.DevCfg, m *entity.DevMeta) error {
 	return nil
 }
 
-func (r *Redis) getFridgeDefaultCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
-	b, err := json.Marshal(entity.DefaultFridgeCfg)
+func (r *Redis) getFridgeDefaultCfg(m *api.DevMeta) (*api.DevCfg, error) {
+	b, err := json.Marshal(defaultFridgeCfg)
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeDefaultCfg(): FridgeCfg marshalling has failed")
+		errors.Wrap(err, "Redis: getFridgeDefaultCfg(): fridgeCfg marshalling has failed")
 		return nil, err
 	}
 
-	return &entity.DevCfg{
+	return &api.DevCfg{
 		MAC:  m.MAC,
 		Data: b,
 	}, nil

@@ -4,27 +4,24 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/kostiamol/centerms/params"
+
 	"github.com/kostiamol/centerms/proto"
 
 	"fmt"
 	"net"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kostiamol/centerms/entity"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
-
-type cfgProvider interface {
-	SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error)
-}
 
 func (a *API) runRPC() {
 	defer func() {
 		if r := recover(); r != nil {
 			a.log.WithFields(logrus.Fields{
 				"func":  "listenCfg",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 		}
 	}()
@@ -48,20 +45,11 @@ func (a *API) runRPC() {
 	}
 }
 
-// SetDevInitCfg sets device's initial configuration when it connects to the center for the first time using Cfg
+// SetDevInitCfg sets device's initial configuration when it connects to the center for the first time using CfgService
 // and returns that configuration to the device.
 func (a *API) SetDevInitCfg(ctx context.Context, req *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse,
 	error) {
-	conn, err := a.store.CreateConn()
-	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "SetDevInitCfg",
-		}).Errorf("%s", err)
-		return nil, err
-	}
-	defer conn.CloseConn()
-
-	m := entity.DevMeta{
+	m := DevMeta{
 		Type: req.Meta.Type,
 		Name: req.Meta.Name,
 		MAC:  req.Meta.Mac,
@@ -79,20 +67,11 @@ func (a *API) SetDevInitCfg(ctx context.Context, req *proto.SetDevInitCfgRequest
 	}, nil
 }
 
-// SaveDevData saves data from device using Data.
+// SaveDevData saves data from device using DataService.
 func (a *API) SaveDevData(ctx context.Context, req *proto.SaveDevDataRequest) (*proto.SaveDevDataResponse, error) {
-	conn, err := a.store.CreateConn()
-	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "SaveDevData",
-		}).Errorf("%s", err)
-		return nil, err
-	}
-	defer conn.CloseConn()
-
-	d := entity.DevData{
+	d := DevData{
 		Time: req.Time,
-		Meta: entity.DevMeta{
+		Meta: DevMeta{
 			Type: req.Meta.Type,
 			Name: req.Meta.Name,
 			MAC:  req.Meta.Mac,
@@ -100,7 +79,7 @@ func (a *API) SaveDevData(ctx context.Context, req *proto.SaveDevDataRequest) (*
 		Data: req.Data,
 	}
 
-	if err := conn.SaveDevData(&d); err != nil {
+	if err := a.dataProvider.SaveDevData(&d); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "SaveDevData",
 		}).Errorf("failed to set init cfg: %s", err)

@@ -3,8 +3,11 @@ package api
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/kostiamol/centerms/params"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -12,10 +15,49 @@ import (
 	"fmt"
 
 	consul "github.com/hashicorp/consul/api"
-	"github.com/kostiamol/centerms/entity"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/crypto/acme/autocert"
 )
+
+// DevID is used for device's id.
+type DevID string
+
+// DevMeta is used to store device metadata: it's type, name (model) and MAC address.
+type DevMeta struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+	MAC  string `json:"mac"`
+}
+
+// DevData is used to store time of the request, device's metadata and the data it transfers.
+type DevData struct {
+	Time int64           `json:"time"`
+	Meta DevMeta         `json:"meta"`
+	Data json.RawMessage `json:"data"`
+}
+
+// DevCfg holds device's MAC address and config.
+type DevCfg struct {
+	MAC  string          `json:"mac"`
+	Data json.RawMessage `json:"data"`
+}
+
+// cfgProvider deals with device configurations.
+type cfgProvider interface {
+	//GetDevCfg(id DevID) (*DevCfg, error)
+	SetDevInitCfg(m *DevMeta) (*DevCfg, error)
+	//SetDevCfg(id DevID, c *DevCfg) error
+	//Publish(msg interface{}, channel string) (int64, error)
+}
+
+// dataProvider deals with device data.
+type dataProvider interface {
+	GetDevsData() ([]DevData, error)
+	GetDevData(id DevID) (*DevData, error)
+	SaveDevData(d *DevData) error
+	GetDevMeta(id DevID) (*DevMeta, error)
+	SetDevMeta(m *DevMeta) error
+}
 
 // API is used to deal with user's queries from the web client (dashboard).
 type API struct {
@@ -23,7 +65,7 @@ type API struct {
 	rpcPort             int
 	restPort            int
 	cfgProvider         cfgProvider
-	store               entity.Storer
+	dataProvider        dataProvider
 	log                 *logrus.Entry
 	retry               time.Duration
 	pubChan             string
@@ -36,15 +78,14 @@ type API struct {
 }
 
 // NewAPI creates and initializes a new instance of API component.
-func NewAPI(host string, rpcPort, restPort int, cfg cfgProvider, s entity.Storer, log *logrus.Entry, retry time.Duration, pubChan,
-	agentName string, ttl time.Duration) *API {
+func NewAPI(host string, rpcPort, restPort int, cfg cfgProvider, log *logrus.Entry, retry time.Duration,
+	pubChan, agentName string, ttl time.Duration) *API {
 
 	return &API{
 		host:        host,
 		rpcPort:     rpcPort,
 		restPort:    restPort,
 		cfgProvider: cfg,
-		store:       s,
 		log:         log.WithFields(logrus.Fields{"component": "api"}),
 		retry:       retry,
 		pubChan:     pubChan,
@@ -57,14 +98,14 @@ func NewAPI(host string, rpcPort, restPort int, cfg cfgProvider, s entity.Storer
 func (a *API) Run() {
 	a.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": entity.EventSVCStarted,
+		"event": params.EventSVCStarted,
 	}).Infof("running on host: [%s], rpc port: [%d], rest port: [%d]", a.host, a.rpcPort, a.restPort)
 
 	defer func() {
 		if r := recover(); r != nil {
 			a.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 		}
 	}()
@@ -161,7 +202,7 @@ func (a *API) runConsulAgent() {
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": entity.EventPanic,
+			"event": params.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
@@ -176,7 +217,7 @@ func (a *API) runConsulAgent() {
 	if err := a.agent.ServiceRegister(agent); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": entity.EventPanic,
+			"event": params.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
@@ -201,7 +242,7 @@ func (a *API) update(check func() (bool, error)) {
 	if !ok {
 		a.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": entity.EventUpdConsulStatus,
+			"event": params.EventUpdConsulStatus,
 		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
@@ -214,7 +255,7 @@ func (a *API) update(check func() (bool, error)) {
 	if err := a.agent.UpdateTTL("svc:"+a.agentName, "", health); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": entity.EventUpdConsulStatus,
+			"event": params.EventUpdConsulStatus,
 		}).Error(err)
 	}
 }
@@ -235,7 +276,7 @@ func (a *API) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 			if r := recover(); r != nil {
 				a.log.WithFields(logrus.Fields{
 					"func":  "recoveryAdapter",
-					"event": entity.EventPanic,
+					"event": params.EventPanic,
 				}).Errorf("%s", r)
 			}
 		}()

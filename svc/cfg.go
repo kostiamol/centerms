@@ -2,6 +2,8 @@
 package svc
 
 import (
+	"github.com/kostiamol/centerms/api"
+	"github.com/kostiamol/centerms/params"
 	"github.com/kostiamol/centerms/proto"
 	"golang.org/x/net/context"
 
@@ -13,7 +15,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	gproto "github.com/golang/protobuf/proto"
 	consul "github.com/hashicorp/consul/api"
-	"github.com/kostiamol/centerms/entity"
 	"github.com/nats-io/go-nats"
 	"github.com/satori/go.uuid"
 )
@@ -23,30 +24,30 @@ const (
 	event     = "cfg_patched"
 )
 
-// Cfg is used to deal with device configurations.
-type Cfg struct {
-	addr      entity.Addr
-	store     entity.Storer
+// CfgService is used to deal with device configurations.
+type CfgService struct {
+	addr      Addr
+	store     Storer
 	ctrl      Ctrl
 	log       *logrus.Entry
 	retry     time.Duration
-	sub       entity.Subscription
+	sub       subscription
 	agent     *consul.Agent
 	agentName string
 	ttl       time.Duration
 }
 
-// NewCfgService creates and initializes a new instance of Cfg service.
-func NewCfgService(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, retry time.Duration, subj string,
-	agentName string, ttl time.Duration) *Cfg {
+// NewCfgService creates and initializes a new instance of CfgService service.
+func NewCfgService(a Addr, s Storer, c Ctrl, l *logrus.Entry, retry time.Duration, subj string,
+	agentName string, ttl time.Duration) *CfgService {
 
-	return &Cfg{
+	return &CfgService{
 		addr:  a,
 		store: s,
 		ctrl:  c,
 		log:   l.WithFields(logrus.Fields{"component": "svc", "name": "cfg"}),
 		retry: retry,
-		sub: entity.Subscription{
+		sub: subscription{
 			ChanName: subj,
 			Chan:     make(chan []byte),
 		},
@@ -56,10 +57,10 @@ func NewCfgService(a entity.Addr, s entity.Storer, c Ctrl, l *logrus.Entry, retr
 }
 
 // Run launches the service by running goroutines for listening the service termination and config patches.
-func (c *Cfg) Run() {
+func (c *CfgService) Run() {
 	c.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": entity.EventSVCStarted,
+		"event": params.EventSVCStarted,
 	}).Infof("running on host: [%s], port: [%d]", c.addr.Host, c.addr.Port)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -67,7 +68,7 @@ func (c *Cfg) Run() {
 		if r := recover(); r != nil {
 			c.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 
 			cancel()
@@ -80,16 +81,16 @@ func (c *Cfg) Run() {
 }
 
 // GetAddr returns address of the service.
-func (c *Cfg) GetAddr() entity.Addr {
+func (c *CfgService) GetAddr() Addr {
 	return c.addr
 }
 
-func (c *Cfg) runConsulAgent() {
+func (c *CfgService) runConsulAgent() {
 	cl, err := consul.NewClient(consul.DefaultConfig())
 	if err != nil {
 		c.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": entity.EventPanic,
+			"event": params.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
@@ -104,7 +105,7 @@ func (c *Cfg) runConsulAgent() {
 	if err := c.agent.ServiceRegister(a); err != nil {
 		c.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": entity.EventPanic,
+			"event": params.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
@@ -112,25 +113,25 @@ func (c *Cfg) runConsulAgent() {
 }
 
 // todo: substitute bool with byte
-func (c *Cfg) check() (bool, error) {
+func (c *CfgService) check() (bool, error) {
 	// while the service is alive - everything is ok
 	return true, nil
 }
 
-func (c *Cfg) updateTTL(check func() (bool, error)) {
+func (c *CfgService) updateTTL(check func() (bool, error)) {
 	t := time.NewTicker(c.ttl / 2)
 	for range t.C {
 		c.update(check)
 	}
 }
 
-func (c *Cfg) update(check func() (bool, error)) {
+func (c *CfgService) update(check func() (bool, error)) {
 	var health string
 	ok, err := check()
 	if !ok {
 		c.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": entity.EventUpdConsulStatus,
+			"event": params.EventUpdConsulStatus,
 		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
@@ -143,12 +144,12 @@ func (c *Cfg) update(check func() (bool, error)) {
 	if err := c.agent.UpdateTTL("svc:"+c.agentName, "", health); err != nil {
 		c.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": entity.EventUpdConsulStatus,
+			"event": params.EventUpdConsulStatus,
 		}).Error(err)
 	}
 }
 
-func (c *Cfg) listenTermination() {
+func (c *CfgService) listenTermination() {
 	for {
 		select {
 		case <-c.ctrl.StopChan:
@@ -158,12 +159,12 @@ func (c *Cfg) listenTermination() {
 	}
 }
 
-func (c *Cfg) terminate() {
+func (c *CfgService) terminate() {
 	defer func() {
 		if r := recover(); r != nil {
 			c.log.WithFields(logrus.Fields{
 				"func":  "terminate",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 			c.ctrl.Terminate()
 		}
@@ -177,14 +178,14 @@ func (c *Cfg) terminate() {
 
 	c.log.WithFields(logrus.Fields{
 		"func":  "terminate",
-		"event": entity.EventSVCShutdown,
+		"event": params.EventSVCShutdown,
 	}).Infoln("svc is down")
 	c.ctrl.Terminate()
 }
 
 // SetDevInitCfg check's whether device is already registered in the system. If it's already registered,
 // the func returns actual configuration. Otherwise it returns default config for that type of device.
-func (c *Cfg) SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
+func (c *CfgService) SetDevInitCfg(m *api.DevMeta) (*api.DevCfg, error) {
 	conn, err := c.store.CreateConn()
 	if err != nil {
 		c.log.WithFields(logrus.Fields{
@@ -201,8 +202,8 @@ func (c *Cfg) SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 		return nil, err
 	}
 
-	var d *entity.DevCfg
-	id := entity.DevID(m.MAC)
+	var d *api.DevCfg
+	id := api.DevID(m.MAC)
 
 	if ok, err := conn.DevIsRegistered(m); ok {
 		if err != nil {
@@ -243,18 +244,18 @@ func (c *Cfg) SetDevInitCfg(m *entity.DevMeta) (*entity.DevCfg, error) {
 		}
 		c.log.WithFields(logrus.Fields{
 			"func":  "SetDevInitCfg",
-			"event": entity.EventDevRegistered,
+			"event": params.EventDevRegistered,
 		}).Infof("devices' meta: %+v", m)
 	}
 	return d, err
 }
 
-func (c *Cfg) listenCfgPatches(ctx context.Context) {
+func (c *CfgService) listenCfgPatches(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			c.log.WithFields(logrus.Fields{
 				"func":  "listenCfgPatches",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 			c.terminate()
 		}
@@ -271,7 +272,7 @@ func (c *Cfg) listenCfgPatches(ctx context.Context) {
 
 	go conn.Subscribe(c.sub.Chan, c.sub.ChanName)
 
-	var d entity.DevCfg
+	var d api.DevCfg
 	for {
 		select {
 		case msg := <-c.sub.Chan:
@@ -288,12 +289,12 @@ func (c *Cfg) listenCfgPatches(ctx context.Context) {
 	}
 }
 
-func (c *Cfg) pubNewCfgPatchEvent(cfg *entity.DevCfg) {
+func (c *CfgService) pubNewCfgPatchEvent(cfg *api.DevCfg) {
 	defer func() {
 		if r := recover(); r != nil {
 			c.log.WithFields(logrus.Fields{
 				"func":  "pubNewCfgPatchEvent",
-				"event": entity.EventPanic,
+				"event": params.EventPanic,
 			}).Errorf("%s", r)
 			c.terminate()
 		}
@@ -317,7 +318,7 @@ func (c *Cfg) pubNewCfgPatchEvent(cfg *entity.DevCfg) {
 		EventType:     event,
 		EventData:     string(cfg.Data),
 	}
-	subj := "Cfg.Patch." + cfg.MAC
+	subj := "CfgService.Patch." + cfg.MAC
 	b, err := gproto.Marshal(&s)
 	if err != nil {
 		c.log.WithFields(logrus.Fields{
@@ -330,6 +331,6 @@ func (c *Cfg) pubNewCfgPatchEvent(cfg *entity.DevCfg) {
 	}
 	c.log.WithFields(logrus.Fields{
 		"func":  "pubNewCfgPatchEvent",
-		"event": entity.EventCfgPatchCreated,
+		"event": params.EventCfgPatchCreated,
 	}).Infof("cfg patch [%s] for device with ID [%s]", cfg.Data, cfg.MAC)
 }
