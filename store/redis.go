@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/kostiamol/centerms/params"
+	"github.com/kostiamol/centerms/cfg"
 
 	"github.com/kostiamol/centerms/api"
 
@@ -111,11 +111,10 @@ func (r *Redis) UpdateTTL(check func() (bool, error)) {
 
 func (r *Redis) update(check func() (bool, error)) {
 	var health string
-	ok, err := check()
-	if !ok {
+	if ok, err := check(); !ok {
 		r.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": params.EventUpdConsulStatus,
+			"event": cfg.EventUpdConsulStatus,
 		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
@@ -128,7 +127,7 @@ func (r *Redis) update(check func() (bool, error)) {
 	if err := r.agent.UpdateTTL("svc:"+r.agentName, "", health); err != nil {
 		r.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": params.EventUpdConsulStatus,
+			"event": cfg.EventUpdConsulStatus,
 		}).Error(err)
 	}
 }
@@ -241,8 +240,8 @@ func (r *Redis) SetDevMeta(m *api.DevMeta) error {
 
 // DevIsRegistered returns 'true' if the given device is registered, otherwise - 'false'.
 func (r *Redis) DevIsRegistered(m *api.DevMeta) (bool, error) {
-	configKey := m.MAC + partialDevCfgKey
-	if ok, err := redis.Bool(r.conn.Do("EXISTS", configKey)); ok {
+	cfgKey := m.MAC + partialDevCfgKey
+	if ok, err := redis.Bool(r.conn.Do("EXISTS", cfgKey)); ok {
 		if err != nil {
 			errors.Wrap(err, "Redis: DevIsRegistered(): Exists() has failed")
 		}

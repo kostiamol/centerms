@@ -104,8 +104,8 @@ func (r *Redis) getWasherData(m *api.DevMeta) (*api.DevData, error) {
 }
 
 func (r *Redis) saveWasherData(d *api.DevData) error {
-	var w washerData
-	if err := json.NewDecoder(bytes.NewBuffer(d.Data)).Decode(&w); err != nil {
+	var washer washerData
+	if err := json.NewDecoder(bytes.NewBuffer(d.Data)).Decode(&washer); err != nil {
 		errors.Wrap(err, "RedisDevStore: saveWasherData(): washerData decoding has failed")
 		return err
 	}
@@ -118,12 +118,12 @@ func (r *Redis) saveWasherData(d *api.DevData) error {
 		r.conn.Do("DISCARD")
 		return err
 	}
-	if err := r.setTurnoversData(w.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
+	if err := r.setTurnoversData(washer.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
 		errors.Wrap(err, "RedisDevStore: saveWasherData(): setTurnoversData() has failed")
 		r.conn.Do("DISCARD")
 		return err
 	}
-	if err := r.setWaterTempData(w.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
+	if err := r.setWaterTempData(washer.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
 		errors.Wrap(err, "RedisDevStore: saveWasherData(): setWaterTempData() has failed")
 		r.conn.Do("DISCARD")
 		return err
@@ -162,12 +162,12 @@ func (r *Redis) setWaterTempData(tempCam map[int64]float32, key string) error {
 }
 
 func (r *Redis) getWasherCfg(m *api.DevMeta) (*api.DevCfg, error) {
-	c, err := r.getWasherDefaultCfg(m)
+	cfg, err := r.getWasherDefaultCfg(m)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStore: getWasherCfg(): getWasherDefaultCfg() has failed")
 	}
 
-	c.MAC = m.MAC
+	cfg.MAC = m.MAC
 	cfgKey := m.MAC + partialDevCfgKey
 	unixTime := int64(100) // fake
 	mode, err := redis.Strings(r.conn.Do("ZRANGEBYSCORE", cfgKey, unixTime-100, unixTime+100))
@@ -175,27 +175,26 @@ func (r *Redis) getWasherCfg(m *api.DevMeta) (*api.DevCfg, error) {
 		errors.Wrap(err, "RedisDevStore: getWasherCfg(): ZRangeByScore() has failed")
 	}
 	if len(mode) == 0 {
-		return c, err
+		return cfg, errors.New("mode is missing")
 	}
 
 	l := lightMode
-	c.Data, err = json.Marshal(l)
+	cfg.Data, err = json.Marshal(l)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStore: getWasherCfg(): washerCfg marshalling has failed")
 	}
-	return c, err
+	return cfg, err
 }
 
 func (r *Redis) setWasherCfg(c *api.DevCfg) error {
 	var m *timerMode
-	err := json.NewDecoder(bytes.NewBuffer(c.Data)).Decode(&m)
-	if err != nil {
+	var err error
+	if err = json.NewDecoder(bytes.NewBuffer(c.Data)).Decode(&m); err != nil {
 		errors.Wrap(err, "RedisDevStorage: setWasherCfg(): Decode() has failed")
 	}
 
 	cfgKey := c.MAC + partialDevCfgKey
-	_, err = r.conn.Do("ZADD", cfgKey, m.StartTime, m.Name)
-	if err != nil {
+	if _, err = r.conn.Do("ZADD", cfgKey, m.StartTime, m.Name); err != nil {
 		errors.Wrap(err, "RedisDevStore: setWasherCfg(): ZAdd() has failed")
 	}
 	return err

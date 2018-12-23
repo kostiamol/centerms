@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kostiamol/centerms/params"
+	"github.com/kostiamol/centerms/cfg"
 
 	"github.com/kostiamol/centerms/api"
 
@@ -74,7 +74,7 @@ func NewStreamService(a Addr, s Storer, c Ctrl, l *logrus.Entry, pubChan string,
 func (s *StreamService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": params.EventSVCStarted,
+		"event": cfg.EventSVCStarted,
 	}).Infof("running on host: [%s], port: [%d]", s.addr.Host, s.addr.Port)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -82,7 +82,7 @@ func (s *StreamService) Run() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
 			cancel()
 			s.terminate()
@@ -113,11 +113,11 @@ func (s *StreamService) runConsulAgent() {
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": params.EventPanic,
+			"event": cfg.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
-	a := &consul.AgentServiceRegistration{
+	r := &consul.AgentServiceRegistration{
 		Name: s.agentName,
 		Port: s.addr.Port,
 		Check: &consul.AgentServiceCheck{
@@ -125,10 +125,10 @@ func (s *StreamService) runConsulAgent() {
 		},
 	}
 	s.agent = c.Agent()
-	if err := s.agent.ServiceRegister(a); err != nil {
+	if err := s.agent.ServiceRegister(r); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": params.EventPanic,
+			"event": cfg.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
@@ -149,11 +149,10 @@ func (s *StreamService) updateTTL(check func() (bool, error)) {
 
 func (s *StreamService) update(check func() (bool, error)) {
 	var health string
-	ok, err := check()
-	if !ok {
+	if ok, err := check(); !ok {
 		s.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": params.EventUpdConsulStatus,
+			"event": cfg.EventUpdConsulStatus,
 		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
@@ -166,7 +165,7 @@ func (s *StreamService) update(check func() (bool, error)) {
 	if err := s.agent.UpdateTTL("svc:"+s.agentName, "", health); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": params.EventUpdConsulStatus,
+			"event": cfg.EventUpdConsulStatus,
 		}).Error(err)
 	}
 }
@@ -186,7 +185,7 @@ func (s *StreamService) terminate() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "terminate",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -200,7 +199,7 @@ func (s *StreamService) terminate() {
 
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
-		"event": params.EventSVCShutdown,
+		"event": cfg.EventSVCShutdown,
 	}).Info("svc is down")
 	s.ctrl.Terminate()
 }
@@ -210,7 +209,7 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "addConnHandler",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -235,7 +234,7 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	s.conns.idConns[id].addConn(conn)
 	s.log.WithFields(logrus.Fields{
 		"func":  "addConnHandler",
-		"event": params.EventWSConnAdded,
+		"event": cfg.EventWSConnAdded,
 	}).Infof("addr: %v", conn.RemoteAddr())
 }
 
@@ -244,7 +243,7 @@ func (s *StreamService) listenPubs(ctx context.Context) {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "listenPubs",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
@@ -276,33 +275,33 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "stream",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}
 	}()
 
-	var d api.DevData
-	if err := json.Unmarshal(msg, &d); err != nil {
+	var dev api.DevData
+	if err := json.Unmarshal(msg, &dev); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "stream",
 		}).Errorf("%s", err)
 		return err
 	}
 
-	if _, ok := s.conns.idConns[api.DevID(d.Meta.MAC)]; ok {
-		for _, conn := range s.conns.idConns[api.DevID(d.Meta.MAC)].Conns {
+	if _, ok := s.conns.idConns[api.DevID(dev.Meta.MAC)]; ok {
+		for _, conn := range s.conns.idConns[api.DevID(dev.Meta.MAC)].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				s.conns.idConns[api.DevID(d.Meta.MAC)].Lock()
+				s.conns.idConns[api.DevID(dev.Meta.MAC)].Lock()
 				err := conn.WriteMessage(1, msg)
-				s.conns.idConns[api.DevID(d.Meta.MAC)].Unlock()
+				s.conns.idConns[api.DevID(dev.Meta.MAC)].Unlock()
 				if err != nil {
 					s.log.WithFields(logrus.Fields{
 						"func":  "stream",
-						"event": params.EventWSConnRemoved,
+						"event": cfg.EventWSConnRemoved,
 					}).Infof("addr: %v", conn.RemoteAddr())
 					s.conns.closedConns <- conn
 					return err
@@ -319,7 +318,7 @@ func (s *StreamService) listenClosedConns(ctx context.Context) {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{
 				"func":  "listenClosedConns",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
 			s.terminate()
 		}

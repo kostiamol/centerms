@@ -1,8 +1,8 @@
-package params
+package cfg
 
-// Inner events.
+// Inner log events.
 const (
-	EventCfgPatchCreated = "conf_patch_created"
+	EventCfgPatchCreated = "cfg_patch_created"
 	EventDevRegistered   = "dev_registered"
 	EventMSTerminated    = "ms_terminated"
 	EventPanic           = "panic"

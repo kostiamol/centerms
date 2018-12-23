@@ -1,8 +1,8 @@
 syntax = "proto3";
 package proto;
 
-// EventStore is used for NATS Publish-Subscribe
-message EventStore {
+// Event is used for NATS Publish-Subscribe
+message Event {
     string aggregate_id = 1;
     string aggregate_type = 2;
     string event_id = 3;

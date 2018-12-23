@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/kostiamol/centerms/params"
+	"github.com/kostiamol/centerms/cfg"
 
 	"github.com/kostiamol/centerms/proto"
 
@@ -21,7 +21,7 @@ func (a *API) runRPC() {
 		if r := recover(); r != nil {
 			a.log.WithFields(logrus.Fields{
 				"func":  "listenCfg",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
 		}
 	}()

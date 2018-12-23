@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kostiamol/centerms/params"
+	"github.com/kostiamol/centerms/cfg"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -98,14 +98,14 @@ func NewAPI(host string, rpcPort, restPort int, cfg cfgProvider, log *logrus.Ent
 func (a *API) Run() {
 	a.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": params.EventSVCStarted,
+		"event": cfg.EventSVCStarted,
 	}).Infof("running on host: [%s], rpc port: [%d], rest port: [%d]", a.host, a.rpcPort, a.restPort)
 
 	defer func() {
 		if r := recover(); r != nil {
 			a.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
 		}
 	}()
@@ -202,7 +202,7 @@ func (a *API) runConsulAgent() {
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": params.EventPanic,
+			"event": cfg.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
@@ -217,7 +217,7 @@ func (a *API) runConsulAgent() {
 	if err := a.agent.ServiceRegister(agent); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": params.EventPanic,
+			"event": cfg.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
@@ -242,7 +242,7 @@ func (a *API) update(check func() (bool, error)) {
 	if !ok {
 		a.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": params.EventUpdConsulStatus,
+			"event": cfg.EventUpdConsulStatus,
 		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
@@ -255,7 +255,7 @@ func (a *API) update(check func() (bool, error)) {
 	if err := a.agent.UpdateTTL("svc:"+a.agentName, "", health); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": params.EventUpdConsulStatus,
+			"event": cfg.EventUpdConsulStatus,
 		}).Error(err)
 	}
 }
@@ -276,7 +276,7 @@ func (a *API) recoveryAdapter(h http.HandlerFunc) http.HandlerFunc {
 			if r := recover(); r != nil {
 				a.log.WithFields(logrus.Fields{
 					"func":  "recoveryAdapter",
-					"event": params.EventPanic,
+					"event": cfg.EventPanic,
 				}).Errorf("%s", r)
 			}
 		}()

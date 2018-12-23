@@ -3,7 +3,7 @@ package svc
 import (
 	"encoding/json"
 
-	"github.com/kostiamol/centerms/params"
+	"github.com/kostiamol/centerms/cfg"
 
 	"github.com/kostiamol/centerms/api"
 
@@ -43,79 +43,78 @@ func NewDataService(a Addr, s Storer, c Ctrl, l *logrus.Entry, pubChan string, a
 }
 
 // Run launches the service by running goroutine that listens for the service termination.
-func (d *DataService) Run() {
-	d.log.WithFields(logrus.Fields{
+func (s *DataService) Run() {
+	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
-		"event": params.EventSVCStarted,
-	}).Infof("running on host: [%s], port: [%d]", d.addr.Host, d.addr.Port)
+		"event": cfg.EventSVCStarted,
+	}).Infof("running on host: [%s], port: [%s]", s.addr.Host, s.addr.Port)
 
 	_, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			d.log.WithFields(logrus.Fields{
+			s.log.WithFields(logrus.Fields{
 				"func":  "Run",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
 			cancel()
-			d.terminate()
+			s.terminate()
 		}
 	}()
 
-	go d.listenTermination()
-	d.runConsulAgent()
+	go s.listenTermination()
+	s.runConsulAgent()
 }
 
 // GetAddr returns address of the service.
-func (d *DataService) GetAddr() Addr {
-	return d.addr
+func (s *DataService) GetAddr() Addr {
+	return s.addr
 }
 
-func (d *DataService) runConsulAgent() {
+func (s *DataService) runConsulAgent() {
 	c, err := consul.NewClient(consul.DefaultConfig())
 	if err != nil {
-		d.log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": params.EventPanic,
+			"event": cfg.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
-	agent := &consul.AgentServiceRegistration{
-		Name: d.agentName,
-		Port: d.addr.Port,
+	r := &consul.AgentServiceRegistration{
+		Name: s.agentName,
+		Port: s.addr.Port,
 		Check: &consul.AgentServiceCheck{
-			TTL: d.ttl.String(),
+			TTL: s.ttl.String(),
 		},
 	}
-	d.agent = c.Agent()
-	if err := d.agent.ServiceRegister(agent); err != nil {
-		d.log.WithFields(logrus.Fields{
+	s.agent = c.Agent()
+	if err := s.agent.ServiceRegister(r); err != nil {
+		s.log.WithFields(logrus.Fields{
 			"func":  "Run",
-			"event": params.EventPanic,
+			"event": cfg.EventPanic,
 		}).Errorf("%s", err)
 		panic("consul init error")
 	}
-	go d.updateTTL(d.check)
+	go s.updateTTL(s.check)
 }
 
-func (d *DataService) check() (bool, error) {
+func (s *DataService) check() (bool, error) {
 	// while the service is alive - everything is ok
 	return true, nil
 }
 
-func (d *DataService) updateTTL(check func() (bool, error)) {
-	t := time.NewTicker(d.ttl / 2)
+func (s *DataService) updateTTL(check func() (bool, error)) {
+	t := time.NewTicker(s.ttl / 2)
 	for range t.C {
-		d.update(check)
+		s.update(check)
 	}
 }
 
-func (d *DataService) update(check func() (bool, error)) {
+func (s *DataService) update(check func() (bool, error)) {
 	var health string
-	ok, err := check()
-	if !ok {
-		d.log.WithFields(logrus.Fields{
+	if ok, err := check(); !ok {
+		s.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": params.EventUpdConsulStatus,
+			"event": cfg.EventUpdConsulStatus,
 		}).Errorf("check has failed: %s", err)
 
 		// failed check will remove a service instance from DNS and HTTP query
@@ -125,53 +124,53 @@ func (d *DataService) update(check func() (bool, error)) {
 		health = consul.HealthPassing
 	}
 
-	if err := d.agent.UpdateTTL("svc:"+d.agentName, "", health); err != nil {
-		d.log.WithFields(logrus.Fields{
+	if err := s.agent.UpdateTTL("svc:"+s.agentName, "", health); err != nil {
+		s.log.WithFields(logrus.Fields{
 			"func":  "update",
-			"event": params.EventUpdConsulStatus,
+			"event": cfg.EventUpdConsulStatus,
 		}).Error(err)
 	}
 }
 
-func (d *DataService) listenTermination() {
+func (s *DataService) listenTermination() {
 	for {
 		select {
-		case <-d.ctrl.StopChan:
-			d.terminate()
+		case <-s.ctrl.StopChan:
+			s.terminate()
 			return
 		}
 	}
 }
 
-func (d *DataService) terminate() {
+func (s *DataService) terminate() {
 	defer func() {
 		if r := recover(); r != nil {
-			d.log.WithFields(logrus.Fields{
+			s.log.WithFields(logrus.Fields{
 				"func":  "terminate",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
-			d.ctrl.Terminate()
+			s.ctrl.Terminate()
 		}
 	}()
 
-	if err := d.store.CloseConn(); err != nil {
-		d.log.WithFields(logrus.Fields{
+	if err := s.store.CloseConn(); err != nil {
+		s.log.WithFields(logrus.Fields{
 			"func": "terminate",
 		}).Errorf("%s", err)
 	}
 
-	d.log.WithFields(logrus.Fields{
+	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
-		"event": params.EventSVCShutdown,
+		"event": cfg.EventSVCShutdown,
 	}).Infoln("svc is down")
-	d.ctrl.Terminate()
+	s.ctrl.Terminate()
 }
 
 // SaveDevData is used to save device data in the store.
-func (d *DataService) SaveDevData(data *api.DevData) {
-	conn, err := d.store.CreateConn()
+func (s *DataService) SaveDevData(data *api.DevData) {
+	conn, err := s.store.CreateConn()
 	if err != nil {
-		d.log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "SaveDevData",
 		}).Errorf("%s", err)
 		return
@@ -179,28 +178,28 @@ func (d *DataService) SaveDevData(data *api.DevData) {
 	defer conn.CloseConn()
 
 	if err = conn.SaveDevData(data); err != nil {
-		d.log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "SaveDevData",
 		}).Errorf("%s", err)
 		return
 	}
-	go d.pubDevData(data)
+	go s.pubDevData(data)
 }
 
-func (d *DataService) pubDevData(data *api.DevData) error {
+func (s *DataService) pubDevData(data *api.DevData) error {
 	defer func() {
 		if r := recover(); r != nil {
-			d.log.WithFields(logrus.Fields{
+			s.log.WithFields(logrus.Fields{
 				"func":  "pubDevData",
-				"event": params.EventPanic,
+				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
-			d.terminate()
+			s.terminate()
 		}
 	}()
 
-	conn, err := d.store.CreateConn()
+	conn, err := s.store.CreateConn()
 	if err != nil {
-		d.log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "pubDevData",
 		}).Errorf("%s", err)
 		return err
@@ -209,13 +208,13 @@ func (d *DataService) pubDevData(data *api.DevData) error {
 
 	b, err := json.Marshal(data)
 	if err != nil {
-		d.log.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			"func": "pubDevData",
 		}).Errorf("%s", err)
 		return err
 	}
-	if _, err = conn.Publish(b, d.pubChan); err != nil {
-		d.log.WithFields(logrus.Fields{
+	if _, err = conn.Publish(b, s.pubChan); err != nil {
+		s.log.WithFields(logrus.Fields{
 			"func": "pubDevData",
 		}).Errorf("%s", err)
 		return err

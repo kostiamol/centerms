@@ -63,8 +63,8 @@ func (r *Redis) getFridgeData(m *api.DevMeta) (*api.DevData, error) {
 }
 
 func (r *Redis) saveFridgeData(d *api.DevData) error {
-	var f fridgeData
-	if err := json.Unmarshal([]byte(d.Data), &f); err != nil {
+	var fridge fridgeData
+	if err := json.Unmarshal([]byte(d.Data), &fridge); err != nil {
 		errors.Wrap(err, "Redis: saveFridgeData(): fridgeData unmarshalling has failed")
 		return err
 	}
@@ -87,12 +87,12 @@ func (r *Redis) saveFridgeData(d *api.DevData) error {
 		r.conn.Do("DISCARD")
 		return err
 	}
-	if err := r.setFridgeCompartData(f.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
+	if err := r.setFridgeCompartData(fridge.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
 		errors.Wrap(err, "Redis: setFridgeCompartData(): Multi() has failed")
 		r.conn.Do("DISCARD")
 		return err
 	}
-	if err := r.setFridgeCompartData(f.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
+	if err := r.setFridgeCompartData(fridge.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
 		errors.Wrap(err, "Redis: saveFridgeData(): setFridgeCompartData() has failed")
 		r.conn.Do("DISCARD")
 		return err
@@ -186,13 +186,13 @@ func (r *Redis) setFridgeCfg(c *api.DevCfg, m *api.DevMeta) error {
 		}
 	}
 
-	var f fridgeCfg
-	if err := json.Unmarshal(cfg.Data, &f); err != nil {
+	var fridge fridgeCfg
+	if err := json.Unmarshal(cfg.Data, &fridge); err != nil {
 		errors.Wrap(err, "Redis: setFridgeCfg(): Unmarshal() has failed")
 		return err
 	}
 
-	if err := json.Unmarshal(c.Data, &f); err != nil {
+	if err := json.Unmarshal(c.Data, &fridge); err != nil {
 		errors.Wrap(err, "Redis: setFridgeCfg(): Unmarshal() has failed")
 		return err
 	}
@@ -203,24 +203,23 @@ func (r *Redis) setFridgeCfg(c *api.DevCfg, m *api.DevMeta) error {
 		r.conn.Do("DISCARD")
 		return err
 	}
-	if _, err := r.conn.Do("HMSET", cfgKey, "TurnedOn", f.TurnedOn); err != nil {
+	if _, err := r.conn.Do("HMSET", cfgKey, "TurnedOn", fridge.TurnedOn); err != nil {
 		errors.Wrap(err, "Redis: setFridgeCfg(): HMSet() has failed")
 		r.conn.Do("DISCARD")
 		return err
 	}
-	if _, err := r.conn.Do("HMSET", cfgKey, "CollectFreq", f.CollectFreq); err != nil {
+	if _, err := r.conn.Do("HMSET", cfgKey, "CollectFreq", fridge.CollectFreq); err != nil {
 		errors.Wrap(err, "Redis: setFridgeCfg(): HMSet() has failed")
 		r.conn.Do("DISCARD")
 		return err
 	}
-	if _, err := r.conn.Do("HMSET", cfgKey, "SendFreq", f.SendFreq); err != nil {
+	if _, err := r.conn.Do("HMSET", cfgKey, "SendFreq", fridge.SendFreq); err != nil {
 		errors.Wrap(err, "Redis: setFridgeCfg(): HMSet() has failed")
 		r.conn.Do("DISCARD")
 		return err
 	}
 
-	_, err := r.conn.Do("EXEC")
-	if err != nil {
+	if _, err := r.conn.Do("EXEC"); err != nil {
 		errors.Wrap(err, "Redis: setFridgeCfg(): Exec() has failed")
 		r.conn.Do("DISCARD")
 		return err
