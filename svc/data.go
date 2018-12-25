@@ -5,8 +5,6 @@ import (
 
 	"github.com/kostiamol/centerms/cfg"
 
-	"github.com/kostiamol/centerms/api"
-
 	"github.com/Sirupsen/logrus"
 
 	"time"
@@ -14,6 +12,20 @@ import (
 	consul "github.com/hashicorp/consul/api"
 	"golang.org/x/net/context"
 )
+
+// DevMeta is used to store device metadata: it's type, name (model) and MAC address.
+type DevMeta struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+	MAC  string `json:"mac"`
+}
+
+// DevData is used to store time of the request, device's metadata and the data it transfers.
+type DevData struct {
+	Time int64           `json:"time"`
+	Meta DevMeta         `json:"meta"`
+	Data json.RawMessage `json:"data"`
+}
 
 // DataService is used to deal with device data.
 type DataService struct {
@@ -167,7 +179,7 @@ func (s *DataService) terminate() {
 }
 
 // SaveDevData is used to save device data in the store.
-func (s *DataService) SaveDevData(data *api.DevData) {
+func (s *DataService) SaveDevData(data *DevData) {
 	conn, err := s.store.CreateConn()
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
@@ -186,7 +198,7 @@ func (s *DataService) SaveDevData(data *api.DevData) {
 	go s.pubDevData(data)
 }
 
-func (s *DataService) pubDevData(data *api.DevData) error {
+func (s *DataService) pubDevData(data *DevData) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.WithFields(logrus.Fields{

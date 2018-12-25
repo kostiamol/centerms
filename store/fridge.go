@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kostiamol/centerms/api"
+	"github.com/kostiamol/centerms/svc"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/pkg/errors"
@@ -33,7 +33,7 @@ var (
 	}
 )
 
-func (r *Redis) getFridgeData(m *api.DevMeta) (*api.DevData, error) {
+func (r *Redis) getFridgeData(m *svc.DevMeta) (*svc.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	paramsKey := devKey + partialDevParamsKey
 
@@ -56,13 +56,13 @@ func (r *Redis) getFridgeData(m *api.DevMeta) (*api.DevData, error) {
 		return nil, err
 	}
 
-	return &api.DevData{
+	return &svc.DevData{
 		Meta: *m,
 		Data: b,
 	}, err
 }
 
-func (r *Redis) saveFridgeData(d *api.DevData) error {
+func (r *Redis) saveFridgeData(d *svc.DevData) error {
 	var fridge fridgeData
 	if err := json.Unmarshal([]byte(d.Data), &fridge); err != nil {
 		errors.Wrap(err, "Redis: saveFridgeData(): fridgeData unmarshalling has failed")
@@ -112,7 +112,7 @@ func (r *Redis) setFridgeCompartData(tempCam map[int64]float32, key string) erro
 	return nil
 }
 
-func (r *Redis) getFridgeCfg(m *api.DevMeta) (*api.DevCfg, error) {
+func (r *Redis) getFridgeCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	cfgKey := m.MAC + partialDevCfgKey
 
 	to, err := redis.Strings(r.conn.Do("HMGET", cfgKey, "TurnedOn"))
@@ -160,14 +160,14 @@ func (r *Redis) getFridgeCfg(m *api.DevMeta) (*api.DevCfg, error) {
 		return nil, err
 	}
 
-	return &api.DevCfg{
+	return &svc.DevCfg{
 		MAC:  m.MAC,
 		Data: b,
 	}, err
 }
 
-func (r *Redis) setFridgeCfg(c *api.DevCfg, m *api.DevMeta) error {
-	var cfg *api.DevCfg
+func (r *Redis) setFridgeCfg(c *svc.DevCfg, m *svc.DevMeta) error {
+	var cfg *svc.DevCfg
 	if ok, err := r.DevIsRegistered(m); ok {
 		if err != nil {
 			errors.Wrapf(err, "Redis: setFridgeCfg(): DevIsRegistered() has failed")
@@ -227,14 +227,14 @@ func (r *Redis) setFridgeCfg(c *api.DevCfg, m *api.DevMeta) error {
 	return nil
 }
 
-func (r *Redis) getFridgeDefaultCfg(m *api.DevMeta) (*api.DevCfg, error) {
+func (r *Redis) getFridgeDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	b, err := json.Marshal(defaultFridgeCfg)
 	if err != nil {
 		errors.Wrap(err, "Redis: getFridgeDefaultCfg(): fridgeCfg marshalling has failed")
 		return nil, err
 	}
 
-	return &api.DevCfg{
+	return &svc.DevCfg{
 		MAC:  m.MAC,
 		Data: b,
 	}, nil

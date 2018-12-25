@@ -2,8 +2,6 @@ package svc
 
 import (
 	"time"
-
-	"github.com/kostiamol/centerms/api"
 )
 
 // Inner channels for data exchange.
@@ -14,19 +12,19 @@ const (
 
 // devDataStorer deals with device data.
 type devDataStorer interface {
-	GetDevsData() ([]api.DevData, error)
-	GetDevData(id api.DevID) (*api.DevData, error)
-	SaveDevData(d *api.DevData) error
-	GetDevMeta(id api.DevID) (*api.DevMeta, error)
-	SetDevMeta(m *api.DevMeta) error
+	GetDevsData() ([]DevData, error)
+	GetDevData(DevID) (*DevData, error)
+	SaveDevData(*DevData) error
+	GetDevMeta(DevID) (*DevMeta, error)
+	SetDevMeta(*DevMeta) error
 }
 
 // devCfgStorer deals with device configurations.
 type devCfgStorer interface {
-	GetDevCfg(id api.DevID) (*api.DevCfg, error)
-	SetDevCfg(id api.DevID, c *api.DevCfg) error
-	GetDevDefaultCfg(m *api.DevMeta) (*api.DevCfg, error)
-	DevIsRegistered(m *api.DevMeta) (bool, error)
+	GetDevCfg(DevID) (*DevCfg, error)
+	SetDevCfg(DevID, *DevCfg) error
+	GetDevDefaultCfg(*DevMeta) (*DevCfg, error)
+	DevIsRegistered(*DevMeta) (bool, error)
 }
 
 // Storer is an external svc for storing device data and configs and subscribing/publishing internal for the
@@ -46,6 +44,9 @@ type Addr struct {
 	Host string
 	Port int
 }
+
+// DevID is used for device's id.
+type DevID string
 
 // subscription is used to store channel name and chan for subscribing.
 type subscription struct {

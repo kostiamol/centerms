@@ -7,8 +7,6 @@ import (
 
 	"github.com/kostiamol/centerms/cfg"
 
-	"github.com/kostiamol/centerms/api"
-
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -159,7 +157,7 @@ func (r *Redis) CloseConn() error {
 }
 
 // GetDevsData returns the data concerning all the devices.
-func (r *Redis) GetDevsData() ([]api.DevData, error) {
+func (r *Redis) GetDevsData() ([]svc.DevData, error) {
 	devParamsKeys, err := redis.Strings(r.conn.Do("SMEMBERS", "devParamsKeys"))
 	if err != nil {
 		errors.Wrap(err, "Redis: GetDevsData(): SMembers for devParamsKeys has failed")
@@ -171,12 +169,12 @@ func (r *Redis) GetDevsData() ([]api.DevData, error) {
 	}
 
 	var (
-		devData  api.DevData
-		devsData []api.DevData
+		devData  svc.DevData
+		devsData []svc.DevData
 	)
 
 	for index, key := range devParamsKeysTokens {
-		devData.Meta = api.DevMeta{
+		devData.Meta = svc.DevMeta{
 			Type: key[1],
 			Name: key[2],
 			MAC:  key[3],
@@ -199,7 +197,7 @@ func (r *Redis) GetDevsData() ([]api.DevData, error) {
 }
 
 // GetDevMeta returns metadata for the given device.
-func (r *Redis) GetDevMeta(id api.DevID) (*api.DevMeta, error) {
+func (r *Redis) GetDevMeta(id svc.DevID) (*svc.DevMeta, error) {
 	t, err := redis.String(r.conn.Do("HGET", "id:"+id, "type"))
 	if err != nil {
 		errors.Wrapf(err, "Redis: GetDevMeta(): HGet() has failed")
@@ -213,7 +211,7 @@ func (r *Redis) GetDevMeta(id api.DevID) (*api.DevMeta, error) {
 		errors.Wrapf(err, "Redis: GetDevMeta():  HGet() has failed")
 	}
 
-	meta := api.DevMeta{
+	meta := svc.DevMeta{
 		Type: t,
 		Name: n,
 		MAC:  m,
@@ -222,7 +220,7 @@ func (r *Redis) GetDevMeta(id api.DevID) (*api.DevMeta, error) {
 }
 
 // SetDevMeta sets metadata for the given device.
-func (r *Redis) SetDevMeta(m *api.DevMeta) error {
+func (r *Redis) SetDevMeta(m *svc.DevMeta) error {
 	if _, err := r.conn.Do("HMSET", "id:"+m.MAC, "type", m.Type); err != nil {
 		errors.Wrap(err, "Redis: setFridgeCfg(): HMSet() has failed")
 		return err
@@ -239,7 +237,7 @@ func (r *Redis) SetDevMeta(m *api.DevMeta) error {
 }
 
 // DevIsRegistered returns 'true' if the given device is registered, otherwise - 'false'.
-func (r *Redis) DevIsRegistered(m *api.DevMeta) (bool, error) {
+func (r *Redis) DevIsRegistered(m *svc.DevMeta) (bool, error) {
 	cfgKey := m.MAC + partialDevCfgKey
 	if ok, err := redis.Bool(r.conn.Do("EXISTS", cfgKey)); ok {
 		if err != nil {
@@ -251,7 +249,7 @@ func (r *Redis) DevIsRegistered(m *api.DevMeta) (bool, error) {
 }
 
 // GetDevData returns data concerning given device.
-func (r *Redis) GetDevData(id api.DevID) (*api.DevData, error) {
+func (r *Redis) GetDevData(id svc.DevID) (*svc.DevData, error) {
 	m, err := r.GetDevMeta(id)
 	if err != nil {
 		return nil, err
@@ -263,12 +261,12 @@ func (r *Redis) GetDevData(id api.DevID) (*api.DevData, error) {
 	case "washer":
 		return r.getWasherData(m)
 	default:
-		return &api.DevData{}, errors.New("Redis: GetDevData(): dev type is unknown")
+		return &svc.DevData{}, errors.New("Redis: GetDevData(): dev type is unknown")
 	}
 }
 
 // SaveDevData saves data concerning given device.
-func (r *Redis) SaveDevData(d *api.DevData) error {
+func (r *Redis) SaveDevData(d *svc.DevData) error {
 	switch d.Meta.Type {
 	case "fridge":
 		return r.saveFridgeData(d)
@@ -280,7 +278,7 @@ func (r *Redis) SaveDevData(d *api.DevData) error {
 }
 
 // GetDevCfg returns configuration for the given device.
-func (r *Redis) GetDevCfg(id api.DevID) (*api.DevCfg, error) {
+func (r *Redis) GetDevCfg(id svc.DevID) (*svc.DevCfg, error) {
 	m, err := r.GetDevMeta(id)
 	if err != nil {
 		return nil, err
@@ -292,12 +290,12 @@ func (r *Redis) GetDevCfg(id api.DevID) (*api.DevCfg, error) {
 	case "washer":
 		return r.getWasherCfg(m)
 	default:
-		return &api.DevCfg{}, errors.New("Redis: GetDevCfg(): dev type is unknown")
+		return &svc.DevCfg{}, errors.New("Redis: GetDevCfg(): dev type is unknown")
 	}
 }
 
 // SetDevCfg sets configuration for the given device.
-func (r *Redis) SetDevCfg(id api.DevID, c *api.DevCfg) error {
+func (r *Redis) SetDevCfg(id svc.DevID, c *svc.DevCfg) error {
 	m, err := r.GetDevMeta(id)
 	if err != nil {
 		return err
@@ -314,14 +312,14 @@ func (r *Redis) SetDevCfg(id api.DevID, c *api.DevCfg) error {
 }
 
 // GetDevDefaultCfg returns default configuration for the given device.
-func (r *Redis) GetDevDefaultCfg(m *api.DevMeta) (*api.DevCfg, error) {
+func (r *Redis) GetDevDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	switch m.Type {
 	case "fridge":
 		return r.getFridgeDefaultCfg(m)
 	case "washer":
 		return r.getWasherDefaultCfg(m)
 	default:
-		return &api.DevCfg{}, errors.New("Redis: GetDevDefaultCfg(): dev type is unknown")
+		return &svc.DevCfg{}, errors.New("Redis: GetDevDefaultCfg(): dev type is unknown")
 	}
 }
 

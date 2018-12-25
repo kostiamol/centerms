@@ -3,9 +3,10 @@ package api
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/kostiamol/centerms/svc"
 
 	"github.com/kostiamol/centerms/cfg"
 
@@ -19,44 +20,21 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-// DevID is used for device's id.
-type DevID string
-
-// DevMeta is used to store device metadata: it's type, name (model) and MAC address.
-type DevMeta struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
-	MAC  string `json:"mac"`
-}
-
-// DevData is used to store time of the request, device's metadata and the data it transfers.
-type DevData struct {
-	Time int64           `json:"time"`
-	Meta DevMeta         `json:"meta"`
-	Data json.RawMessage `json:"data"`
-}
-
-// DevCfg holds device's MAC address and config.
-type DevCfg struct {
-	MAC  string          `json:"mac"`
-	Data json.RawMessage `json:"data"`
-}
-
 // cfgProvider deals with device configurations.
 type cfgProvider interface {
-	//GetDevCfg(id DevID) (*DevCfg, error)
-	SetDevInitCfg(m *DevMeta) (*DevCfg, error)
-	//SetDevCfg(id DevID, c *DevCfg) error
-	//Publish(msg interface{}, channel string) (int64, error)
+	GetDevCfg(svc.DevID) (*svc.DevCfg, error)
+	SetDevInitCfg(*svc.DevMeta) (*svc.DevCfg, error)
+	SetDevCfg(svc.DevID, *svc.DevCfg) error
+	PublishCfgPatch(c *svc.DevCfg, channel string) (int64, error)
 }
 
 // dataProvider deals with device data.
 type dataProvider interface {
-	GetDevsData() ([]DevData, error)
-	GetDevData(id DevID) (*DevData, error)
-	SaveDevData(d *DevData) error
-	GetDevMeta(id DevID) (*DevMeta, error)
-	SetDevMeta(m *DevMeta) error
+	GetDevsData() ([]svc.DevData, error)
+	GetDevData(svc.DevID) (*svc.DevData, error)
+	SaveDevData(*svc.DevData) error
+	GetDevMeta(svc.DevID) (*svc.DevMeta, error)
+	SetDevMeta(*svc.DevMeta) error
 }
 
 // API is used to deal with user's queries from the web client (dashboard).
@@ -238,8 +216,7 @@ func (a *API) updateTTL(check func() (bool, error)) {
 
 func (a *API) update(check func() (bool, error)) {
 	var health string
-	ok, err := check()
-	if !ok {
+	if ok, err := check(); !ok {
 		a.log.WithFields(logrus.Fields{
 			"func":  "update",
 			"event": cfg.EventUpdConsulStatus,

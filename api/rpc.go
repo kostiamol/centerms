@@ -4,6 +4,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/kostiamol/centerms/svc"
+
 	"github.com/kostiamol/centerms/cfg"
 
 	"github.com/kostiamol/centerms/proto"
@@ -49,7 +51,7 @@ func (a *API) runRPC() {
 // and returns that configuration to the device.
 func (a *API) SetDevInitCfg(ctx context.Context, req *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse,
 	error) {
-	m := DevMeta{
+	m := svc.DevMeta{
 		Type: req.Meta.Type,
 		Name: req.Meta.Name,
 		MAC:  req.Meta.Mac,
@@ -69,9 +71,9 @@ func (a *API) SetDevInitCfg(ctx context.Context, req *proto.SetDevInitCfgRequest
 
 // SaveDevData saves data from device using DataService.
 func (a *API) SaveDevData(ctx context.Context, req *proto.SaveDevDataRequest) (*proto.SaveDevDataResponse, error) {
-	d := DevData{
+	d := svc.DevData{
 		Time: req.Time,
-		Meta: DevMeta{
+		Meta: svc.DevMeta{
 			Type: req.Meta.Type,
 			Name: req.Meta.Name,
 			MAC:  req.Meta.Mac,

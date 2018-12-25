@@ -8,8 +8,6 @@ import (
 
 	"github.com/kostiamol/centerms/cfg"
 
-	"github.com/kostiamol/centerms/api"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -216,7 +214,7 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	uri := strings.Split(r.URL.String(), "/")
-	id := api.DevID(uri[2])
+	id := DevID(uri[2])
 
 	s.conns.Lock()
 	if _, ok := s.conns.idConns[id]; !ok {
@@ -281,7 +279,7 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 		}
 	}()
 
-	var dev api.DevData
+	var dev DevData
 	if err := json.Unmarshal(msg, &dev); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "stream",
@@ -289,15 +287,15 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 		return err
 	}
 
-	if _, ok := s.conns.idConns[api.DevID(dev.Meta.MAC)]; ok {
-		for _, conn := range s.conns.idConns[api.DevID(dev.Meta.MAC)].Conns {
+	if _, ok := s.conns.idConns[DevID(dev.Meta.MAC)]; ok {
+		for _, conn := range s.conns.idConns[DevID(dev.Meta.MAC)].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				s.conns.idConns[api.DevID(dev.Meta.MAC)].Lock()
+				s.conns.idConns[DevID(dev.Meta.MAC)].Lock()
 				err := conn.WriteMessage(1, msg)
-				s.conns.idConns[api.DevID(dev.Meta.MAC)].Unlock()
+				s.conns.idConns[DevID(dev.Meta.MAC)].Unlock()
 				if err != nil {
 					s.log.WithFields(logrus.Fields{
 						"func":  "stream",
@@ -342,17 +340,17 @@ func (s *StreamService) listenClosedConns(ctx context.Context) {
 type streamConns struct {
 	sync.RWMutex
 	closedConns chan *websocket.Conn
-	idConns     map[api.DevID]*connList
+	idConns     map[DevID]*connList
 }
 
 func newStreamConns() *streamConns {
 	return &streamConns{
 		closedConns: make(chan *websocket.Conn),
-		idConns:     make(map[api.DevID]*connList),
+		idConns:     make(map[DevID]*connList),
 	}
 }
 
-func (c *streamConns) checkIDConns(id api.DevID) {
+func (c *streamConns) checkIDConns(id DevID) {
 	c.Lock()
 	if len(c.idConns[id].Conns) == 0 {
 		delete(c.idConns, id)

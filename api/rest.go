@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kostiamol/centerms/svc"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
@@ -61,7 +63,6 @@ func (a *API) getDevsDataHandler(rw http.ResponseWriter, r *http.Request) {
 		}).Errorf("%s", err)
 		return
 	}
-
 	if err = json.NewEncoder(rw).Encode(d); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "getDevsDataHandler",
@@ -71,7 +72,7 @@ func (a *API) getDevsDataHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
-	id := DevID(mux.Vars(r)["id"])
+	id := svc.DevID(mux.Vars(r)["id"])
 	d, err := a.dataProvider.GetDevData(id)
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
@@ -79,7 +80,6 @@ func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
 		}).Errorf("%s", err)
 		return
 	}
-
 	if err = json.NewEncoder(rw).Encode(d); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "getDevDataHandler",
@@ -89,51 +89,42 @@ func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
-	//id := DevID(mux.Vars(r)["id"])
-	//c, err := a.cfgProvider.GetDevCfg(id)
-	//if err != nil {
-	//	a.log.WithFields(logrus.Fields{
-	//		"func": "getDevCfgHandler",
-	//	}).Errorf("%s", err)
-	//	return
-	//}
-	//
-	//if _, err = rw.Write(c.Data); err != nil {
-	//	a.log.WithFields(logrus.Fields{
-	//		"func": "getDevCfgHandler",
-	//	}).Errorf("%s", err)
-	//	return
-	//}
+	id := svc.DevID(mux.Vars(r)["id"])
+	c, err := a.cfgProvider.GetDevCfg(id)
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
+	if _, err = rw.Write(c.Data); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "getDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
 }
 
 func (a *API) patchDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
-	var c DevCfg
+	var c svc.DevCfg
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "patchDevCfgHandler",
 		}).Errorf("%s", err)
 		return
 	}
-
-	//id := DevID(mux.Vars(r)["id"])
-	//if err := a.cfgProvider.SetDevCfg(DevID(id), &c); err != nil {
-	//	a.log.WithFields(logrus.Fields{
-	//		"func": "patchDevCfgHandler",
-	//	}).Errorf("%s", err)
-	//	return
-	//}
-
-	_, err := json.Marshal(c)
-	if err != nil {
+	id := svc.DevID(mux.Vars(r)["id"])
+	if err := a.cfgProvider.SetDevCfg(svc.DevID(id), &c); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "patchDevCfgHandler",
 		}).Errorf("%s", err)
 		return
 	}
-	//if _, err = a.cfgProvider.Publish(b, a.pubChan); err != nil {
-	//	a.log.WithFields(logrus.Fields{
-	//		"func": "patchDevCfgHandler",
-	//	}).Errorf("%s", err)
-	//	return
-	//}
+
+	if _, err := a.cfgProvider.PublishCfgPatch(&c, a.pubChan); err != nil {
+		a.log.WithFields(logrus.Fields{
+			"func": "patchDevCfgHandler",
+		}).Errorf("%s", err)
+		return
+	}
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"github.com/kostiamol/centerms/api"
+	"github.com/kostiamol/centerms/svc"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/pkg/errors"
@@ -74,7 +74,7 @@ type timerMode struct {
 	StartTime int64  `json:"time"`
 }
 
-func (r *Redis) getWasherData(m *api.DevMeta) (*api.DevData, error) {
+func (r *Redis) getWasherData(m *svc.DevMeta) (*svc.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	devParamsKey := devKey + partialDevParamsKey
 
@@ -97,13 +97,13 @@ func (r *Redis) getWasherData(m *api.DevMeta) (*api.DevData, error) {
 		return nil, err
 	}
 
-	return &api.DevData{
+	return &svc.DevData{
 		Meta: *m,
 		Data: b,
 	}, err
 }
 
-func (r *Redis) saveWasherData(d *api.DevData) error {
+func (r *Redis) saveWasherData(d *svc.DevData) error {
 	var washer washerData
 	if err := json.NewDecoder(bytes.NewBuffer(d.Data)).Decode(&washer); err != nil {
 		errors.Wrap(err, "RedisDevStore: saveWasherData(): washerData decoding has failed")
@@ -161,7 +161,7 @@ func (r *Redis) setWaterTempData(tempCam map[int64]float32, key string) error {
 	return nil
 }
 
-func (r *Redis) getWasherCfg(m *api.DevMeta) (*api.DevCfg, error) {
+func (r *Redis) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	cfg, err := r.getWasherDefaultCfg(m)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStore: getWasherCfg(): getWasherDefaultCfg() has failed")
@@ -186,7 +186,7 @@ func (r *Redis) getWasherCfg(m *api.DevMeta) (*api.DevCfg, error) {
 	return cfg, err
 }
 
-func (r *Redis) setWasherCfg(c *api.DevCfg) error {
+func (r *Redis) setWasherCfg(c *svc.DevCfg) error {
 	var m *timerMode
 	var err error
 	if err = json.NewDecoder(bytes.NewBuffer(c.Data)).Decode(&m); err != nil {
@@ -200,14 +200,14 @@ func (r *Redis) setWasherCfg(c *api.DevCfg) error {
 	return err
 }
 
-func (r *Redis) getWasherDefaultCfg(m *api.DevMeta) (*api.DevCfg, error) {
+func (r *Redis) getWasherDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	b, err := json.Marshal(standardMode)
 	if err != nil {
 		errors.Wrap(err, "RedisDevStore: getWasherDefaultCfg(): WasherConf marshalling has failed")
 		return nil, err
 	}
 
-	return &api.DevCfg{
+	return &svc.DevCfg{
 		MAC:  m.MAC,
 		Data: b,
 	}, nil
