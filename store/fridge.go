@@ -40,20 +40,19 @@ func (r *Redis) getFridgeData(m *svc.DevMeta) (*svc.DevData, error) {
 	data := make(map[string][]string)
 	params, err := redis.Strings(r.conn.Do("SMEMBERS", paramsKey))
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeData(): SMembers() has failed")
+		return nil, errors.Wrap(err, "store: getFridgeData(): SMEMBERS() failed: ")
 	}
 
 	for _, p := range params {
 		data[p], err = redis.Strings(r.conn.Do("ZRANGEBYSCORE", paramsKey+":"+p, "-inf", "inf"))
 		if err != nil {
-			errors.Wrap(err, "Redis: getFridgeData(): ZRangeByScore() has failed")
+			return nil, errors.Wrap(err, "store: getFridgeData(): ZRANGEBYSCORE() failed: ")
 		}
 	}
 
 	b, err := json.Marshal(&data)
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeData(): fridge data marshalling has failed")
-		return nil, err
+		return nil, errors.Wrap(err, "store: getFridgeData(): Marshal() failed: ")
 	}
 
 	return &svc.DevData{
@@ -65,48 +64,42 @@ func (r *Redis) getFridgeData(m *svc.DevMeta) (*svc.DevData, error) {
 func (r *Redis) saveFridgeData(d *svc.DevData) error {
 	var fridge fridgeData
 	if err := json.Unmarshal([]byte(d.Data), &fridge); err != nil {
-		errors.Wrap(err, "Redis: saveFridgeData(): fridgeData unmarshalling has failed")
-		return err
+		return errors.Wrap(err, "store: saveFridgeData(): Unmarshal() failed: ")
 	}
 
 	devKey := partialDevKey + d.Meta.Type + ":" + d.Meta.Name + ":" + d.Meta.MAC
 	paramsKey := devKey + partialDevParamsKey
 
 	if _, err := r.conn.Do("HMSET", "devParamsKeys", paramsKey); err != nil {
-		errors.Wrap(err, "Redis: saveFridgeData(): SAdd() has failed")
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: saveFridgeData(): SADD() failed: ")
 	}
 	if _, err := r.conn.Do("HMSET", devKey, "ReqTime", d.Time); err != nil {
-		errors.Wrap(err, "Redis: saveFridgeData(): HMSet() has failed")
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: saveFridgeData(): HMSET() failed: ")
 	}
 	if _, err := r.conn.Do("SADD", paramsKey, "TopCompart", "BotCompart"); err != nil {
-		errors.Wrap(err, "Redis: saveFridgeData(): SAdd() has failed")
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: saveFridgeData(): SADD() failed: ")
 	}
-	if err := r.setFridgeCompartData(fridge.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
-		errors.Wrap(err, "Redis: setFridgeCompartData(): Multi() has failed")
+	if err := r.saveFridgeCompartData(fridge.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: saveFridgeData(): saveFridgeCompartData(): ")
 	}
-	if err := r.setFridgeCompartData(fridge.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
-		errors.Wrap(err, "Redis: saveFridgeData(): setFridgeCompartData() has failed")
+	if err := r.saveFridgeCompartData(fridge.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: saveFridgeData(): saveFridgeCompartData(): ")
 	}
 	return nil
 }
 
-func (r *Redis) setFridgeCompartData(tempCam map[int64]float32, key string) error {
+func (r *Redis) saveFridgeCompartData(tempCam map[int64]float32, key string) error {
 	for time, temp := range tempCam {
 		_, err := r.conn.Do("ZADD", key, strconv.FormatInt(int64(time), 10),
-			strconv.FormatInt(int64(time), 10)+":"+strconv.FormatFloat(float64(temp), 'f', -1, 32))
+			strconv.FormatInt(int64(time), 10)+":"+
+				strconv.FormatFloat(float64(temp), 'f', -1, 32))
 		if err != nil {
-			errors.Wrap(err, "Redis: setFridgeCompartData(): ZAdd() has failed")
-			return err
+			return errors.Wrap(err, "ZADD() failed: ")
 		}
 	}
 	return nil
@@ -117,35 +110,28 @@ func (r *Redis) getFridgeCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 
 	to, err := redis.Strings(r.conn.Do("HMGET", cfgKey, "TurnedOn"))
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeCfg(): TurnedOn field extraction has failed")
-		return nil, err
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): HMGET() for TurnedOn field failed: ")
 	}
 	cf, err := redis.Strings(r.conn.Do("HMGET", cfgKey, "CollectFreq"))
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeCfg(): CollectFreq field extraction has failed")
-		return nil, err
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): HMGET() for CollectFreq field failed: ")
 	}
 	sf, err := redis.Strings(r.conn.Do("HMGET", cfgKey, "SendFreq"))
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeCfg(): SendFreq field extraction has failed")
-		return nil, err
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): HMGET() for SendFreq field failed: ")
 	}
 
 	pto, err := strconv.ParseBool(strings.Join(to, " "))
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeCfg(): TurnedOn field parsing has failed")
-		return nil, err
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): ParseBool() for TurnedOn field failed: ")
 	}
-
 	pcf, err := strconv.ParseInt(strings.Join(cf, " "), 10, 64)
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeCfg(): CollectFreq field parsing has failed")
-		return nil, err
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): ParseInt() for CollectFreq field failed: ")
 	}
 	psf, err := strconv.ParseInt(strings.Join(sf, " "), 10, 64)
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeCfg(): SendFreq field parsing has failed")
-		return nil, err
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): ParseInt() for SendFreq field failed: ")
 	}
 
 	c := fridgeCfg{
@@ -156,8 +142,7 @@ func (r *Redis) getFridgeCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 
 	b, err := json.Marshal(&c)
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeCfg(): fridgeCfg marshalling has failed")
-		return nil, err
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): Marshal() failed: ")
 	}
 
 	return &svc.DevCfg{
@@ -170,59 +155,50 @@ func (r *Redis) setFridgeCfg(c *svc.DevCfg, m *svc.DevMeta) error {
 	var cfg *svc.DevCfg
 	if ok, err := r.DevIsRegistered(m); ok {
 		if err != nil {
-			errors.Wrapf(err, "Redis: setFridgeCfg(): DevIsRegistered() has failed")
-			return err
+			return errors.Wrapf(err, "store: setFridgeCfg(): ")
 		}
 		if cfg, err = r.getFridgeCfg(m); err != nil {
 			return err
 		}
 	} else {
 		if err != nil {
-			errors.Wrapf(err, "Redis: setFridgeCfg(): DevIsRegistered() has failed")
-			return err
+			return errors.Wrapf(err, "store: setFridgeCfg(): ")
 		}
 		if cfg, err = r.getFridgeDefaultCfg(m); err != nil {
-			return err
+			return errors.Wrap(err, "store: setFridgeCfg(): getFridgeDefaultCfg(): ")
 		}
 	}
 
 	var fridge fridgeCfg
 	if err := json.Unmarshal(cfg.Data, &fridge); err != nil {
-		errors.Wrap(err, "Redis: setFridgeCfg(): Unmarshal() has failed")
-		return err
+		return errors.Wrap(err, "store: setFridgeCfg(): Unmarshal() failed: ")
 	}
 
 	if err := json.Unmarshal(c.Data, &fridge); err != nil {
-		errors.Wrap(err, "Redis: setFridgeCfg(): Unmarshal() has failed")
-		return err
+		return errors.Wrap(err, "store: setFridgeCfg(): Unmarshal() failed: ")
 	}
 
 	cfgKey := c.MAC + partialDevCfgKey
 	if _, err := r.conn.Do("MULTI"); err != nil {
-		errors.Wrap(err, "Redis: setFridgeCfg(): Multi() has failed")
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: setFridgeCfg(): MULTI() failed: ")
 	}
 	if _, err := r.conn.Do("HMSET", cfgKey, "TurnedOn", fridge.TurnedOn); err != nil {
-		errors.Wrap(err, "Redis: setFridgeCfg(): HMSet() has failed")
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: setFridgeCfg(): HMSET() failed: ")
 	}
 	if _, err := r.conn.Do("HMSET", cfgKey, "CollectFreq", fridge.CollectFreq); err != nil {
-		errors.Wrap(err, "Redis: setFridgeCfg(): HMSet() has failed")
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: setFridgeCfg(): HMSET() failed: ")
 	}
 	if _, err := r.conn.Do("HMSET", cfgKey, "SendFreq", fridge.SendFreq); err != nil {
-		errors.Wrap(err, "Redis: setFridgeCfg(): HMSet() has failed")
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: setFridgeCfg(): HMSet() failed: ")
 	}
 
 	if _, err := r.conn.Do("EXEC"); err != nil {
-		errors.Wrap(err, "Redis: setFridgeCfg(): Exec() has failed")
 		r.conn.Do("DISCARD")
-		return err
+		return errors.Wrap(err, "store: setFridgeCfg(): EXEC() failed: ")
 	}
 	return nil
 }
@@ -230,8 +206,7 @@ func (r *Redis) setFridgeCfg(c *svc.DevCfg, m *svc.DevMeta) error {
 func (r *Redis) getFridgeDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	b, err := json.Marshal(defaultFridgeCfg)
 	if err != nil {
-		errors.Wrap(err, "Redis: getFridgeDefaultCfg(): fridgeCfg marshalling has failed")
-		return nil, err
+		return nil, errors.Wrap(err, "Marshal() failed: ")
 	}
 
 	return &svc.DevCfg{

@@ -61,7 +61,7 @@ var (
 		Port: *storePort,
 	}
 
-	store = s.NewRedis(storeAddr, logrus.NewEntry(log), *retry, storeAgentName, *ttl)
+	store = s.NewRedis(storeAddr)
 
 	devCfgPort  = flag.Int("dev-cfg-port", defaultDevCfgPort, "Port to listen on configuration from devices")
 	devDataPort = flag.Int("dev-data-port", defaultDevDataPort, "Port to listen on data from devices")
