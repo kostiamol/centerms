@@ -1,7 +1,13 @@
 language: go
-sudo: false
 go:
     - tip
+os:
+    - linux
+dist: trusty
+sudo: false
+env:
+    - GO111MODULE=on
+install: true
 matrix:
     fast_finish: true
 notifications:
@@ -14,8 +20,8 @@ before_script:
     - go get -u golang.org/x/tools/cmd/cover
     - go get -u github.com/mattn/goveralls
 script:
-    - env GO111MODULE=on go test -v -race ./...
-    - env GO111MODULE=on go vet ./...
-    - env GO111MODULE=on gocyclo -over 19 $GO_FILES
-    - env GO111MODULE=on golint -set_exit_status $(go list ./...)
+    - go test -mod=vendor -v -race ./...
+    - go vet -mod=vendor ./...
+    - gocyclo -over 19 $GO_FILES
+    - golint -set_exit_status $(go list ./...)
     - "$GOPATH/bin/goveralls -service=travis-ci"
