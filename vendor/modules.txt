@@ -126,5 +126,3 @@ google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
 google.golang.org/grpc/balancer/base
-# honnef.co/go/tools v0.0.0-20180920025451-e3ad64cb4ed3
-honnef.co/go/tools/cmd/megacheck

@@ -5,8 +5,7 @@ git:
     depth: 1
 os:
     - linux
-dist: trusty
-sudo: false
+dist: xenial
 env:
     - GO111MODULE=on
 install: true
@@ -15,15 +14,13 @@ matrix:
 notifications:
     email: false
 before_script:
-    - GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/)
+    - GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/ | grep -v /proto/)
     - go install -mod=vendor golang.org/x/lint/golint
-    - go install -mod=vendor honnef.co/go/tools/cmd/megacheck
     - go install -mod=vendor github.com/fzipp/gocyclo
     - go install -mod=vendor golang.org/x/tools/cmd/cover
     - go install -mod=vendor github.com/mattn/goveralls
 script:
-    - go test -v -race ./...
-    - go vet ./...
+    - go test -mod=vendor -v -race ./...
+    - go vet -mod=vendor ./...
     - gocyclo -over 19 $GO_FILES
-    - golint -set_exit_status $(go list ./...)
-    - "$GOPATH/bin/goveralls -service=travis-ci"
+    - golint -set_exit_status $(go list -mod=vendor ./...)
