@@ -6,12 +6,16 @@ github.com/auth0/go-jwt-middleware
 github.com/beorn7/perks/quantile
 # github.com/dgrijalva/jwt-go v3.2.0+incompatible
 github.com/dgrijalva/jwt-go
+# github.com/fzipp/gocyclo v0.0.0-20150627053110-6acd4345c835
+github.com/fzipp/gocyclo
 # github.com/garyburd/redigo v1.6.0
 github.com/garyburd/redigo/redis
 github.com/garyburd/redigo/internal
+# github.com/gogo/protobuf v1.1.1
+github.com/gogo/protobuf/proto
+github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 # github.com/golang/protobuf v1.2.0
 github.com/golang/protobuf/proto
-github.com/golang/protobuf/protoc-gen-go/descriptor
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
@@ -30,12 +34,16 @@ github.com/hashicorp/go-cleanhttp
 github.com/hashicorp/go-rootcerts
 # github.com/hashicorp/serf v0.8.1
 github.com/hashicorp/serf/coordinate
+# github.com/mattn/goveralls v0.0.2
+github.com/mattn/goveralls
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/mitchellh/go-homedir v1.0.0
 github.com/mitchellh/go-homedir
 # github.com/mitchellh/mapstructure v1.0.0
 github.com/mitchellh/mapstructure
+# github.com/mwitkow/go-proto-validators v0.0.0-20180403085117-0950a7990007
+github.com/mwitkow/go-proto-validators
 # github.com/nats-io/go-nats v1.6.0
 github.com/nats-io/go-nats
 github.com/nats-io/go-nats/encoders/builtin
@@ -64,6 +72,9 @@ github.com/satori/go.uuid
 golang.org/x/crypto/acme/autocert
 golang.org/x/crypto/ssh/terminal
 golang.org/x/crypto/acme
+# golang.org/x/lint v0.0.0-20181217174547-8f45f776aaf1
+golang.org/x/lint/golint
+golang.org/x/lint
 # golang.org/x/net v0.0.0-20180906233101-161cd47e91fd
 golang.org/x/net/context
 golang.org/x/net/http2
@@ -72,7 +83,7 @@ golang.org/x/net/http/httpguts
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
-# golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e
+# golang.org/x/sys v0.0.0-20181122145206-62eef0e2fa9b
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.3.0
@@ -80,8 +91,13 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 golang.org/x/text/transform
+# golang.org/x/tools v0.0.0-20181221235234-d00ac6d27372
+golang.org/x/tools/cmd/cover
+golang.org/x/tools/cover
+golang.org/x/tools/go/ast/astutil
+golang.org/x/tools/go/gcexportdata
+golang.org/x/tools/go/internal/gcimporter
 # google.golang.org/genproto v0.0.0-20180831171423-11092d34479b
-google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.14.0
 google.golang.org/grpc
@@ -110,3 +126,5 @@ google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
 google.golang.org/grpc/balancer/base
+# honnef.co/go/tools v0.0.0-20180920025451-e3ad64cb4ed3
+honnef.co/go/tools/cmd/megacheck
