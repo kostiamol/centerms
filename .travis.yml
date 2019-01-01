@@ -1,6 +1,6 @@
 language: go
-go:
-    - tip
+go: 
+ - "1.12.x"
 os:
     - linux
 dist: trusty
@@ -14,11 +14,11 @@ notifications:
     email: false
 before_script:
     - GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/)
-    - go get -u golang.org/x/lint/golint
-    - go get -u honnef.co/go/tools/cmd/megacheck
-    - go get -u github.com/fzipp/gocyclo
-    - go get -u golang.org/x/tools/cmd/cover
-    - go get -u github.com/mattn/goveralls
+    - go get -mod=vendor -u golang.org/x/lint/golint
+    - go get -mod=vendor -u honnef.co/go/tools/cmd/megacheck
+    - go get -mod=vendor -u github.com/fzipp/gocyclo
+    - go get -mod=vendor -u golang.org/x/tools/cmd/cover
+    - go get -mod=vendor -u github.com/mattn/goveralls
 script:
     - go test -mod=vendor -v -race ./...
     - go vet -mod=vendor ./...
