@@ -17,29 +17,21 @@ import (
 	"context"
 
 	"fmt"
-
-	consul "github.com/hashicorp/consul/api"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // StreamService is used to deal with streaming data from the device to web client (dashboard).
 type StreamService struct {
-	addr      Addr
-	store     Storer
-	ctrl      Ctrl
-	log       *logrus.Entry
-	sub       subscription
-	conns     streamConns
-	upgrader  websocket.Upgrader
-	agent     *consul.Agent
-	agentName string
-	ttl       time.Duration
+	addr     Addr
+	store    Storer
+	ctrl     Ctrl
+	log      *logrus.Entry
+	sub      subscription
+	conns    streamConns
+	upgrader websocket.Upgrader
 }
 
 // NewStreamService creates and initializes a new instance of StreamService service.
-func NewStreamService(a Addr, s Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
-	ttl time.Duration) *StreamService {
-
+func NewStreamService(a Addr, s Storer, c Ctrl, log *logrus.Entry, pubChan string) *StreamService {
 	upg := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -50,20 +42,17 @@ func NewStreamService(a Addr, s Storer, c Ctrl, l *logrus.Entry, pubChan string,
 			return true
 		},
 	}
-
 	return &StreamService{
 		addr:  a,
 		store: s,
 		ctrl:  c,
-		log:   l.WithFields(logrus.Fields{"component": "svc", "name": "stream"}),
+		log:   log.WithFields(logrus.Fields{"component": "svc", "name": "stream"}),
 		conns: *newStreamConns(),
 		sub: subscription{
 			ChanName: pubChan,
 			Chan:     make(chan []byte),
 		},
-		upgrader:  upg,
-		agentName: agentName,
-		ttl:       ttl,
+		upgrader: upg,
 	}
 }
 
@@ -73,7 +62,7 @@ func (s *StreamService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("running on host: [%s], port: [%d]", s.addr.Host, s.addr.Port)
+	}).Infof("is running on host: [%s], port: [%d]", s.addr.Host, s.addr.Port)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -90,12 +79,9 @@ func (s *StreamService) Run() {
 	go s.listenTermination()
 	go s.listenPubs(ctx)
 	go s.listenClosedConns(ctx)
-	s.runConsulAgent()
 
 	r := mux.NewRouter()
 	r.HandleFunc("/devices/{id}", s.addConnHandler)
-	// for Prometheus
-	r.Handle("/metrics", promhttp.Handler()).Methods(http.MethodGet)
 
 	srv := &http.Server{
 		Handler:      r,
@@ -104,68 +90,6 @@ func (s *StreamService) Run() {
 		ReadTimeout:  15 * time.Second,
 	}
 	s.log.Fatal(srv.ListenAndServe())
-}
-
-func (s *StreamService) runConsulAgent() {
-	c, err := consul.NewClient(consul.DefaultConfig())
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": cfg.EventPanic,
-		}).Errorf("%s", err)
-		panic("consul init error")
-	}
-	r := &consul.AgentServiceRegistration{
-		Name: s.agentName,
-		Port: s.addr.Port,
-		Check: &consul.AgentServiceCheck{
-			TTL: s.ttl.String(),
-		},
-	}
-	s.agent = c.Agent()
-	if err := s.agent.ServiceRegister(r); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": cfg.EventPanic,
-		}).Errorf("%s", err)
-		panic("consul init error")
-	}
-	go s.updateTTL(s.check)
-}
-
-func (s *StreamService) check() (bool, error) {
-	// while the service is alive - everything is ok
-	return true, nil
-}
-
-func (s *StreamService) updateTTL(check func() (bool, error)) {
-	t := time.NewTicker(s.ttl / 2)
-	for range t.C {
-		s.update(check)
-	}
-}
-
-func (s *StreamService) update(check func() (bool, error)) {
-	var health string
-	if ok, err := check(); !ok {
-		s.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": cfg.EventUpdConsulStatus,
-		}).Errorf("check has failed: %s", err)
-
-		// failed check will remove a service instance from DNS and HTTP query
-		// to avoid returning errors or invalid data.
-		health = consul.HealthCritical
-	} else {
-		health = consul.HealthPassing
-	}
-
-	if err := s.agent.UpdateTTL("svc:"+s.agentName, "", health); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": cfg.EventUpdConsulStatus,
-		}).Error(err)
-	}
 }
 
 func (s *StreamService) listenTermination() {
@@ -192,7 +116,7 @@ func (s *StreamService) terminate() {
 	if err := s.store.CloseConn(); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "terminate",
-		}).Errorf("%s", err)
+		}).Errorf("CloseConn() failed %s", err)
 	}
 
 	s.log.WithFields(logrus.Fields{
@@ -226,7 +150,7 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "addConnHandler",
-		}).Errorf("%s", err)
+		}).Errorf("Upgrade() failed %s", err)
 		return
 	}
 	s.conns.idConns[id].addConn(conn)
@@ -251,7 +175,7 @@ func (s *StreamService) listenPubs(ctx context.Context) {
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "listenPubs",
-		}).Errorf("%s", err)
+		}).Errorf("CreateConn() failed: %s", err)
 		return
 	}
 	defer conn.CloseConn()
@@ -283,7 +207,7 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 	if err := json.Unmarshal(msg, &dev); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "stream",
-		}).Errorf("%s", err)
+		}).Errorf("Unmarshal() failed: %s", err)
 		return err
 	}
 

@@ -20,6 +20,14 @@ import (
 func main() {
 	flag.Parse()
 
+	m := svc.NewAgent(
+		agentName,
+		defaultWebPort,
+		*ttl,
+		logrus.NewEntry(log),
+	)
+	go m.Run()
+
 	if err := store.Init(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"func":  "main",
@@ -29,16 +37,10 @@ func main() {
 	}
 
 	d := svc.NewDataService(
-		svc.Addr{
-			Host: host,
-			Port: *devDataPort,
-		},
 		store,
 		ctrl,
 		logrus.NewEntry(log),
 		svc.DevDataChan,
-		dataAgentName,
-		*ttl,
 	)
 	go d.Run()
 
@@ -51,23 +53,15 @@ func main() {
 		ctrl,
 		logrus.NewEntry(log),
 		svc.DevDataChan,
-		streamAgentName,
-		*ttl,
 	)
 	go s.Run()
 
 	c := svc.NewCfgService(
-		svc.Addr{
-			Host: host,
-			Port: *devCfgPort,
-		},
 		store,
 		ctrl,
 		logrus.NewEntry(log),
 		*retry,
 		svc.DevCfgChan,
-		cfgAgentName,
-		*ttl,
 	)
 	go c.Run()
 
@@ -77,10 +71,7 @@ func main() {
 		*restPort,
 		c,
 		logrus.NewEntry(log),
-		*retry,
 		svc.DevCfgChan,
-		webAgentName,
-		*ttl,
 	)
 	go a.Run()
 

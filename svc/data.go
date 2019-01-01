@@ -7,9 +7,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"time"
-
-	consul "github.com/hashicorp/consul/api"
 	"golang.org/x/net/context"
 )
 
@@ -29,28 +26,19 @@ type DevData struct {
 
 // DataService is used to deal with device data.
 type DataService struct {
-	addr      Addr
-	store     Storer
-	ctrl      Ctrl
-	log       *logrus.Entry
-	pubChan   string
-	agent     *consul.Agent
-	agentName string
-	ttl       time.Duration
+	store   Storer
+	ctrl    Ctrl
+	log     *logrus.Entry
+	pubChan string
 }
 
 // NewDataService creates and initializes a new instance of DataService service.
-func NewDataService(a Addr, s Storer, c Ctrl, l *logrus.Entry, pubChan string, agentName string,
-	ttl time.Duration) *DataService {
-
+func NewDataService(s Storer, c Ctrl, log *logrus.Entry, pubChan string) *DataService {
 	return &DataService{
-		addr:      a,
-		store:     s,
-		ctrl:      c,
-		log:       l.WithFields(logrus.Fields{"component": "svc", "name": "data"}),
-		pubChan:   pubChan,
-		agentName: agentName,
-		ttl:       ttl,
+		store:   s,
+		ctrl:    c,
+		log:     log.WithFields(logrus.Fields{"component": "svc", "name": "data"}),
+		pubChan: pubChan,
 	}
 }
 
@@ -59,7 +47,7 @@ func (s *DataService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("running on host: [%s], port: [%s]", s.addr.Host, s.addr.Port)
+	}).Info("is running")
 
 	_, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -72,76 +60,7 @@ func (s *DataService) Run() {
 			s.terminate()
 		}
 	}()
-
 	go s.listenTermination()
-	s.runConsulAgent()
-}
-
-// GetAddr returns address of the service.
-func (s *DataService) GetAddr() Addr {
-	return s.addr
-}
-
-func (s *DataService) runConsulAgent() {
-	c, err := consul.NewClient(consul.DefaultConfig())
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": cfg.EventPanic,
-		}).Errorf("%s", err)
-		panic("consul init error")
-	}
-	r := &consul.AgentServiceRegistration{
-		Name: s.agentName,
-		Port: s.addr.Port,
-		Check: &consul.AgentServiceCheck{
-			TTL: s.ttl.String(),
-		},
-	}
-	s.agent = c.Agent()
-	if err := s.agent.ServiceRegister(r); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": cfg.EventPanic,
-		}).Errorf("%s", err)
-		panic("consul init error")
-	}
-	go s.updateTTL(s.check)
-}
-
-func (s *DataService) check() (bool, error) {
-	// while the service is alive - everything is ok
-	return true, nil
-}
-
-func (s *DataService) updateTTL(check func() (bool, error)) {
-	t := time.NewTicker(s.ttl / 2)
-	for range t.C {
-		s.update(check)
-	}
-}
-
-func (s *DataService) update(check func() (bool, error)) {
-	var health string
-	if ok, err := check(); !ok {
-		s.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": cfg.EventUpdConsulStatus,
-		}).Errorf("check has failed: %s", err)
-
-		// failed check will remove a service instance from DNS and HTTP query
-		// to avoid returning errors or invalid data.
-		health = consul.HealthCritical
-	} else {
-		health = consul.HealthPassing
-	}
-
-	if err := s.agent.UpdateTTL("svc:"+s.agentName, "", health); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": cfg.EventUpdConsulStatus,
-		}).Error(err)
-	}
 }
 
 func (s *DataService) listenTermination() {

@@ -13,7 +13,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	gproto "github.com/golang/protobuf/proto"
-	consul "github.com/hashicorp/consul/api"
 	"github.com/nats-io/go-nats"
 	"github.com/satori/go.uuid"
 )
@@ -31,33 +30,24 @@ type DevCfg struct {
 
 // CfgService is used to deal with device configurations.
 type CfgService struct {
-	addr      Addr
-	store     Storer
-	ctrl      Ctrl
-	log       *logrus.Entry
-	retry     time.Duration
-	sub       subscription
-	agent     *consul.Agent
-	agentName string
-	ttl       time.Duration
+	store Storer
+	ctrl  Ctrl
+	log   *logrus.Entry
+	retry time.Duration
+	sub   subscription
 }
 
 // NewCfgService creates and initializes a new instance of CfgService service.
-func NewCfgService(a Addr, s Storer, c Ctrl, l *logrus.Entry, retry time.Duration, subj string,
-	agentName string, ttl time.Duration) *CfgService {
-
+func NewCfgService(s Storer, c Ctrl, log *logrus.Entry, retry time.Duration, subj string) *CfgService {
 	return &CfgService{
-		addr:  a,
 		store: s,
 		ctrl:  c,
-		log:   l.WithFields(logrus.Fields{"component": "svc", "name": "cfg"}),
+		log:   log.WithFields(logrus.Fields{"component": "svc", "name": "cfg"}),
 		retry: retry,
 		sub: subscription{
 			ChanName: subj,
 			Chan:     make(chan []byte),
 		},
-		agentName: agentName,
-		ttl:       ttl,
 	}
 }
 
@@ -66,7 +56,7 @@ func (s *CfgService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("running on host: [%s], port: [%d]", s.addr.Host, s.addr.Port)
+	}).Infof("is running")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -75,14 +65,12 @@ func (s *CfgService) Run() {
 				"func":  "Run",
 				"event": cfg.EventPanic,
 			}).Errorf("%s", r)
-
 			cancel()
 			s.terminate()
 		}
 	}()
 	go s.listenTermination()
 	go s.listenCfgPatches(ctx)
-	s.runConsulAgent()
 }
 
 func (s *CfgService) listenTermination() {
@@ -207,69 +195,6 @@ func (s *CfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
 	}).Infof("cfg patch [%s] for device with ID [%s]", devCfg.Data, devCfg.MAC)
 }
 
-func (s *CfgService) runConsulAgent() {
-	c, err := consul.NewClient(consul.DefaultConfig())
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": cfg.EventPanic,
-		}).Errorf("%s", err)
-		panic("consul init error")
-	}
-	r := &consul.AgentServiceRegistration{
-		Name: s.agentName,
-		Port: s.addr.Port,
-		Check: &consul.AgentServiceCheck{
-			TTL: s.ttl.String(),
-		},
-	}
-	s.agent = c.Agent()
-	if err := s.agent.ServiceRegister(r); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": cfg.EventPanic,
-		}).Errorf("%s", err)
-		panic("consul init error")
-	}
-	go s.updateTTL(s.check)
-}
-
-// todo: substitute bool with byte
-func (s *CfgService) check() (bool, error) {
-	// while the service is alive - everything is ok
-	return true, nil
-}
-
-func (s *CfgService) updateTTL(check func() (bool, error)) {
-	t := time.NewTicker(s.ttl / 2)
-	for range t.C {
-		s.update(check)
-	}
-}
-
-func (s *CfgService) update(check func() (bool, error)) {
-	var health string
-	if ok, err := check(); !ok {
-		s.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": cfg.EventUpdConsulStatus,
-		}).Errorf("check has failed: %s", err)
-
-		// failed check will remove a service instance from DNS and HTTP query
-		// to avoid returning errors or invalid data.
-		health = consul.HealthCritical
-	} else {
-		health = consul.HealthPassing
-	}
-
-	if err := s.agent.UpdateTTL("svc:"+s.agentName, "", health); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": cfg.EventUpdConsulStatus,
-		}).Error(err)
-	}
-}
-
 // SetDevInitCfg check's whether device is already registered in the system. If it's already registered,
 // the func returns actual configuration. Otherwise it returns default config for that type of device.
 func (s *CfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
@@ -378,7 +303,7 @@ func (s *CfgService) SetDevCfg(id DevID, c *DevCfg) error {
 	return nil
 }
 
-// Publish posts a message on the given channel.
+// PublishCfgPatch posts a message on the given channel.
 func (s *CfgService) PublishCfgPatch(c *DevCfg, channel string) (int64, error) {
 	conn, err := s.store.CreateConn()
 	if err != nil {

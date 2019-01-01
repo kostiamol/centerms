@@ -16,7 +16,8 @@ import (
 // curl localhost:8500/v1/health/service/myCoolServiceName?passing
 
 const (
-	host = "127.0.0.1"
+	host      = "127.0.0.1"
+	agentName = "centerms"
 
 	// service ports
 	defaultDevCfgPort  = 3092
@@ -31,12 +32,6 @@ const (
 
 	defaultRetryInterval = time.Second * 10
 	defaultTTLInterval   = time.Second * 4
-
-	// consul agent names
-	cfgAgentName    = "center_cfg"
-	dataAgentName   = "center_data"
-	webAgentName    = "center_web"
-	streamAgentName = "center_stream"
 
 	redisAgentName = "redis"
 	storeAgentName = redisAgentName

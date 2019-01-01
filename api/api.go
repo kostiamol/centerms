@@ -15,7 +15,6 @@ import (
 
 	"fmt"
 
-	consul "github.com/hashicorp/consul/api"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -47,28 +46,20 @@ type API struct {
 	log                 *logrus.Entry
 	retry               time.Duration
 	pubChan             string
-	agent               *consul.Agent
-	agentName           string
-	ttl                 time.Duration
 	isProd              bool
 	redirectHTTPToHTTPS bool
 	allowedHost         string
 }
 
 // NewAPI creates and initializes a new instance of API component.
-func NewAPI(host string, rpcPort, restPort int, cfg cfgProvider, log *logrus.Entry, retry time.Duration,
-	pubChan, agentName string, ttl time.Duration) *API {
-
+func NewAPI(host string, rpcPort, restPort int, p cfgProvider, log *logrus.Entry, pubChan string) *API {
 	return &API{
 		host:        host,
 		rpcPort:     rpcPort,
 		restPort:    restPort,
-		cfgProvider: cfg,
+		cfgProvider: p,
 		log:         log.WithFields(logrus.Fields{"component": "api"}),
-		retry:       retry,
 		pubChan:     pubChan,
-		agentName:   agentName,
-		ttl:         ttl,
 	}
 }
 
@@ -88,9 +79,7 @@ func (a *API) Run() {
 		}
 	}()
 
-	a.runConsulAgent()
-
-	a.runRPC()
+	a.runRPCServer()
 
 	var m *autocert.Manager
 	var httpsSrv *http.Server
@@ -173,68 +162,6 @@ func (a *API) makeHTTPToHTTPSRedirectServer() *http.Server {
 	r := mux.NewRouter()
 	r.Handle("/", adapt(a.redirectHandler, a.recoveryAdapter))
 	return makeServerFromMux(r)
-}
-
-func (a *API) runConsulAgent() {
-	c, err := consul.NewClient(consul.DefaultConfig())
-	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": cfg.EventPanic,
-		}).Errorf("%s", err)
-		panic("consul init error")
-	}
-	agent := &consul.AgentServiceRegistration{
-		Name: a.agentName,
-		Port: a.restPort,
-		Check: &consul.AgentServiceCheck{
-			TTL: a.ttl.String(),
-		},
-	}
-	a.agent = c.Agent()
-	if err := a.agent.ServiceRegister(agent); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func":  "Run",
-			"event": cfg.EventPanic,
-		}).Errorf("%s", err)
-		panic("consul init error")
-	}
-	go a.updateTTL(a.check)
-}
-
-func (a *API) check() (bool, error) {
-	// while the service is alive - everything is ok
-	return true, nil
-}
-
-func (a *API) updateTTL(check func() (bool, error)) {
-	t := time.NewTicker(a.ttl / 2)
-	for range t.C {
-		a.update(check)
-	}
-}
-
-func (a *API) update(check func() (bool, error)) {
-	var health string
-	if ok, err := check(); !ok {
-		a.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": cfg.EventUpdConsulStatus,
-		}).Errorf("check has failed: %s", err)
-
-		// failed check will remove a service instance from DNS and HTTP query
-		// to avoid returning errors or invalid data.
-		health = consul.HealthCritical
-	} else {
-		health = consul.HealthPassing
-	}
-
-	if err := a.agent.UpdateTTL("svc:"+a.agentName, "", health); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func":  "update",
-			"event": cfg.EventUpdConsulStatus,
-		}).Error(err)
-	}
 }
 
 // https://medium.com/@matryer/writing-middleware-in-golang-and-how-go-makes-it-so-much-fun-4375c1246e81
