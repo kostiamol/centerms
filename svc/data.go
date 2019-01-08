@@ -32,13 +32,21 @@ type DataService struct {
 	pubChan string
 }
 
-// NewDataService creates and initializes a new instance of DataService service.
-func NewDataService(s Storer, c Ctrl, log *logrus.Entry, pubChan string) *DataService {
+// DataServiceCfg is used to initialize an instance of DataService.
+type DataServiceCfg struct {
+	Store   Storer
+	Ctrl    Ctrl
+	Log     *logrus.Entry
+	PubChan string
+}
+
+// NewDataService creates and initializes a new instance of DataService.
+func NewDataService(c *DataServiceCfg) *DataService {
 	return &DataService{
-		store:   s,
-		ctrl:    c,
-		log:     log.WithFields(logrus.Fields{"component": "svc", "name": "data"}),
-		pubChan: pubChan,
+		store:   c.Store,
+		ctrl:    c.Ctrl,
+		log:     c.Log.WithFields(logrus.Fields{"component": "svc", "name": "data"}),
+		pubChan: c.PubChan,
 	}
 }
 

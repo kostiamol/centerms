@@ -19,7 +19,7 @@ import (
 	"fmt"
 )
 
-// StreamService is used to deal with streaming data from the device to web client (dashboard).
+// StreamService is used to deal with streaming of data from the device to web client (dashboard).
 type StreamService struct {
 	addr     Addr
 	store    Storer
@@ -30,26 +30,35 @@ type StreamService struct {
 	upgrader websocket.Upgrader
 }
 
+// StreamServiceCfg is used to initialize an instance of StreamService.
+type StreamServiceCfg struct {
+	Addr    Addr
+	Store   Storer
+	Ctrl    Ctrl
+	Log     *logrus.Entry
+	PubChan string
+}
+
 // NewStreamService creates and initializes a new instance of StreamService service.
-func NewStreamService(a Addr, s Storer, c Ctrl, log *logrus.Entry, pubChan string) *StreamService {
+func NewStreamService(c *StreamServiceCfg) *StreamService {
 	upg := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
-			if r.Host == a.Host+":"+fmt.Sprint(a.Port) {
+			if r.Host == c.Addr.Host+":"+fmt.Sprint(c.Addr.Port) {
 				return true
 			}
 			return true
 		},
 	}
 	return &StreamService{
-		addr:  a,
-		store: s,
-		ctrl:  c,
-		log:   log.WithFields(logrus.Fields{"component": "svc", "name": "stream"}),
+		addr:  c.Addr,
+		store: c.Store,
+		ctrl:  c.Ctrl,
+		log:   c.Log.WithFields(logrus.Fields{"component": "svc", "name": "stream"}),
 		conns: *newStreamConns(),
 		sub: subscription{
-			ChanName: pubChan,
+			ChanName: c.PubChan,
 			Chan:     make(chan []byte),
 		},
 		upgrader: upg,

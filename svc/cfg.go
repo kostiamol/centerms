@@ -37,15 +37,24 @@ type CfgService struct {
 	sub   subscription
 }
 
-// NewCfgService creates and initializes a new instance of CfgService service.
-func NewCfgService(s Storer, c Ctrl, log *logrus.Entry, retry time.Duration, subj string) *CfgService {
+// CfgServiceCfg is used to initialize an instance of CfgService.
+type CfgServiceCfg struct {
+	Store   Storer
+	Ctrl    Ctrl
+	Log     *logrus.Entry
+	Retry   time.Duration
+	SubChan string
+}
+
+// NewCfgService creates and initializes a new instance of CfgService.
+func NewCfgService(c *CfgServiceCfg) *CfgService {
 	return &CfgService{
-		store: s,
-		ctrl:  c,
-		log:   log.WithFields(logrus.Fields{"component": "svc", "name": "cfg"}),
-		retry: retry,
+		store: c.Store,
+		ctrl:  c.Ctrl,
+		log:   c.Log.WithFields(logrus.Fields{"component": "svc", "name": "cfg"}),
+		retry: c.Retry,
 		sub: subscription{
-			ChanName: subj,
+			ChanName: c.SubChan,
 			Chan:     make(chan []byte),
 		},
 	}

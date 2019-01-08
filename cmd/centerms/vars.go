@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	s "github.com/kostiamol/centerms/store"
 	"github.com/kostiamol/centerms/svc"
 
 	"github.com/Sirupsen/logrus"
@@ -16,16 +15,12 @@ import (
 // curl localhost:8500/v1/health/service/myCoolServiceName?passing
 
 const (
-	host      = "127.0.0.1"
-	agentName = "centerms"
+	host          = "127.0.0.1"
+	meshAgentName = "centerms"
 
-	// service ports
-	defaultDevCfgPort  = 3092
-	defaultDevDataPort = 3126
-	defaultWebPort     = 3301
-	defaultStreamPort  = 3546
-
-	defaultRedisPort = 6379
+	defaultWebPort    = 3301
+	defaultStreamPort = 3546
+	defaultRedisPort  = 6379
 
 	defaultStorePort = defaultRedisPort
 	defaultStoreHost = host
@@ -33,8 +28,8 @@ const (
 	defaultRetryInterval = time.Second * 10
 	defaultTTLInterval   = time.Second * 4
 
-	redisAgentName = "redis"
-	storeAgentName = redisAgentName
+	devCfgChan  = "dev_cfg"
+	devDataChan = "dev_data"
 )
 
 var (
@@ -56,13 +51,9 @@ var (
 		Port: *storePort,
 	}
 
-	store = s.NewRedis(storeAddr)
-
-	devCfgPort  = flag.Int("dev-cfg-port", defaultDevCfgPort, "Port to listen on configuration from devices")
-	devDataPort = flag.Int("dev-data-port", defaultDevDataPort, "Port to listen on data from devices")
-	rpcPort     = flag.Int("rpc-port", defaultWebPort, "Port to listen on web clients")
-	restPort    = flag.Int("rest-port", defaultWebPort, "Port to listen on web clients")
-	streamPort  = flag.Int("stream-port", defaultStreamPort, "Port for data streaming")
+	rpcPort    = flag.Int("rpc-port", defaultWebPort, "Port to listen on web clients")
+	restPort   = flag.Int("rest-port", defaultWebPort, "Port to listen on web clients")
+	streamPort = flag.Int("stream-port", defaultStreamPort, "Port for data streaming")
 
 	retry = flag.Duration("retry", defaultRetryInterval, "Retry interval")
 	ttl   = flag.Duration("ttl", defaultTTLInterval, "Service TTL check duration")

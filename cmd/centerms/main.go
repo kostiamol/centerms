@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/kostiamol/centerms/cfg"
+	s "github.com/kostiamol/centerms/store"
 
 	"github.com/kostiamol/centerms/api"
 
@@ -20,59 +21,65 @@ import (
 func main() {
 	flag.Parse()
 
-	m := svc.NewAgent(
-		agentName,
-		defaultWebPort,
-		*ttl,
-		logrus.NewEntry(log),
-	)
+	m := svc.NewMeshAgent(
+		&svc.MeshAgentCfg{
+			Name: meshAgentName,
+			Port: defaultWebPort,
+			TTL:  *ttl,
+			Log:  logrus.NewEntry(log),
+		})
 	go m.Run()
 
+	store := s.NewRedis(storeAddr)
 	if err := store.Init(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"func":  "main",
 			"event": cfg.EventStoreInit,
-		}).Errorf("%s", err)
+		}).Errorf("Init() failed: %s", err)
 		os.Exit(1)
 	}
 
 	d := svc.NewDataService(
-		store,
-		ctrl,
-		logrus.NewEntry(log),
-		svc.DevDataChan,
-	)
+		&svc.DataServiceCfg{
+			Store:   store,
+			Ctrl:    ctrl,
+			Log:     logrus.NewEntry(log),
+			PubChan: devDataChan,
+		})
 	go d.Run()
 
 	s := svc.NewStreamService(
-		svc.Addr{
-			Host: host,
-			Port: *streamPort,
-		},
-		store,
-		ctrl,
-		logrus.NewEntry(log),
-		svc.DevDataChan,
-	)
+		&svc.StreamServiceCfg{
+			Addr: svc.Addr{
+				Host: host,
+				Port: *streamPort,
+			},
+			Store:   store,
+			Ctrl:    ctrl,
+			Log:     logrus.NewEntry(log),
+			PubChan: devDataChan,
+		})
 	go s.Run()
 
 	c := svc.NewCfgService(
-		store,
-		ctrl,
-		logrus.NewEntry(log),
-		*retry,
-		svc.DevCfgChan,
-	)
+		&svc.CfgServiceCfg{
+			Store:   store,
+			Ctrl:    ctrl,
+			Log:     logrus.NewEntry(log),
+			Retry:   *retry,
+			SubChan: devCfgChan,
+		})
 	go c.Run()
 
 	a := api.NewAPI(
-		host,
-		*rpcPort,
-		*restPort,
-		c,
-		logrus.NewEntry(log),
-		svc.DevCfgChan,
-	)
+		&api.APICfg{
+			Host:        host,
+			RPCPort:     *rpcPort,
+			RESTPort:    *restPort,
+			CfgProvider: c,
+			Log:         logrus.NewEntry(log),
+			PubChan:     devCfgChan,
+		})
 	go a.Run()
 
 	ctrl.Wait()

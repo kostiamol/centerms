@@ -4,12 +4,6 @@ import (
 	"time"
 )
 
-// Inner channels for data exchange.
-const (
-	DevDataChan = "dev_data"
-	DevCfgChan  = "dev_cfg"
-)
-
 // devDataStorer deals with device data.
 type devDataStorer interface {
 	GetDevsData() ([]DevData, error)
@@ -54,7 +48,7 @@ type subscription struct {
 	Chan     chan []byte
 }
 
-// Ctrl is used to store StopChan that allows to terminate all the services that listen the channel.
+// Ctrl contains StopChan that allows to terminate all the services that listen the channel.
 type Ctrl struct {
 	StopChan chan struct{}
 }

@@ -18,13 +18,22 @@ type MeshAgent struct {
 	log   *logrus.Entry
 }
 
-// NewAgent creates and initializes a new instance of MeshAgent.
-func NewAgent(name string, port int, ttl time.Duration, log *logrus.Entry) *MeshAgent {
+// MeshAgentCfg is used to initialize an instance of MeshAgent.
+type MeshAgentCfg struct {
+	Name  string
+	Port  int
+	Agent *consul.Agent
+	TTL   time.Duration
+	Log   *logrus.Entry
+}
+
+// NewMeshAgent creates and initializes a new instance of MeshAgent.
+func NewMeshAgent(c *MeshAgentCfg) *MeshAgent {
 	return &MeshAgent{
-		name: name,
-		port: port,
-		ttl:  ttl,
-		log:  log.WithFields(logrus.Fields{"component": "svc", "name": "meshAgent"}),
+		name: c.Name,
+		port: c.Port,
+		ttl:  c.TTL,
+		log:  c.Log.WithFields(logrus.Fields{"component": "svc", "name": "meshAgent"}),
 	}
 }
 

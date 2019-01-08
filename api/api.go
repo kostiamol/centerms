@@ -51,15 +51,30 @@ type API struct {
 	allowedHost         string
 }
 
-// NewAPI creates and initializes a new instance of API component.
-func NewAPI(host string, rpcPort, restPort int, p cfgProvider, log *logrus.Entry, pubChan string) *API {
+// APICfg is used to initialize an instance of API.
+type APICfg struct {
+	Host                string
+	RPCPort             int
+	RESTPort            int
+	CfgProvider         cfgProvider
+	DataProvider        dataProvider
+	Log                 *logrus.Entry
+	Retry               time.Duration
+	PubChan             string
+	IsProd              bool
+	RedirectHTTPToHTTPS bool
+	AllowedHost         string
+}
+
+// NewAPI creates and initializes a new instance of API.
+func NewAPI(c *APICfg) *API {
 	return &API{
-		host:        host,
-		rpcPort:     rpcPort,
-		restPort:    restPort,
-		cfgProvider: p,
-		log:         log.WithFields(logrus.Fields{"component": "api"}),
-		pubChan:     pubChan,
+		host:        c.Host,
+		rpcPort:     c.RPCPort,
+		restPort:    c.RESTPort,
+		cfgProvider: c.CfgProvider,
+		log:         c.Log.WithFields(logrus.Fields{"component": "api"}),
+		pubChan:     c.PubChan,
 	}
 }
 
