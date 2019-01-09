@@ -39,7 +39,7 @@ func (r *Redis) Init() error {
 		return errors.New("store: Init(): port is empty")
 	}
 	var err error
-	r.conn, err = redis.Dial("tcp", r.addr.Host+":"+fmt.Sprint(r.addr.Port))
+	r.conn, err = redis.Dial("tcp", ":"+fmt.Sprint(r.addr.Port))
 	if err != nil {
 		return errors.Wrap(err, "store: Init(): Dial() failed: ")
 	}

@@ -21,7 +21,7 @@ import (
 
 // StreamService is used to deal with streaming of data from the device to web client (dashboard).
 type StreamService struct {
-	addr     Addr
+	port     int
 	store    Storer
 	ctrl     Ctrl
 	log      *logrus.Entry
@@ -32,7 +32,7 @@ type StreamService struct {
 
 // StreamServiceCfg is used to initialize an instance of StreamService.
 type StreamServiceCfg struct {
-	Addr    Addr
+	Port    int
 	Store   Storer
 	Ctrl    Ctrl
 	Log     *logrus.Entry
@@ -45,14 +45,11 @@ func NewStreamService(c *StreamServiceCfg) *StreamService {
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
-			if r.Host == c.Addr.Host+":"+fmt.Sprint(c.Addr.Port) {
-				return true
-			}
 			return true
 		},
 	}
 	return &StreamService{
-		addr:  c.Addr,
+		port:  c.Port,
 		store: c.Store,
 		ctrl:  c.Ctrl,
 		log:   c.Log.WithFields(logrus.Fields{"component": "svc", "name": "stream"}),
@@ -71,7 +68,7 @@ func (s *StreamService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("is running on host: [%s], port: [%d]", s.addr.Host, s.addr.Port)
+	}).Infof("is running on port: [%d]", s.port)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -94,7 +91,7 @@ func (s *StreamService) Run() {
 
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         s.addr.Host + ":" + fmt.Sprint(s.addr.Port),
+		Addr:         ":" + fmt.Sprint(s.port),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}

@@ -38,7 +38,6 @@ type dataProvider interface {
 
 // API is used to deal with user's queries from the web client (dashboard).
 type API struct {
-	host                string
 	rpcPort             int
 	restPort            int
 	cfgProvider         cfgProvider
@@ -53,7 +52,6 @@ type API struct {
 
 // APICfg is used to initialize an instance of API.
 type APICfg struct {
-	Host                string
 	RPCPort             int
 	RESTPort            int
 	CfgProvider         cfgProvider
@@ -69,7 +67,6 @@ type APICfg struct {
 // NewAPI creates and initializes a new instance of API.
 func NewAPI(c *APICfg) *API {
 	return &API{
-		host:        c.Host,
 		rpcPort:     c.RPCPort,
 		restPort:    c.RESTPort,
 		cfgProvider: c.CfgProvider,
@@ -83,7 +80,7 @@ func (a *API) Run() {
 	a.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("running on host: [%s], rpc port: [%d], rest port: [%d]", a.host, a.rpcPort, a.restPort)
+	}).Infof("running on rpc port: [%d], rest port: [%d]", a.rpcPort, a.restPort)
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -115,7 +112,7 @@ func (a *API) Run() {
 		}
 
 		httpsSrv = a.makeHTTPServer()
-		httpsSrv.Addr = a.host + ":" + fmt.Sprint(a.restPort)
+		httpsSrv.Addr = ":" + fmt.Sprint(a.restPort)
 		httpsSrv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
 
 		go func() {
@@ -135,7 +132,7 @@ func (a *API) Run() {
 		httpSrv.Handler = m.HTTPHandler(httpSrv.Handler)
 	}
 
-	httpSrv.Addr = a.host + ":" + fmt.Sprint(a.restPort)
+	httpSrv.Addr = ":" + fmt.Sprint(a.restPort)
 	if err := httpSrv.ListenAndServe(); err != nil {
 		a.log.Fatalf("httpSrv.ListenAndServe() failed with %s", err)
 	}

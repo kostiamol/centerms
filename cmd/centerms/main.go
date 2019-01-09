@@ -2,13 +2,13 @@ package main
 
 import (
 	"os"
+	"time"
 
+	"github.com/caarlos0/env"
 	"github.com/kostiamol/centerms/cfg"
-	s "github.com/kostiamol/centerms/store"
+	"github.com/kostiamol/centerms/store"
 
 	"github.com/kostiamol/centerms/api"
-
-	"flag"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/kostiamol/centerms/svc"
@@ -18,74 +18,108 @@ import (
 // todo: update README.md
 // todo: reconnect + conn pool
 
+type envVars struct {
+	AppID         string `env:"APP_ID" envDefault:"centerms"`
+	TTL           int    `env:"TTL" envDefault:"4"`
+	Retry         int    `env:"RETRY" envDefault:"10"`
+	LogLevel      string `env:"LOG_LEVEL" envDefault:"DEBUG"`
+	StoreHost     string `env:"STORE_HOST" envDefault:"127.0.0.1"`
+	StorePort     int    `env:"STORE_PORT" envDefault:"6379"`
+	RPCPort       int    `env:"RPC_PORT" envDefault:"8090"`
+	RESTPort      int    `env:"REST_PORT" envDefault:"8080"`
+	WebSocketPort int    `env:"WEBSOCKET_PORT" envDefault:"8070"`
+}
+
 func main() {
-	flag.Parse()
+	devCfgChan := "dev_cfg"
+	devDataChan := "dev_data"
 
-	m := svc.NewMeshAgent(
-		&svc.MeshAgentCfg{
-			Name: meshAgentName,
-			Port: defaultWebPort,
-			TTL:  *ttl,
-			Log:  logrus.NewEntry(log),
-		})
-	go m.Run()
+	log := &logrus.Logger{
+		Out:       os.Stdout,
+		Formatter: new(logrus.TextFormatter),
+		Level:     logrus.DebugLevel,
+	}
 
-	store := s.NewRedis(storeAddr)
-	if err := store.Init(); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"func":  "main",
-			"event": cfg.EventStoreInit,
-		}).Errorf("Init() failed: %s", err)
+	vars := envVars{}
+	if err := env.Parse(&vars); err != nil {
+		log.WithFields(logrus.Fields{
+			"func": "main",
+		}).Fatalf("Parse() failed: %s", err)
 		os.Exit(1)
 	}
 
-	d := svc.NewDataService(
+	lvl, err := logrus.ParseLevel(vars.LogLevel)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"func": "main",
+		}).Fatalf("ParseLevel() failed: %s", err)
+	} else {
+		log.SetLevel(lvl)
+	}
+
+	redis := store.NewRedis(svc.Addr{Host: vars.StoreHost, Port: vars.StorePort})
+	if err := redis.Init(); err != nil {
+		log.WithFields(logrus.Fields{
+			"func":  "main",
+			"event": cfg.EventStoreInit,
+		}).Fatalf("Init() failed: %s", err)
+		os.Exit(1)
+	}
+
+	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
+
+	data := svc.NewDataService(
 		&svc.DataServiceCfg{
-			Store:   store,
+			Store:   redis,
 			Ctrl:    ctrl,
 			Log:     logrus.NewEntry(log),
 			PubChan: devDataChan,
 		})
-	go d.Run()
+	go data.Run()
 
-	s := svc.NewStreamService(
+	stream := svc.NewStreamService(
 		&svc.StreamServiceCfg{
-			Addr: svc.Addr{
-				Host: host,
-				Port: *streamPort,
-			},
-			Store:   store,
+			Port:    vars.WebSocketPort,
+			Store:   redis,
 			Ctrl:    ctrl,
 			Log:     logrus.NewEntry(log),
 			PubChan: devDataChan,
 		})
-	go s.Run()
+	go stream.Run()
 
-	c := svc.NewCfgService(
+	conf := svc.NewCfgService(
 		&svc.CfgServiceCfg{
-			Store:   store,
+			Store:   redis,
 			Ctrl:    ctrl,
 			Log:     logrus.NewEntry(log),
-			Retry:   *retry,
+			Retry:   time.Duration(vars.TTL),
 			SubChan: devCfgChan,
 		})
-	go c.Run()
+	go conf.Run()
 
 	a := api.NewAPI(
 		&api.APICfg{
-			Host:        host,
-			RPCPort:     *rpcPort,
-			RESTPort:    *restPort,
-			CfgProvider: c,
+			RPCPort:     vars.RPCPort,
+			RESTPort:    vars.RESTPort,
+			CfgProvider: conf,
 			Log:         logrus.NewEntry(log),
 			PubChan:     devCfgChan,
 		})
 	go a.Run()
 
+	agent := svc.NewMeshAgent(
+		&svc.MeshAgentCfg{
+			Name: vars.AppID,
+			Port: vars.RESTPort,
+			TTL:  time.Duration(vars.TTL),
+			Log:  logrus.NewEntry(log),
+		})
+	go agent.Run()
+
 	ctrl.Wait()
 
-	logrus.WithFields(logrus.Fields{
+	log.WithFields(logrus.Fields{
 		"func":  "main",
 		"event": cfg.EventMSTerminated,
-	}).Info("centerms is down")
+	}).Infof("%s is down", vars.AppID)
 }

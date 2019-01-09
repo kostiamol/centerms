@@ -9,6 +9,10 @@ import (
 	"github.com/kostiamol/centerms/cfg"
 )
 
+// Query the Consul for services:
+// dig +noall +answer @127.0.0.1 -p 8600 myCoolServiceName.service.dc1.consul
+// curl localhost:8500/v1/health/service/myCoolServiceName?passing
+
 // MeshAgent represents a service mesh agent.
 type MeshAgent struct {
 	name  string
