@@ -51,7 +51,7 @@ func NewCfgService(c *CfgServiceCfg) *CfgService {
 	return &CfgService{
 		store: c.Store,
 		ctrl:  c.Ctrl,
-		log:   c.Log.WithFields(logrus.Fields{"component": "svc", "name": "cfg"}),
+		log:   c.Log.WithFields(logrus.Fields{"component": "cfg"}),
 		retry: c.Retry,
 		sub: subscription{
 			ChanName: c.SubChan,

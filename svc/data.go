@@ -45,7 +45,7 @@ func NewDataService(c *DataServiceCfg) *DataService {
 	return &DataService{
 		store:   c.Store,
 		ctrl:    c.Ctrl,
-		log:     c.Log.WithFields(logrus.Fields{"component": "svc", "name": "data"}),
+		log:     c.Log.WithFields(logrus.Fields{"component": "data"}),
 		pubChan: c.PubChan,
 	}
 }

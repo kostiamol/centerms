@@ -97,7 +97,7 @@ func main() {
 		})
 	go conf.Run()
 
-	a := api.NewAPI(
+	api_ := api.NewAPI(
 		&api.APICfg{
 			RPCPort:     vars.RPCPort,
 			RESTPort:    vars.RESTPort,
@@ -105,16 +105,7 @@ func main() {
 			Log:         logrus.NewEntry(log),
 			PubChan:     devCfgChan,
 		})
-	go a.Run()
-
-	agent := svc.NewMeshAgent(
-		&svc.MeshAgentCfg{
-			Name: vars.AppID,
-			Port: vars.RESTPort,
-			TTL:  time.Duration(vars.TTL),
-			Log:  logrus.NewEntry(log),
-		})
-	go agent.Run()
+	go api_.Run()
 
 	ctrl.Wait()
 

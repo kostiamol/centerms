@@ -80,7 +80,7 @@ func (a *API) Run() {
 	a.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("running on rpc port: [%d], rest port: [%d]", a.rpcPort, a.restPort)
+	}).Infof("is running on rpc port: [%d], rest port: [%d]", a.rpcPort, a.restPort)
 
 	defer func() {
 		if r := recover(); r != nil {
