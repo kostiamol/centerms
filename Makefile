@@ -1,7 +1,3 @@
-# go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-# go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-# go get -u github.com/golang/protobuf/protoc-gen-go
-
 gen:
 	@echo "generating protobufs..."
 	@protoc \
@@ -15,10 +11,16 @@ gen:
 build:
 	go build ./cmd/centerms
 
+run:
+ifeq (,$(wildcard ./centerms))
+	go build ./cmd/centerms
+endif
+	APP_ID=centerms TTL=4 RETRY=10 LOG_LEVEL=DEBUG STORE_HOST=127.0.0.1 STORE_PORT=6379 RPC_PORT=8090 REST_PORT=8080 WEBSOCKET_PORT=8070  ./centerms
+
 clean:
 	rm centerms
 
-run:
+drun:
 	docker run -p 50051:50051 centerms
 
 swaggen:
