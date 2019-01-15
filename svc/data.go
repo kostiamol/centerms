@@ -82,22 +82,6 @@ func (s *DataService) listenTermination() {
 }
 
 func (s *DataService) terminate() {
-	defer func() {
-		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "terminate",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
-			s.ctrl.Terminate()
-		}
-	}()
-
-	if err := s.store.CloseConn(); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "terminate",
-		}).Errorf("%s", err)
-	}
-
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
 		"event": cfg.EventSVCShutdown,
@@ -107,16 +91,7 @@ func (s *DataService) terminate() {
 
 // SaveDevData is used to save device data in the store.
 func (s *DataService) SaveDevData(data *DevData) {
-	conn, err := s.store.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "SaveDevData",
-		}).Errorf("%s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	if err = conn.SaveDevData(data); err != nil {
+	if err := s.store.SaveDevData(data); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "SaveDevData",
 		}).Errorf("%s", err)
@@ -135,16 +110,6 @@ func (s *DataService) pubDevData(data *DevData) error {
 			s.terminate()
 		}
 	}()
-
-	conn, err := s.store.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "pubDevData",
-		}).Errorf("%s", err)
-		return err
-	}
-	defer conn.CloseConn()
-
 	b, err := json.Marshal(data)
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
@@ -152,12 +117,11 @@ func (s *DataService) pubDevData(data *DevData) error {
 		}).Errorf("%s", err)
 		return err
 	}
-	if _, err = conn.Publish(b, s.pubChan); err != nil {
+	if _, err = s.store.Publish(b, s.pubChan); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "pubDevData",
 		}).Errorf("%s", err)
 		return err
 	}
-
 	return nil
 }

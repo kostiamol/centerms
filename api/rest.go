@@ -72,7 +72,7 @@ func (a *API) getDevsDataHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
-	id := svc.DevID(mux.Vars(r)["id"])
+	id := mux.Vars(r)["id"]
 	d, err := a.dataProvider.GetDevData(id)
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
@@ -89,7 +89,7 @@ func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
-	id := svc.DevID(mux.Vars(r)["id"])
+	id := mux.Vars(r)["id"]
 	c, err := a.cfgProvider.GetDevCfg(id)
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
@@ -113,8 +113,8 @@ func (a *API) patchDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
 		}).Errorf("%s", err)
 		return
 	}
-	id := svc.DevID(mux.Vars(r)["id"])
-	if err := a.cfgProvider.SetDevCfg(svc.DevID(id), &c); err != nil {
+	id := mux.Vars(r)["id"]
+	if err := a.cfgProvider.SetDevCfg(id, &c); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "patchDevCfgHandler",
 		}).Errorf("%s", err)

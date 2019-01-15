@@ -2,12 +2,12 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/kostiamol/centerms/svc"
 
-	"github.com/garyburd/redigo/redis"
 	"github.com/pkg/errors"
 )
 
@@ -38,13 +38,13 @@ func (r *Redis) getFridgeData(m *svc.DevMeta) (*svc.DevData, error) {
 	paramsKey := devKey + partialDevParamsKey
 
 	data := make(map[string][]string)
-	params, err := redis.Strings(r.conn.Do("SMEMBERS", paramsKey))
+	params, err := r.smembers(paramsKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "store: getFridgeData(): SMEMBERS() failed: ")
 	}
 
 	for _, p := range params {
-		data[p], err = redis.Strings(r.conn.Do("ZRANGEBYSCORE", paramsKey+":"+p, "-inf", "inf"))
+		data[p], err = r.zrangebyscore(paramsKey+":"+p, "-inf", "inf")
 		if err != nil {
 			return nil, errors.Wrap(err, "store: getFridgeData(): ZRANGEBYSCORE() failed: ")
 		}
@@ -70,24 +70,24 @@ func (r *Redis) saveFridgeData(d *svc.DevData) error {
 	devKey := partialDevKey + d.Meta.Type + ":" + d.Meta.Name + ":" + d.Meta.MAC
 	paramsKey := devKey + partialDevParamsKey
 
-	if _, err := r.conn.Do("HMSET", "devParamsKeys", paramsKey); err != nil {
-		r.conn.Do("DISCARD")
+	if _, err := r.hmset("devParamsKeys", paramsKey); err != nil {
+		r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): SADD() failed: ")
 	}
-	if _, err := r.conn.Do("HMSET", devKey, "ReqTime", d.Time); err != nil {
-		r.conn.Do("DISCARD")
+	if _, err := r.hmset(devKey, "ReqTime", fmt.Sprint(d.Time)); err != nil {
+		r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): HMSET() failed: ")
 	}
-	if _, err := r.conn.Do("SADD", paramsKey, "TopCompart", "BotCompart"); err != nil {
-		r.conn.Do("DISCARD")
+	if _, err := r.sadd(paramsKey, "TopCompart", "BotCompart"); err != nil {
+		r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): SADD() failed: ")
 	}
 	if err := r.saveFridgeCompartData(fridge.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
-		r.conn.Do("DISCARD")
+		r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): saveFridgeCompartData(): ")
 	}
 	if err := r.saveFridgeCompartData(fridge.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
-		r.conn.Do("DISCARD")
+		r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): saveFridgeCompartData(): ")
 	}
 	return nil
@@ -95,7 +95,7 @@ func (r *Redis) saveFridgeData(d *svc.DevData) error {
 
 func (r *Redis) saveFridgeCompartData(tempCam map[int64]float32, key string) error {
 	for time, temp := range tempCam {
-		_, err := r.conn.Do("ZADD", key, strconv.FormatInt(int64(time), 10),
+		_, err := r.zadd(key, strconv.FormatInt(int64(time), 10),
 			strconv.FormatInt(int64(time), 10)+":"+
 				strconv.FormatFloat(float64(temp), 'f', -1, 32))
 		if err != nil {
@@ -108,30 +108,30 @@ func (r *Redis) saveFridgeCompartData(tempCam map[int64]float32, key string) err
 func (r *Redis) getFridgeCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	cfgKey := m.MAC + partialDevCfgKey
 
-	to, err := redis.Strings(r.conn.Do("HMGET", cfgKey, "TurnedOn"))
+	to, err := r.hmget("HMGET", cfgKey, "TurnedOn")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getFridgeCfg(): HMGET() for TurnedOn field failed: ")
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): HMGET() for TurnedOn failed: ")
 	}
-	cf, err := redis.Strings(r.conn.Do("HMGET", cfgKey, "CollectFreq"))
+	cf, err := r.hmget(cfgKey, "CollectFreq")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getFridgeCfg(): HMGET() for CollectFreq field failed: ")
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): HMGET() for CollectFreq failed: ")
 	}
-	sf, err := redis.Strings(r.conn.Do("HMGET", cfgKey, "SendFreq"))
+	sf, err := r.hmget(cfgKey, "SendFreq")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getFridgeCfg(): HMGET() for SendFreq field failed: ")
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): HMGET() for SendFreq failed: ")
 	}
 
 	pto, err := strconv.ParseBool(strings.Join(to, " "))
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getFridgeCfg(): ParseBool() for TurnedOn field failed: ")
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): ParseBool() for TurnedOn failed: ")
 	}
 	pcf, err := strconv.ParseInt(strings.Join(cf, " "), 10, 64)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getFridgeCfg(): ParseInt() for CollectFreq field failed: ")
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): ParseInt() for CollectFreq failed: ")
 	}
 	psf, err := strconv.ParseInt(strings.Join(sf, " "), 10, 64)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getFridgeCfg(): ParseInt() for SendFreq field failed: ")
+		return nil, errors.Wrap(err, "store: getFridgeCfg(): ParseInt() for SendFreq failed: ")
 	}
 
 	c := fridgeCfg{
@@ -179,25 +179,25 @@ func (r *Redis) setFridgeCfg(c *svc.DevCfg, m *svc.DevMeta) error {
 	}
 
 	cfgKey := c.MAC + partialDevCfgKey
-	if _, err := r.conn.Do("MULTI"); err != nil {
-		r.conn.Do("DISCARD")
+	if _, err := r.multi(); err != nil {
+		r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): MULTI() failed: ")
 	}
-	if _, err := r.conn.Do("HMSET", cfgKey, "TurnedOn", fridge.TurnedOn); err != nil {
-		r.conn.Do("DISCARD")
+	if _, err := r.hmset(cfgKey, "TurnedOn", fmt.Sprint(fridge.TurnedOn)); err != nil {
+		r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): HMSET() failed: ")
 	}
-	if _, err := r.conn.Do("HMSET", cfgKey, "CollectFreq", fridge.CollectFreq); err != nil {
-		r.conn.Do("DISCARD")
+	if _, err := r.hmset(cfgKey, "CollectFreq", fmt.Sprint(fridge.CollectFreq)); err != nil {
+		r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): HMSET() failed: ")
 	}
-	if _, err := r.conn.Do("HMSET", cfgKey, "SendFreq", fridge.SendFreq); err != nil {
-		r.conn.Do("DISCARD")
+	if _, err := r.hmset(cfgKey, "SendFreq", fmt.Sprint(fridge.SendFreq)); err != nil {
+		r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): HMSet() failed: ")
 	}
 
-	if _, err := r.conn.Do("EXEC"); err != nil {
-		r.conn.Do("DISCARD")
+	if _, err := r.exec(); err != nil {
+		r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): EXEC() failed: ")
 	}
 	return nil

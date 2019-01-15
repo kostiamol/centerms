@@ -41,13 +41,6 @@ type StreamServiceCfg struct {
 
 // NewStreamService creates and initializes a new instance of StreamService service.
 func NewStreamService(c *StreamServiceCfg) *StreamService {
-	upg := websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
-	}
 	return &StreamService{
 		port:  c.Port,
 		store: c.Store,
@@ -58,7 +51,13 @@ func NewStreamService(c *StreamServiceCfg) *StreamService {
 			ChanName: c.PubChan,
 			Chan:     make(chan []byte),
 		},
-		upgrader: upg,
+		upgrader: websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
 	}
 }
 
@@ -109,22 +108,6 @@ func (s *StreamService) listenTermination() {
 }
 
 func (s *StreamService) terminate() {
-	defer func() {
-		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "terminate",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
-			s.terminate()
-		}
-	}()
-
-	if err := s.store.CloseConn(); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "terminate",
-		}).Errorf("CloseConn() failed %s", err)
-	}
-
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
 		"event": cfg.EventSVCShutdown,
@@ -177,15 +160,7 @@ func (s *StreamService) listenPubs(ctx context.Context) {
 		}
 	}()
 
-	conn, err := s.store.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "listenPubs",
-		}).Errorf("CreateConn() failed: %s", err)
-		return
-	}
-	defer conn.CloseConn()
-	go conn.Subscribe(s.sub.Chan, s.sub.ChanName)
+	go s.store.Subscribe(s.sub.Chan, s.sub.ChanName)
 
 	for {
 		select {

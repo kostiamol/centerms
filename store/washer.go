@@ -7,7 +7,6 @@ import (
 
 	"github.com/kostiamol/centerms/svc"
 
-	"github.com/garyburd/redigo/redis"
 	"github.com/pkg/errors"
 )
 
@@ -79,13 +78,13 @@ func (r *Redis) getWasherData(m *svc.DevMeta) (*svc.DevData, error) {
 	devParamsKey := devKey + partialDevParamsKey
 
 	data := make(map[string][]string)
-	params, err := redis.Strings(r.conn.Do("SMEMBERS", devParamsKey))
+	params, err := r.smembers(devParamsKey)
 	if err != nil {
 		errors.Wrap(err, "store: getWasherData(): SMEMBERS() failed: ")
 	}
 
 	for _, p := range params {
-		data[p], err = redis.Strings(r.conn.Do("ZRANGEBYSCORE", devParamsKey+":"+p, "-inf", "inf"))
+		data[p], err = r.zrangebyscore(devParamsKey+":"+p, "-inf", "inf")
 		if err != nil {
 			errors.Wrap(err, "store: getWasherData(): ZRANGEBYSCORE() failed: ")
 		}
@@ -112,20 +111,20 @@ func (r *Redis) saveWasherData(d *svc.DevData) error {
 	devKey := partialDevKey + d.Meta.Type + ":" + d.Meta.Name + ":" + d.Meta.MAC
 	paramsKey := devKey + partialDevParamsKey
 
-	if _, err := r.conn.Do("MULTI"); err != nil {
-		r.conn.Do("DISCARD")
-		return errors.Wrap(err, "store: saveWasherData(): Multi() failed: ")
+	if _, err := r.multi(); err != nil {
+		r.discard()
+		return errors.Wrap(err, "store: saveWasherData(): MULTI() failed: ")
 	}
 	if err := r.setTurnoversData(washer.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
-		r.conn.Do("DISCARD")
+		r.discard()
 		return errors.Wrap(err, "store: saveWasherData(): setTurnoversData() failed: ")
 	}
 	if err := r.setWaterTempData(washer.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
-		r.conn.Do("DISCARD")
+		r.discard()
 		return errors.Wrap(err, "store: saveWasherData(): setWaterTempData() failed: ")
 	}
-	if _, err := r.conn.Do("EXEC"); err != nil {
-		r.conn.Do("DISCARD")
+	if _, err := r.exec(); err != nil {
+		r.discard()
 		return errors.Wrap(err, "store: saveWasherData(): EXEC() failed: ")
 	}
 	return nil
@@ -133,7 +132,7 @@ func (r *Redis) saveWasherData(d *svc.DevData) error {
 
 func (r *Redis) setTurnoversData(tempCam map[int64]int64, key string) error {
 	for t, v := range tempCam {
-		_, err := r.conn.Do("ZADD", key, strconv.FormatInt(int64(t), 10),
+		_, err := r.zadd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+strconv.FormatInt(int64(v), 10))
 		if err != nil {
 			return errors.Wrap(err, "ZADD() failed: ")
@@ -144,7 +143,7 @@ func (r *Redis) setTurnoversData(tempCam map[int64]int64, key string) error {
 
 func (r *Redis) setWaterTempData(tempCam map[int64]float32, key string) error {
 	for t, v := range tempCam {
-		_, err := r.conn.Do("ZADD", key, strconv.FormatInt(int64(t), 10),
+		_, err := r.zadd(key, strconv.FormatInt(int64(t), 10),
 			strconv.FormatInt(int64(t), 10)+":"+
 				strconv.FormatFloat(float64(v), 'f', -1, 32))
 		if err != nil {
@@ -163,8 +162,8 @@ func (r *Redis) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 
 	cfg.MAC = m.MAC
 	cfgKey := m.MAC + partialDevCfgKey
-	unixTime := int64(100) // fake
-	mode, err := redis.Strings(r.conn.Do("ZRANGEBYSCORE", cfgKey, unixTime-100, unixTime+100))
+	unixTime := int64(100)
+	mode, err := r.zrangebyscore(cfgKey, unixTime-100, unixTime+100)
 	if err != nil {
 		return nil, errors.Wrap(err, "store: getWasherCfg(): ZRANGEBYSCORE() failed: ")
 	}
@@ -187,7 +186,7 @@ func (r *Redis) setWasherCfg(c *svc.DevCfg) error {
 	}
 
 	cfgKey := c.MAC + partialDevCfgKey
-	if _, err := r.conn.Do("ZADD", cfgKey, m.StartTime, m.Name); err != nil {
+	if _, err := r.zadd(cfgKey, m.StartTime, m.Name); err != nil {
 		return errors.Wrap(err, "store: setWasherCfg(): ZADD() failed: ")
 	}
 	return nil

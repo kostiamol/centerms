@@ -93,22 +93,6 @@ func (s *CfgService) listenTermination() {
 }
 
 func (s *CfgService) terminate() {
-	defer func() {
-		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "terminate",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
-			s.ctrl.Terminate()
-		}
-	}()
-
-	if err := s.store.CloseConn(); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "terminate",
-		}).Errorf("%s", err)
-	}
-
 	s.log.WithFields(logrus.Fields{
 		"func":  "terminate",
 		"event": cfg.EventSVCShutdown,
@@ -127,16 +111,7 @@ func (s *CfgService) listenCfgPatches(ctx context.Context) {
 		}
 	}()
 
-	conn, err := s.store.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "listenCfgPatches",
-		}).Errorf("%s", err)
-		return
-	}
-	defer conn.CloseConn()
-
-	go conn.Subscribe(s.sub.Chan, s.sub.ChanName)
+	go s.store.Subscribe(s.sub.Chan, s.sub.ChanName)
 
 	var c DevCfg
 	for {
@@ -207,16 +182,7 @@ func (s *CfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
 // SetDevInitCfg check's whether device is already registered in the system. If it's already registered,
 // the func returns actual configuration. Otherwise it returns default config for that type of device.
 func (s *CfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
-	conn, err := s.store.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "SetDevInitCfg",
-		}).Errorf("%s", err)
-		return nil, err
-	}
-	defer conn.CloseConn()
-
-	if err = conn.SetDevMeta(meta); err != nil {
+	if err := s.store.SetDevMeta(meta); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "SetDevInitCfg",
 		}).Errorf("%s", err)
@@ -224,9 +190,9 @@ func (s *CfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 	}
 
 	var devCfg *DevCfg
-	id := DevID(meta.MAC)
+	id := meta.MAC
 
-	if ok, err := conn.DevIsRegistered(meta); ok {
+	if ok, err := s.store.DevIsRegistered(meta); ok {
 		if err != nil {
 			s.log.WithFields(logrus.Fields{
 				"func": "SetDevInitCfg",
@@ -234,7 +200,7 @@ func (s *CfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 			return nil, err
 		}
 
-		devCfg, err = conn.GetDevCfg(id)
+		devCfg, err = s.store.GetDevCfg(id)
 		if err != nil {
 			s.log.WithFields(logrus.Fields{
 				"func": "SetDevInitCfg",
@@ -249,7 +215,7 @@ func (s *CfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 			return nil, err
 		}
 
-		devCfg, err = conn.GetDevDefaultCfg(meta)
+		devCfg, err = s.store.GetDevDefaultCfg(meta)
 		if err != nil {
 			s.log.WithFields(logrus.Fields{
 				"func": "SetDevInitCfg",
@@ -257,7 +223,7 @@ func (s *CfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 			return nil, err
 		}
 
-		if err = conn.SetDevCfg(id, devCfg); err != nil {
+		if err = s.store.SetDevCfg(id, devCfg); err != nil {
 			s.log.WithFields(logrus.Fields{
 				"func": "SetDevInitCfg",
 			}).Errorf("%s", err)
@@ -268,20 +234,11 @@ func (s *CfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 			"event": cfg.EventDevRegistered,
 		}).Infof("devices' meta: %+v", meta)
 	}
-	return devCfg, err
+	return devCfg, nil
 }
 
 // GetDevCfg returns configuration for the given device.
-func (s *CfgService) GetDevCfg(id DevID) (*DevCfg, error) {
-	conn, err := s.store.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "GetDevCfg",
-		}).Errorf("%s", err)
-		return nil, err
-	}
-	defer conn.CloseConn()
-
+func (s *CfgService) GetDevCfg(id string) (*DevCfg, error) {
 	c, err := s.store.GetDevCfg(id)
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
@@ -293,17 +250,8 @@ func (s *CfgService) GetDevCfg(id DevID) (*DevCfg, error) {
 }
 
 // SetDevCfg sets configuration for the given device.
-func (s *CfgService) SetDevCfg(id DevID, c *DevCfg) error {
-	conn, err := s.store.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "SetDevCfg",
-		}).Errorf("%s", err)
-		return err
-	}
-	defer conn.CloseConn()
-
-	if err := conn.SetDevCfg(id, c); err != nil {
+func (s *CfgService) SetDevCfg(id string, c *DevCfg) error {
+	if err := s.store.SetDevCfg(id, c); err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "SetDevCfg",
 		}).Errorf("%s", err)
@@ -314,15 +262,6 @@ func (s *CfgService) SetDevCfg(id DevID, c *DevCfg) error {
 
 // PublishCfgPatch posts a message on the given channel.
 func (s *CfgService) PublishCfgPatch(c *DevCfg, channel string) (int64, error) {
-	conn, err := s.store.CreateConn()
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "PublishCfgPatch",
-		}).Errorf("%s", err)
-		return 0, err
-	}
-	defer conn.CloseConn()
-
 	numberOfClients, err := s.store.Publish(c, channel)
 	if err != nil {
 		return 0, err

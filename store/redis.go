@@ -2,14 +2,13 @@
 package store
 
 import (
-	"strings"
+	"time"
 
 	"github.com/garyburd/redigo/redis"
 
 	"fmt"
 
 	"github.com/kostiamol/centerms/svc"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -21,231 +20,127 @@ const (
 // Redis is used to provide a storage based on Redis according to Storer interface.
 type Redis struct {
 	addr svc.Addr
-	conn redis.Conn
+	pool *redis.Pool
 }
 
 // NewRedis creates a new instance of Redis store.
-func NewRedis(a svc.Addr) svc.Storer {
-	return &Redis{
+func NewRedis(a svc.Addr, password string) (svc.Storer, error) {
+	r := &Redis{
 		addr: a,
+		pool: &redis.Pool{
+			MaxIdle:     3,
+			IdleTimeout: 240 * time.Second,
+			Dial: func() (redis.Conn, error) {
+				c, err := redis.Dial("tcp", a.Host+":"+fmt.Sprint(a.Port))
+				if err != nil {
+					return nil, fmt.Errorf("Dial(): %s", err)
+				}
+				if _, err := c.Do("AUTH", password); err != nil {
+					c.Close()
+					return nil, err
+				}
+				return c, nil
+			},
+			TestOnBorrow: func(c redis.Conn, t time.Time) error {
+				if _, err := c.Do("PING"); err != nil {
+					return fmt.Errorf("PING: %s", err)
+				}
+				return nil
+			},
+		},
 	}
+
+	if _, err := r.ping(); err != nil {
+		return nil, fmt.Errorf("store: PING() failed: %s", err)
+	}
+	return r, nil
 }
 
-// Init initializes an instance of Redis.
-func (r *Redis) Init() error {
-	if r.addr.Host == "" {
-		return errors.New("store: Init(): host is empty")
-	} else if r.addr.Port == 0 {
-		return errors.New("store: Init(): port is empty")
-	}
-	var err error
-	r.conn, err = redis.Dial("tcp", ":"+fmt.Sprint(r.addr.Port))
-	if err != nil {
-		return errors.Wrap(err, "store: Init(): Dial() failed: ")
-	}
-	return nil
+// Close releases the resources used by the pool.
+func (r *Redis) Close() error {
+	return r.pool.Close()
 }
 
-// CreateConn creates, initializes and returns a new instance of Redis.
-func (r *Redis) CreateConn() (svc.Storer, error) {
-	store := Redis{
-		addr: r.addr,
-	}
-	var err error
-	store.conn, err = redis.Dial("tcp", r.addr.Host+":"+fmt.Sprint(r.addr.Port))
-	if err != nil {
-		return nil, errors.Wrap(err, "store: CreateConn(): Dial() failed: ")
-	}
-	return &store, nil
+func (r *Redis) ping() (string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.String(conn.Do("PING"))
 }
 
-// CloseConn closes connection with Redis.
-func (r *Redis) CloseConn() error {
-	return r.conn.Close()
+func (r *Redis) exists(key string) (bool, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Bool(redis.Bytes(conn.Do("EXISTS", key)))
 }
 
-// GetDevsData returns the data concerning all the devices.
-func (r *Redis) GetDevsData() ([]svc.DevData, error) {
-	devParamsKeys, err := redis.Strings(r.conn.Do("SMEMBERS", "devParamsKeys"))
-	if err != nil {
-		errors.Wrap(err, "store: GetDevsData(): SMEMBERS for devParamsKeys failed: ")
-	}
-
-	devParamsKeysTokens := make([][]string, len(devParamsKeys))
-	for k, v := range devParamsKeys {
-		devParamsKeysTokens[k] = strings.Split(v, ":")
-	}
-
-	var (
-		devData  svc.DevData
-		devsData []svc.DevData
-	)
-
-	for index, key := range devParamsKeysTokens {
-		devData.Meta = svc.DevMeta{
-			Type: key[1],
-			Name: key[2],
-			MAC:  key[3],
-		}
-		data := make(map[string][]string)
-		params, err := redis.Strings(r.conn.Do("SMEMBERS", devParamsKeys[index]))
-		if err != nil {
-			errors.Wrapf(err, "store: GetDevsData(): SMEMBERS() for %s failed: ", devParamsKeys[index])
-		}
-
-		for i, p := range params {
-			data[p], err = redis.Strings(r.conn.Do("ZRANGEBYSCORE", devParamsKeys[index]+":"+p, "-inf", "inf"))
-			if err != nil {
-				errors.Wrapf(err, "store: GetDevsData(): ZRANGEBYSCORE() for %s failed: ", devParamsKeys[i])
-			}
-		}
-		devsData = append(devsData, devData)
-	}
-	return devsData, err
+func (r *Redis) multi() (string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.String(redis.Bytes(conn.Do("MULTI")))
 }
 
-// GetDevMeta returns metadata for the given device.
-func (r *Redis) GetDevMeta(id svc.DevID) (*svc.DevMeta, error) {
-	t, err := redis.String(r.conn.Do("HGET", "id:"+id, "type"))
-	if err != nil {
-		errors.Wrap(err, "store: GetDevMeta(): HGET() failed: ")
-	}
-	n, err := redis.String(r.conn.Do("HGET", "id:"+id, "name"))
-	if err != nil {
-		errors.Wrap(err, "store: GetDevMeta():  HGET() failed: ")
-	}
-	m, err := redis.String(r.conn.Do("HGET", "id:"+id, "mac"))
-	if err != nil {
-		errors.Wrap(err, "store: GetDevMeta():  HGET() failed: ")
-	}
-
-	return &svc.DevMeta{
-		Type: t,
-		Name: n,
-		MAC:  m,
-	}, nil
+func (r *Redis) discard() (string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.String(redis.Bytes(conn.Do("DISCARD")))
 }
 
-// SetDevMeta sets metadata for the given device.
-func (r *Redis) SetDevMeta(m *svc.DevMeta) error {
-	if _, err := r.conn.Do("HMSET", "id:"+m.MAC, "type", m.Type); err != nil {
-		return errors.Wrap(err, "store: setFridgeCfg(): HMSet() failed: ")
-	}
-	if _, err := r.conn.Do("HMSET", "id:"+m.MAC, "name", m.Name); err != nil {
-		return errors.Wrap(err, "store: setFridgeCfg(): HMSet() failed: ")
-	}
-	if _, err := r.conn.Do("HMSET", "id:"+m.MAC, "mac", m.MAC); err != nil {
-		return errors.Wrap(err, "store: setFridgeCfg(): HMSet() failed: ")
-	}
-	return nil
+func (r *Redis) exec() ([]string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Strings(redis.Bytes(conn.Do("EXEC")))
 }
 
-// DevIsRegistered returns 'true' if the given device is registered, otherwise - 'false'.
-func (r *Redis) DevIsRegistered(m *svc.DevMeta) (bool, error) {
-	cfgKey := m.MAC + partialDevCfgKey
-	if ok, err := redis.Bool(r.conn.Do("EXISTS", cfgKey)); ok {
-		if err != nil {
-			return false, errors.Wrap(err, "store: DevIsRegistered(): EXISTS() failed: ")
-		}
-		return true, nil
-	}
-	return false, nil
+func (r *Redis) sadd(key string, members ...interface{}) (int, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Int(redis.Bytes(conn.Do("SADD", key, members)))
 }
 
-// GetDevData returns data concerning given device.
-func (r *Redis) GetDevData(id svc.DevID) (*svc.DevData, error) {
-	m, err := r.GetDevMeta(id)
-	if err != nil {
-		return nil, err
-	}
-
-	switch m.Type {
-	case "fridge":
-		return r.getFridgeData(m)
-	case "washer":
-		return r.getWasherData(m)
-	default:
-		return nil, errors.New("store: GetDevData(): dev type is unknown")
-	}
+func (r *Redis) zadd(key string, args ...interface{}) ([]string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Strings(redis.Bytes(conn.Do("ZADD", key, args)))
 }
 
-// SaveDevData saves data concerning given device.
-func (r *Redis) SaveDevData(d *svc.DevData) error {
-	switch d.Meta.Type {
-	case "fridge":
-		return r.saveFridgeData(d)
-	case "washer":
-		return r.saveWasherData(d)
-	default:
-		return errors.New("store: SaveDevData(): dev type is unknown")
-	}
+func (r *Redis) hset(key string) (int, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Int(redis.Bytes(conn.Do("HSET", key)))
 }
 
-// GetDevCfg returns configuration for the given device.
-func (r *Redis) GetDevCfg(id svc.DevID) (*svc.DevCfg, error) {
-	m, err := r.GetDevMeta(id)
-	if err != nil {
-		return nil, err
-	}
-
-	switch m.Type {
-	case "fridge":
-		return r.getFridgeCfg(m)
-	case "washer":
-		return r.getWasherCfg(m)
-	default:
-		return nil, errors.New("store: GetDevCfg(): dev type is unknown")
-	}
+func (r *Redis) hget(key, field string) (string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.String(redis.Bytes(conn.Do("HGET", key, field)))
 }
 
-// SetDevCfg sets configuration for the given device.
-func (r *Redis) SetDevCfg(id svc.DevID, c *svc.DevCfg) error {
-	m, err := r.GetDevMeta(id)
-	if err != nil {
-		return err
-	}
-
-	switch m.Type {
-	case "fridge":
-		return r.setFridgeCfg(c, m)
-	case "washer":
-		return r.setWasherCfg(c)
-	default:
-		return errors.New("store: SetDevCfg(): dev type is unknown")
-	}
+func (r *Redis) hmset(key string, fields ...interface{}) ([]string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Strings(redis.Bytes(conn.Do("HMSET", key, fields)))
 }
 
-// GetDevDefaultCfg returns default configuration for the given device.
-func (r *Redis) GetDevDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
-	switch m.Type {
-	case "fridge":
-		return r.getFridgeDefaultCfg(m)
-	case "washer":
-		return r.getWasherDefaultCfg(m)
-	default:
-		return nil, errors.New("store: GetDevDefaultCfg(): dev type is unknown")
-	}
+func (r *Redis) hmget(key string, fields ...interface{}) ([]string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Strings(redis.Bytes(conn.Do("HMGET", key, fields)))
 }
 
-// Publish posts a message on the given channel.
-func (r *Redis) Publish(msg interface{}, channel string) (int64, error) {
-	numberOfClients, err := redis.Int64(r.conn.Do("PUBLISH", msg, channel))
-	if err != nil {
-		return 0, errors.Wrap(err, "store: Publish() failed: ")
-	}
-	return numberOfClients, nil
+func (r *Redis) smembers(key string) ([]string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Strings(conn.Do("SMEMBERS", key))
 }
 
-// Subscribe subscribes the client to the specified channels.
-func (r *Redis) Subscribe(c chan []byte, channel ...string) {
-	conn := redis.PubSubConn{Conn: r.conn}
-	for _, cn := range channel {
-		conn.Subscribe(cn)
-	}
-	for {
-		switch v := conn.Receive().(type) {
-		case redis.Message:
-			c <- v.Data
-		}
-	}
+func (r *Redis) zrangebyscore(key string, min, max interface{}) ([]string, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Strings(conn.Do("ZRANGEBYSCORE", key, min, max))
+}
+
+func (r *Redis) publish(msg interface{}, channel string) (int, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Int(redis.Bytes(conn.Do("PUBLISH", msg, channel)))
 }

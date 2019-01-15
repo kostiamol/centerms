@@ -16,7 +16,6 @@ import (
 
 // todo: add Prometheus
 // todo: update README.md
-// todo: reconnect + conn pool
 
 type envVars struct {
 	AppID         string `env:"APP_ID" envDefault:"centerms"`
@@ -25,6 +24,7 @@ type envVars struct {
 	LogLevel      string `env:"LOG_LEVEL" envDefault:"DEBUG"`
 	StoreHost     string `env:"STORE_HOST" envDefault:"127.0.0.1"`
 	StorePort     int    `env:"STORE_PORT" envDefault:"6379"`
+	StorePassword string `env:"STORE_PASSWORD" envDefault:"password"`
 	RPCPort       int    `env:"RPC_PORT" envDefault:"8090"`
 	RESTPort      int    `env:"REST_PORT" envDefault:"8080"`
 	WebSocketPort int    `env:"WEBSOCKET_PORT" envDefault:"8070"`
@@ -57,12 +57,12 @@ func main() {
 		log.SetLevel(lvl)
 	}
 
-	redis := store.NewRedis(svc.Addr{Host: vars.StoreHost, Port: vars.StorePort})
-	if err := redis.Init(); err != nil {
+	redis, err := store.NewRedis(svc.Addr{Host: vars.StoreHost, Port: vars.StorePort}, vars.StorePassword)
+	if err != nil {
 		log.WithFields(logrus.Fields{
 			"func":  "main",
 			"event": cfg.EventStoreInit,
-		}).Fatalf("Init() failed: %s", err)
+		}).Fatalf("NewRedis(): %s", err)
 		os.Exit(1)
 	}
 

@@ -21,18 +21,18 @@ import (
 
 // cfgProvider deals with device configurations.
 type cfgProvider interface {
-	GetDevCfg(svc.DevID) (*svc.DevCfg, error)
+	GetDevCfg(id string) (*svc.DevCfg, error)
 	SetDevInitCfg(*svc.DevMeta) (*svc.DevCfg, error)
-	SetDevCfg(svc.DevID, *svc.DevCfg) error
+	SetDevCfg(id string, c *svc.DevCfg) error
 	PublishCfgPatch(c *svc.DevCfg, channel string) (int64, error)
 }
 
 // dataProvider deals with device data.
 type dataProvider interface {
 	GetDevsData() ([]svc.DevData, error)
-	GetDevData(svc.DevID) (*svc.DevData, error)
+	GetDevData(id string) (*svc.DevData, error)
 	SaveDevData(*svc.DevData) error
-	GetDevMeta(svc.DevID) (*svc.DevMeta, error)
+	GetDevMeta(id string) (*svc.DevMeta, error)
 	SetDevMeta(*svc.DevMeta) error
 }
 

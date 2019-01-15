@@ -7,16 +7,16 @@ import (
 // devDataStorer deals with device data.
 type devDataStorer interface {
 	GetDevsData() ([]DevData, error)
-	GetDevData(DevID) (*DevData, error)
+	GetDevData(devID string) (*DevData, error)
 	SaveDevData(*DevData) error
-	GetDevMeta(DevID) (*DevMeta, error)
+	GetDevMeta(devID string) (*DevMeta, error)
 	SetDevMeta(*DevMeta) error
 }
 
 // devCfgStorer deals with device configurations.
 type devCfgStorer interface {
-	GetDevCfg(DevID) (*DevCfg, error)
-	SetDevCfg(DevID, *DevCfg) error
+	GetDevCfg(devID string) (*DevCfg, error)
+	SetDevCfg(devID string, c *DevCfg) error
 	GetDevDefaultCfg(*DevMeta) (*DevCfg, error)
 	DevIsRegistered(*DevMeta) (bool, error)
 }
@@ -26,11 +26,8 @@ type devCfgStorer interface {
 type Storer interface {
 	devDataStorer
 	devCfgStorer
-	Init() error
-	CreateConn() (Storer, error)
-	CloseConn() error
 	Publish(msg interface{}, channel string) (int64, error)
-	Subscribe(cn chan []byte, channel ...string)
+	Subscribe(c chan []byte, channel ...string) error
 }
 
 // Addr is used to store IP address and an open port of the remote server.
