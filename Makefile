@@ -12,9 +12,7 @@ build:
 	go build ./cmd/centerms
 
 run:
-ifeq (,$(wildcard ./centerms))
 	go build ./cmd/centerms
-endif
 	APP_ID=centerms TTL=4 RETRY=10 LOG_LEVEL=DEBUG STORE_HOST=127.0.0.1 STORE_PORT=6379 RPC_PORT=8090 REST_PORT=8080 WEBSOCKET_PORT=8070  ./centerms
 
 clean:
