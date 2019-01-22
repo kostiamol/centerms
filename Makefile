@@ -9,14 +9,14 @@ gen:
     	./proto/*.proto
 
 build:
-	go build ./cmd/centerms
+	go build -o centerms.exe ./cmd/centerms
 
 run:
-	go build ./cmd/centerms
-	APP_ID=centerms TTL=4 RETRY=10 LOG_LEVEL=DEBUG STORE_HOST=127.0.0.1 STORE_PORT=6379 STORE_PASSWORD=password RPC_PORT=8090 REST_PORT=8080 WEBSOCKET_PORT=8070 ./centerms
+	go build -o centerms.exe ./cmd/centerms
+	APP_ID=centerms TTL=4 RETRY=10 LOG_LEVEL=DEBUG STORE_HOST=127.0.0.1 STORE_PORT=6379 STORE_PASSWORD=password RPC_PORT=8090 REST_PORT=8080 WEBSOCKET_PORT=8070 ./centerms.exe
 
 clean:
-	rm centerms
+	rm centerms.exe
 
 drun:
 	docker run -p 50051:50051 centerms
