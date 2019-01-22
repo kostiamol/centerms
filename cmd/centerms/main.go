@@ -25,9 +25,9 @@ type envVars struct {
 	StoreHost     string `env:"STORE_HOST" envDefault:"127.0.0.1"`
 	StorePort     int    `env:"STORE_PORT" envDefault:"6379"`
 	StorePassword string `env:"STORE_PASSWORD" envDefault:"password"`
-	RPCPort       int    `env:"RPC_PORT" envDefault:"8090"`
-	RESTPort      int    `env:"REST_PORT" envDefault:"8080"`
-	WebSocketPort int    `env:"WEBSOCKET_PORT" envDefault:"8070"`
+	PortRPC       int    `env:"RPC_PORT" envDefault:"8090"`
+	PortREST      int    `env:"REST_PORT" envDefault:"8080"`
+	PortWebSocket int    `env:"WEBSOCKET_PORT" envDefault:"8070"`
 }
 
 func main() {
@@ -36,8 +36,8 @@ func main() {
 
 	log := &logrus.Logger{
 		Out:       os.Stdout,
-		Formatter: new(logrus.TextFormatter),
 		Level:     logrus.DebugLevel,
+		Formatter: new(logrus.TextFormatter),
 	}
 
 	vars := envVars{}
@@ -57,7 +57,7 @@ func main() {
 		log.SetLevel(lvl)
 	}
 
-	redis, err := store.NewRedis(svc.Addr{Host: vars.StoreHost, Port: vars.StorePort}, vars.StorePassword)
+	redis, err := store.NewRedis(store.Addr{Host: vars.StoreHost, Port: int32(vars.StorePort)}, vars.StorePassword)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"func":  "main",
@@ -70,40 +70,42 @@ func main() {
 
 	data := svc.NewDataService(
 		&svc.DataServiceCfg{
-			Store:   redis,
-			Ctrl:    ctrl,
 			Log:     logrus.NewEntry(log),
+			Ctrl:    ctrl,
+			Store:   redis,
 			PubChan: devDataChan,
 		})
 	go data.Run()
 
 	stream := svc.NewStreamService(
 		&svc.StreamServiceCfg{
-			Port:    vars.WebSocketPort,
-			Store:   redis,
-			Ctrl:    ctrl,
-			Log:     logrus.NewEntry(log),
-			PubChan: devDataChan,
+			Log:        logrus.NewEntry(log),
+			Ctrl:       ctrl,
+			Subscriber: redis,
+			PubChan:    devDataChan,
+			PortWS:     int32(vars.PortWebSocket),
 		})
 	go stream.Run()
 
 	conf := svc.NewCfgService(
 		&svc.CfgServiceCfg{
-			Store:   redis,
-			Ctrl:    ctrl,
 			Log:     logrus.NewEntry(log),
-			Retry:   time.Duration(vars.TTL),
+			Ctrl:    ctrl,
+			Store:   redis,
 			SubChan: devCfgChan,
+			Retry:   time.Duration(vars.TTL),
 		})
 	go conf.Run()
 
 	api_ := api.NewAPI(
 		&api.APICfg{
-			RPCPort:     vars.RPCPort,
-			RESTPort:    vars.RESTPort,
-			CfgProvider: conf,
-			Log:         logrus.NewEntry(log),
-			PubChan:     devCfgChan,
+			Log:          logrus.NewEntry(log),
+			PubChan:      devCfgChan,
+			PortRPC:      int32(vars.PortRPC),
+			PortREST:     int32(vars.PortREST),
+			CfgProvider:  conf,
+			DataProvider: data,
+			Retry:        time.Duration(vars.Retry),
 		})
 	go api_.Run()
 

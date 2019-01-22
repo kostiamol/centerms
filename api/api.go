@@ -32,19 +32,17 @@ type dataProvider interface {
 	GetDevsData() ([]svc.DevData, error)
 	GetDevData(id string) (*svc.DevData, error)
 	SaveDevData(*svc.DevData) error
-	GetDevMeta(id string) (*svc.DevMeta, error)
-	SetDevMeta(*svc.DevMeta) error
 }
 
 // API is used to deal with user's queries from the web client (dashboard).
 type API struct {
-	rpcPort             int
-	restPort            int
+	log                 *logrus.Entry
+	pubChan             string
+	portRPC             int32
+	portREST            int32
 	cfgProvider         cfgProvider
 	dataProvider        dataProvider
-	log                 *logrus.Entry
 	retry               time.Duration
-	pubChan             string
 	isProd              bool
 	redirectHTTPToHTTPS bool
 	allowedHost         string
@@ -52,13 +50,13 @@ type API struct {
 
 // APICfg is used to initialize an instance of API.
 type APICfg struct {
-	RPCPort             int
-	RESTPort            int
+	Log                 *logrus.Entry
+	PubChan             string
+	PortRPC             int32
+	PortREST            int32
 	CfgProvider         cfgProvider
 	DataProvider        dataProvider
-	Log                 *logrus.Entry
 	Retry               time.Duration
-	PubChan             string
 	IsProd              bool
 	RedirectHTTPToHTTPS bool
 	AllowedHost         string
@@ -67,11 +65,13 @@ type APICfg struct {
 // NewAPI creates and initializes a new instance of API.
 func NewAPI(c *APICfg) *API {
 	return &API{
-		rpcPort:     c.RPCPort,
-		restPort:    c.RESTPort,
-		cfgProvider: c.CfgProvider,
-		log:         c.Log.WithFields(logrus.Fields{"component": "api"}),
-		pubChan:     c.PubChan,
+		log:          c.Log.WithFields(logrus.Fields{"component": "api"}),
+		pubChan:      c.PubChan,
+		portRPC:      c.PortRPC,
+		portREST:     c.PortREST,
+		cfgProvider:  c.CfgProvider,
+		dataProvider: c.DataProvider,
+		retry:        c.Retry,
 	}
 }
 
@@ -80,7 +80,7 @@ func (a *API) Run() {
 	a.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("is running on rpc port: [%d], rest port: [%d]", a.rpcPort, a.restPort)
+	}).Infof("is running on rpc port: [%d], rest port: [%d]", a.portRPC, a.portREST)
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -112,7 +112,7 @@ func (a *API) Run() {
 		}
 
 		httpsSrv = a.makeHTTPServer()
-		httpsSrv.Addr = ":" + fmt.Sprint(a.restPort)
+		httpsSrv.Addr = ":" + fmt.Sprint(a.portREST)
 		httpsSrv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
 
 		go func() {
@@ -132,7 +132,7 @@ func (a *API) Run() {
 		httpSrv.Handler = m.HTTPHandler(httpSrv.Handler)
 	}
 
-	httpSrv.Addr = ":" + fmt.Sprint(a.restPort)
+	httpSrv.Addr = ":" + fmt.Sprint(a.portREST)
 	if err := httpSrv.ListenAndServe(); err != nil {
 		a.log.Fatalf("httpSrv.ListenAndServe() failed with %s", err)
 	}
@@ -140,7 +140,7 @@ func (a *API) Run() {
 	// allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "OPTIONS", "PATCH"})
 	// allowedHeaders := handlers.AllowedHeaders([]string{"Content-Type", "X-Requested-With"})
 
-	// http.ListenAndServe(a.addrREST.Host+":"+fmt.Sprint(a.addrREST.Port), handlers.CORS(allowedMethods, allowedHeaders)(r))
+	// http.ListenAndServe(a.addrREST.Host+":"+fmt.Sprint(a.addrREST.PortWS), handlers.CORS(allowedMethods, allowedHeaders)(r))
 	// a.log.Fatal(httpSrv.ListenAndServe())
 }
 

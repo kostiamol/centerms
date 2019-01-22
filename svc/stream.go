@@ -19,34 +19,40 @@ import (
 	"fmt"
 )
 
-// StreamService is used to deal with streaming of data from the device to web client (dashboard).
-type StreamService struct {
-	port     int
-	store    Storer
-	ctrl     Ctrl
-	log      *logrus.Entry
-	sub      subscription
-	conns    streamConns
-	upgrader websocket.Upgrader
-}
+type (
+	// StreamService is used to deal with streaming of data from the device to web client (dashboard).
+	StreamService struct {
+		log        *logrus.Entry
+		ctrl       Ctrl
+		subscriber subscriber
+		sub        subscription
+		portWS     int32
+		conns      streamConns
+		upgrader   websocket.Upgrader
+	}
 
-// StreamServiceCfg is used to initialize an instance of StreamService.
-type StreamServiceCfg struct {
-	Port    int
-	Store   Storer
-	Ctrl    Ctrl
-	Log     *logrus.Entry
-	PubChan string
-}
+	// StreamServiceCfg is used to initialize an instance of StreamService.
+	StreamServiceCfg struct {
+		Log        *logrus.Entry
+		Ctrl       Ctrl
+		Subscriber subscriber
+		PubChan    string
+		PortWS     int32
+	}
+
+	subscriber interface {
+		Subscribe(c chan []byte, channel ...string) error
+	}
+)
 
 // NewStreamService creates and initializes a new instance of StreamService service.
 func NewStreamService(c *StreamServiceCfg) *StreamService {
 	return &StreamService{
-		port:  c.Port,
-		store: c.Store,
-		ctrl:  c.Ctrl,
-		log:   c.Log.WithFields(logrus.Fields{"component": "stream"}),
-		conns: *newStreamConns(),
+		portWS:     c.PortWS,
+		subscriber: c.Subscriber,
+		ctrl:       c.Ctrl,
+		log:        c.Log.WithFields(logrus.Fields{"component": "stream"}),
+		conns:      *newStreamConns(),
 		sub: subscription{
 			ChanName: c.PubChan,
 			Chan:     make(chan []byte),
@@ -67,7 +73,7 @@ func (s *StreamService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("is running on port: [%d]", s.port)
+	}).Infof("is running on portWS: [%d]", s.portWS)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -90,7 +96,7 @@ func (s *StreamService) Run() {
 
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         ":" + fmt.Sprint(s.port),
+		Addr:         ":" + fmt.Sprint(s.portWS),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
@@ -115,6 +121,8 @@ func (s *StreamService) terminate() {
 	s.ctrl.Terminate()
 }
 
+type devID string
+
 func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -127,7 +135,7 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	uri := strings.Split(r.URL.String(), "/")
-	id := DevID(uri[2])
+	id := devID(uri[2])
 
 	s.conns.Lock()
 	if _, ok := s.conns.idConns[id]; !ok {
@@ -160,7 +168,7 @@ func (s *StreamService) listenPubs(ctx context.Context) {
 		}
 	}()
 
-	go s.store.Subscribe(s.sub.Chan, s.sub.ChanName)
+	go s.subscriber.Subscribe(s.sub.Chan, s.sub.ChanName)
 
 	for {
 		select {
@@ -192,15 +200,15 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 		return err
 	}
 
-	if _, ok := s.conns.idConns[DevID(dev.Meta.MAC)]; ok {
-		for _, conn := range s.conns.idConns[DevID(dev.Meta.MAC)].Conns {
+	if _, ok := s.conns.idConns[devID(dev.Meta.MAC)]; ok {
+		for _, conn := range s.conns.idConns[devID(dev.Meta.MAC)].Conns {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				s.conns.idConns[DevID(dev.Meta.MAC)].Lock()
+				s.conns.idConns[devID(dev.Meta.MAC)].Lock()
 				err := conn.WriteMessage(1, msg)
-				s.conns.idConns[DevID(dev.Meta.MAC)].Unlock()
+				s.conns.idConns[devID(dev.Meta.MAC)].Unlock()
 				if err != nil {
 					s.log.WithFields(logrus.Fields{
 						"func":  "stream",
@@ -245,17 +253,17 @@ func (s *StreamService) listenClosedConns(ctx context.Context) {
 type streamConns struct {
 	sync.RWMutex
 	closedConns chan *websocket.Conn
-	idConns     map[DevID]*connList
+	idConns     map[devID]*connList
 }
 
 func newStreamConns() *streamConns {
 	return &streamConns{
 		closedConns: make(chan *websocket.Conn),
-		idConns:     make(map[DevID]*connList),
+		idConns:     make(map[devID]*connList),
 	}
 }
 
-func (c *streamConns) checkIDConns(id DevID) {
+func (c *streamConns) checkIDConns(id devID) {
 	c.Lock()
 	if len(c.idConns[id].Conns) == 0 {
 		delete(c.idConns, id)

@@ -7,8 +7,6 @@ import (
 	"github.com/garyburd/redigo/redis"
 
 	"fmt"
-
-	"github.com/kostiamol/centerms/svc"
 )
 
 const (
@@ -17,14 +15,22 @@ const (
 	partialDevParamsKey = ":params"
 )
 
-// Redis is used to provide a storage based on Redis according to Storer interface.
-type Redis struct {
-	addr svc.Addr
-	pool *redis.Pool
-}
+type (
+	// Redis is used to provide a storage based on redis db under the hood.
+	Redis struct {
+		addr Addr
+		pool *redis.Pool
+	}
+
+	// Addr is used to store remote server's host and port.
+	Addr struct {
+		Host string
+		Port int32
+	}
+)
 
 // NewRedis creates a new instance of Redis store.
-func NewRedis(a svc.Addr, password string) (svc.Storer, error) {
+func NewRedis(a Addr, password string) (*Redis, error) {
 	r := &Redis{
 		addr: a,
 		pool: &redis.Pool{

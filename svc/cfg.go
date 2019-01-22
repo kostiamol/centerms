@@ -22,41 +22,58 @@ const (
 	event     = "cfg_patched"
 )
 
-// DevCfg holds device's MAC address and config.
-type DevCfg struct {
-	MAC  string          `json:"mac"`
-	Data json.RawMessage `json:"data"`
-}
+type (
+	// CfgService is used to deal with device configurations.
+	CfgService struct {
+		log   *logrus.Entry
+		ctrl  Ctrl
+		store cfgStorer
+		sub   subscription
+		retry time.Duration
+	}
 
-// CfgService is used to deal with device configurations.
-type CfgService struct {
-	store Storer
-	ctrl  Ctrl
-	log   *logrus.Entry
-	retry time.Duration
-	sub   subscription
-}
+	// CfgServiceCfg is used to initialize an instance of CfgService.
+	CfgServiceCfg struct {
+		Log     *logrus.Entry
+		Ctrl    Ctrl
+		Store   cfgStorer
+		SubChan string
+		Retry   time.Duration
+	}
 
-// CfgServiceCfg is used to initialize an instance of CfgService.
-type CfgServiceCfg struct {
-	Store   Storer
-	Ctrl    Ctrl
-	Log     *logrus.Entry
-	Retry   time.Duration
-	SubChan string
-}
+	cfgStorer interface {
+		SetDevCfg(id string, c *DevCfg) error
+		GetDevCfg(id string) (*DevCfg, error)
+		GetDevDefaultCfg(*DevMeta) (*DevCfg, error)
+		SetDevMeta(*DevMeta) error
+		DevIsRegistered(*DevMeta) (bool, error)
+		Publish(msg interface{}, channel string) (int64, error)
+		Subscribe(c chan []byte, channel ...string) error
+	}
+
+	// DevCfg holds device's MAC address and config.
+	DevCfg struct {
+		MAC  string          `json:"mac"`
+		Data json.RawMessage `json:"data"`
+	}
+
+	subscription struct {
+		ChanName string
+		Chan     chan []byte
+	}
+)
 
 // NewCfgService creates and initializes a new instance of CfgService.
 func NewCfgService(c *CfgServiceCfg) *CfgService {
 	return &CfgService{
-		store: c.Store,
-		ctrl:  c.Ctrl,
 		log:   c.Log.WithFields(logrus.Fields{"component": "cfg"}),
-		retry: c.Retry,
+		ctrl:  c.Ctrl,
+		store: c.Store,
 		sub: subscription{
 			ChanName: c.SubChan,
 			Chan:     make(chan []byte),
 		},
+		retry: c.Retry,
 	}
 }
 

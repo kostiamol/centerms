@@ -120,7 +120,6 @@ func (a *API) patchDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
 		}).Errorf("%s", err)
 		return
 	}
-
 	if _, err := a.cfgProvider.PublishCfgPatch(&c, a.pubChan); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "patchDevCfgHandler",

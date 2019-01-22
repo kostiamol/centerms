@@ -24,7 +24,7 @@ func (a *API) runRPCServer() {
 			}).Errorf("%s", r)
 		}
 	}()
-	l, err := net.Listen("tcp", ":"+fmt.Sprint(a.rpcPort))
+	l, err := net.Listen("tcp", ":"+fmt.Sprint(a.portRPC))
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "runRPCServer",
