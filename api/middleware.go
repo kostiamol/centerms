@@ -1,0 +1,30 @@
+package api
+
+import (
+	"net/http"
+	"time"
+
+	"github.com/Sirupsen/logrus"
+)
+
+const dateFormat = "2006-01-02 15:04:05"
+
+func (a *API) registerRoute(method, path string, handler http.HandlerFunc, middlewares ...func(next http.HandlerFunc, name string) http.HandlerFunc) {
+	for _, mw := range middlewares {
+		handler = mw(handler, path)
+	}
+	a.router.Handle(path, handler).Methods(method)
+}
+
+func (a *API) requestLogger(next http.HandlerFunc, name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next(w, r)
+		a.log.WithFields(logrus.Fields{
+			"method":   r.Method,
+			"uri":      r.RequestURI,
+			"name":     name,
+			"duration": time.Since(start),
+		}).Info()
+	}
+}

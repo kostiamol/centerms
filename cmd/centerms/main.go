@@ -14,6 +14,10 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
+// todo: handlers logging
+// todo: look through the handlers
+// todo: metrics
+// todo: retry
 // todo: add Prometheus
 // todo: update README.md
 

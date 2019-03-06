@@ -15,19 +15,12 @@ import (
 
 var mySigningKey = []byte("secret")
 
-func (a *API) redirectHandler(rw http.ResponseWriter, r *http.Request) {
-	newURI := "https://" + r.Host + r.URL.String()
-	http.Redirect(rw, r, newURI, http.StatusFound)
-}
-
 var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// create the token
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	// create a map to store the claims
 	claims := token.Claims.(jwt.MapClaims)
 
-	// sett token claims
 	claims["admin"] = true
 	claims["name"] = "Ado Kukic"
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
@@ -40,7 +33,6 @@ var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 		}).Errorf("%s", err)
 	}
 
-	// finally, write the token to the browser window
 	if _, err := w.Write([]byte(tokenString)); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"func": "getTokenHandler",
@@ -55,7 +47,13 @@ var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	SigningMethod: jwt.SigningMethodHS256,
 })
 
-func (a *API) getDevsDataHandler(rw http.ResponseWriter, r *http.Request) {
+func (a *API) health(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok"}`))
+}
+
+func (a *API) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
 	d, err := a.dataProvider.GetDevsData()
 	if err != nil {
 		a.log.WithFields(logrus.Fields{
@@ -63,7 +61,7 @@ func (a *API) getDevsDataHandler(rw http.ResponseWriter, r *http.Request) {
 		}).Errorf("%s", err)
 		return
 	}
-	if err = json.NewEncoder(rw).Encode(d); err != nil {
+	if err = json.NewEncoder(w).Encode(d); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "getDevsDataHandler",
 		}).Errorf("%s", err)
@@ -71,7 +69,7 @@ func (a *API) getDevsDataHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
+func (a *API) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	d, err := a.dataProvider.GetDevData(id)
 	if err != nil {
@@ -80,7 +78,7 @@ func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
 		}).Errorf("%s", err)
 		return
 	}
-	if err = json.NewEncoder(rw).Encode(d); err != nil {
+	if err = json.NewEncoder(w).Encode(d); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "getDevDataHandler",
 		}).Errorf("%s", err)
@@ -88,7 +86,7 @@ func (a *API) getDevDataHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) getDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
+func (a *API) getDevCfgHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	c, err := a.cfgProvider.GetDevCfg(id)
 	if err != nil {
@@ -97,7 +95,7 @@ func (a *API) getDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
 		}).Errorf("%s", err)
 		return
 	}
-	if _, err = rw.Write(c.Data); err != nil {
+	if _, err = w.Write(c.Data); err != nil {
 		a.log.WithFields(logrus.Fields{
 			"func": "getDevCfgHandler",
 		}).Errorf("%s", err)
@@ -105,7 +103,7 @@ func (a *API) getDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) patchDevCfgHandler(rw http.ResponseWriter, r *http.Request) {
+func (a *API) patchDevCfgHandler(w http.ResponseWriter, r *http.Request) {
 	var c svc.DevCfg
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
 		a.log.WithFields(logrus.Fields{
