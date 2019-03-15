@@ -38,7 +38,7 @@ type (
 		dataProvider dataProvider
 		retry        time.Duration
 		router       *mux.Router
-		jwt          *token
+		token        *token
 		metric       *metric
 	}
 
@@ -77,13 +77,12 @@ func (a *API) Run() {
 	a.router = mux.NewRouter()
 
 	var err error
-	a.jwt, err = newJWT("")
+	a.token, err = newToken()
 	if err != nil {
-		a.log.Fatalf("newJWT(): %s", err)
+		a.log.Fatalf("newToken(): %s", err)
 	}
 
 	a.metric = newMetric("")
-
 	a.registerRoutes()
 	a.serve()
 }
@@ -91,14 +90,15 @@ func (a *API) Run() {
 func (a *API) registerRoutes() {
 	middleware := []func(next http.HandlerFunc, name string) http.HandlerFunc{
 		a.requestLogger,
-		a.jwt.jwtValidator,
+		a.token.validator,
 		a.metric.timeTracker,
 	}
 
-	a.registerRoute(http.MethodGet, "/health", a.health, middleware...)
-	a.registerRoute(http.MethodGet, "/metrics", a.metric.httpRouterHandler(), middleware...)
+	a.registerRoute(http.MethodGet, "/health", a.health)
+	a.registerRoute(http.MethodGet, "/metrics", a.metric.httpRouterHandler())
 
 	a.registerRoute(http.MethodGet, "/v1/token", getTokenHandler, middleware...)
+
 	a.registerRoute(http.MethodGet, "/v1/device", a.getDevsDataHandler, middleware...)
 	a.registerRoute(http.MethodGet, "/v1/device/{id}/data", a.getDevDataHandler, middleware...)
 	a.registerRoute(http.MethodGet, "/v1/device/{id}/config", a.getDevCfgHandler, middleware...)
