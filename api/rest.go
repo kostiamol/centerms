@@ -18,14 +18,13 @@ var mySigningKey = []byte("secret")
 var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	token := jwt.New(jwt.SigningMethodHS256)
 
-	// create a map to store the claims
 	claims := token.Claims.(jwt.MapClaims)
 
 	claims["admin"] = true
 	claims["name"] = "Ado Kukic"
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
-	// sign the token with the secret
+	// sign the tokenValidator with the secret
 	tokenString, err := token.SignedString(mySigningKey)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{

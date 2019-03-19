@@ -4,81 +4,76 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/sirupsen/logrus"
-	"gitlab-il.cyren.io/apollo/incident-management/dao/meta"
-	"gitlab-il.cyren.io/apollo/incident-management/errors"
+	"github.com/kostiamol/centerms/store"
+
+	"github.com/Sirupsen/logrus"
 )
 
-// JSONMeta writes to ResponseWriter
-func JSONMeta(w http.ResponseWriter, meta interface{}) {
-	res := map[string]interface{}{"meta": meta}
-	js, err := json.Marshal(res)
+func respMeta(w http.ResponseWriter, meta interface{}) {
+	resp := map[string]interface{}{"meta": meta}
+	b, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
-	if err != nil {
+
+	if _, err = w.Write(b); err != nil {
 		logrus.Error(err)
 	}
 }
 
-// JSON writes to ResponseWriter a single JSON-object
-func JSON(w http.ResponseWriter, data interface{}, md ...meta.Meta) {
-	res := map[string]interface{}{"data": data}
+func resp(w http.ResponseWriter, data interface{}, md ...store.Meta) {
+	resp := map[string]interface{}{"data": data}
 
-	metaData := map[string]interface{}{}
+	meta := map[string]interface{}{}
 	for _, mt := range md {
-		for key, m := range mt.GetMetaData() {
-			metaData[key] = m
+		for key, m := range mt.GetMeta() {
+			meta[key] = m
 		}
 	}
 
-	if len(metaData) > 0 {
-		res["meta"] = metaData
+	if len(meta) > 0 {
+		resp["meta"] = meta
 	}
 
-	js, err := json.Marshal(res)
-
+	b, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
-	if err != nil {
+
+	if _, err = w.Write(b); err != nil {
 		logrus.Error(err)
 	}
 }
 
-// ERROR writes to ResponseWriter error
-func ERROR(w http.ResponseWriter, err error) {
+func respError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json")
 
 	code := http.StatusInternalServerError
 	resp := map[string]interface{}{
-		"code":    errors.ErrService,
+		"code":    ErrService,
 		"message": "Internet Server Error",
 	}
 
 	switch apiErr := err.(type) {
-	case errors.APIError:
+	case apiError:
 		resp["code"] = apiErr.Code
 		resp["message"] = apiErr.Message
 
 		switch apiErr.Code {
-		case errors.ErrNotFound:
+		case ErrNotFound:
 			code = http.StatusNotFound
-		case errors.ErrBadRequest, errors.ErrBadParam:
+		case ErrBadRequest, ErrBadParam:
 			code = http.StatusBadRequest
-		case errors.ErrAuth, errors.ErrBadJwt:
+		case ErrAuth, ErrBadJwt:
 			code = http.StatusUnauthorized
 		}
-	case errors.ValidationError:
-
+	case validationError:
 		globalErr := apiErr.GlobalMessage
 		if globalErr == nil {
 			globalErr = []string{}
@@ -88,17 +83,17 @@ func ERROR(w http.ResponseWriter, err error) {
 		resp["message"] = apiErr.Message
 		resp["validation_errors"] = map[string]interface{}{"_error": globalErr, "errors": apiErr.Errors}
 	default:
-		logrus.WithField("API", "ERROR").Error(err)
+		logrus.WithField("API", "jsonError").Error(err)
 	}
 
-	js, err := json.Marshal(resp)
+	b, err := json.Marshal(resp)
 	if err != nil {
 		logrus.Error(err)
 	}
 
 	w.WriteHeader(code)
-	_, err = w.Write(js)
-	if err != nil {
+
+	if _, err = w.Write(b); err != nil {
 		logrus.Error(err)
 	}
 }

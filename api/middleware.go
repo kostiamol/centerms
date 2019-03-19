@@ -7,8 +7,6 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-const dateFormat = "2006-01-02 15:04:05"
-
 func (a *API) registerRoute(method, path string, handler http.HandlerFunc, middlewares ...func(next http.HandlerFunc, name string) http.HandlerFunc) {
 	for _, mw := range middlewares {
 		handler = mw(handler, path)

@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kostiamol/centerms/errors"
-
 	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/net/context"
 )
@@ -17,43 +15,44 @@ const (
 	authHeader = "Authorization"
 )
 
-type token struct {
+type tokenValidator struct {
 	publicKey *rsa.PublicKey
 }
 
-func newToken(pubKey string) (*token, error) {
+func newTokenValidator(pubKey string) (*tokenValidator, error) {
 	publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(pubKey))
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse RSA public key: %v", err)
 	}
-	return &token{publicKey: publicKey}, nil
+	return &tokenValidator{publicKey: publicKey}, nil
 }
 
-func (t *token) validator(next http.HandlerFunc, name string) http.HandlerFunc {
+func (t *tokenValidator) validator(next http.HandlerFunc, name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := t.getTokenClaims(w, r)
 		if err != nil {
-			ERROR(w, errors.NewBadJwtError(err.Error()))
+			respError(w, newBadJWTError(err.Error()))
 			return
 		}
 
-		orgId, ok := claims[ownerIDKey]
+		ownerID, ok := claims[ownerIDKey]
 		if !ok {
-			ERROR(w, errors.NewBadJwtError("empty ownerID"))
-			return
-		}
-		orgIdStr, ok := orgId.(string)
-		if !ok {
-			ERROR(w, errors.NewBadJwtError("invalid ownerID"))
+			respError(w, newBadJWTError("empty ownerID"))
 			return
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), ownerIDKey, orgIdStr))
+		ownerIDStr, ok := ownerID.(string)
+		if !ok {
+			respError(w, newBadJWTError("invalid ownerID"))
+			return
+		}
+
+		r = r.WithContext(context.WithValue(r.Context(), ownerIDKey, ownerIDStr))
 		next(w, r)
 	}
 }
 
-func (t *token) getTokenClaims(w http.ResponseWriter, r *http.Request) (jwt.MapClaims, error) {
+func (t *tokenValidator) getTokenClaims(w http.ResponseWriter, r *http.Request) (jwt.MapClaims, error) {
 	authHeader := strings.Split(r.Header.Get(authHeader), " ")
 	if len(authHeader) < 2 {
 		return nil, fmt.Errorf(fmt.Sprintf("bad %s header", authHeader))
@@ -70,16 +69,16 @@ func (t *token) getTokenClaims(w http.ResponseWriter, r *http.Request) (jwt.MapC
 		if er, ok := err.(*jwt.ValidationError); ok {
 			return nil, er
 		}
-		return nil, fmt.Errorf("can not parse token, %v", err)
+		return nil, fmt.Errorf("can not parse tokenValidator, %v", err)
 	}
 
 	if token == nil {
-		return nil, fmt.Errorf("token is empty")
+		return nil, fmt.Errorf("tokenValidator is empty")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		return nil, fmt.Errorf("token is invalid")
+		return nil, fmt.Errorf("tokenValidator is invalid")
 	}
 
 	return claims, nil

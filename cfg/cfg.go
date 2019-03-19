@@ -11,5 +11,4 @@ const (
 	EventSVCShutdown     = "svc_shutdown"
 	EventWSConnAdded     = "ws_conn_added"
 	EventWSConnRemoved   = "ws_conn_removed"
-	EventUpdConsulStatus = "upd_consul_status"
 )

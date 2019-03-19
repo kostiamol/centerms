@@ -30,6 +30,7 @@ type (
 
 	// API is used to deal with user's queries from the web client (dashboard).
 	API struct {
+		appID        string
 		log          *logrus.Entry
 		pubChan      string
 		portRPC      int32
@@ -38,12 +39,14 @@ type (
 		dataProvider dataProvider
 		retry        time.Duration
 		router       *mux.Router
-		token        *token
+		token        *tokenValidator
 		metric       *metric
+		publicKey    string
 	}
 
 	// APICfg is used to initialize an instance of API.
 	APICfg struct {
+		AppID        string
 		Log          *logrus.Entry
 		PubChan      string
 		PortRPC      int32
@@ -51,6 +54,7 @@ type (
 		CfgProvider  cfgProvider
 		DataProvider dataProvider
 		Retry        time.Duration
+		PublicKey    string
 	}
 )
 
@@ -64,25 +68,26 @@ func NewAPI(c *APICfg) *API {
 		cfgProvider:  c.CfgProvider,
 		dataProvider: c.DataProvider,
 		retry:        c.Retry,
+		publicKey:    c.PublicKey,
 	}
 }
 
-// Run launches the service by running goroutines for listening the service termination and queries from the web client.
+// Run launches the service by running goroutines for listening the service termination and queries
+// from the web client.
 func (a *API) Run() {
 	a.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("is running on rpc port: [%d], rest port: [%d]", a.portRPC, a.portREST)
-
-	a.router = mux.NewRouter()
+	}).Infof("is running on: rpc port [%d], rest port [%d]", a.portRPC, a.portREST)
 
 	var err error
-	a.token, err = newToken()
+	a.token, err = newTokenValidator(a.publicKey)
 	if err != nil {
-		a.log.Fatalf("newToken(): %s", err)
+		a.log.Fatalf("")
 	}
 
-	a.metric = newMetric("")
+	a.router = mux.NewRouter()
+	a.metric = newMetric(a.appID)
 	a.registerRoutes()
 	a.serve()
 }
@@ -97,7 +102,7 @@ func (a *API) registerRoutes() {
 	a.registerRoute(http.MethodGet, "/health", a.health)
 	a.registerRoute(http.MethodGet, "/metrics", a.metric.httpRouterHandler())
 
-	a.registerRoute(http.MethodGet, "/v1/token", getTokenHandler, middleware...)
+	a.registerRoute(http.MethodGet, "/v1/token", getTokenHandler)
 
 	a.registerRoute(http.MethodGet, "/v1/device", a.getDevsDataHandler, middleware...)
 	a.registerRoute(http.MethodGet, "/v1/device/{id}/data", a.getDevDataHandler, middleware...)
