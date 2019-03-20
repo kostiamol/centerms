@@ -9,21 +9,11 @@ gen:
     	./proto/*.proto
 
 build:
-	go build -o centerms.exe ./cmd/centerms
+	go build -o centerms.exe
 
 run:
-	go build -o centerms.exe ./cmd/centerms
-	APP_ID=centerms TTL=4 RETRY=10 LOG_LEVEL=DEBUG STORE_HOST=127.0.0.1 STORE_PORT=6379 STORE_PASSWORD=password RPC_PORT=8090 REST_PORT=8080 WEBSOCKET_PORT=8070 ./centerms.exe
+	go build -o centerms.exe
+	./centerms.exe
 
 clean:
 	rm centerms.exe
-
-drun:
-	docker run -p 50051:50051 centerms
-
-swaggen:
-	@cd ./cmd/centerms && \
-	swagger generate spec -o ../../swagger.json
-
-swagserv: 
-	swagger serve -p=8090 -F=swagger swagger.json
