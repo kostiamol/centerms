@@ -83,7 +83,7 @@ func (a *API) Run() {
 	var err error
 	a.token, err = newTokenValidator(a.publicKey)
 	if err != nil {
-		a.log.Fatalf("")
+		a.log.Fatalf("newTokenValidator(): %s", err)
 	}
 
 	a.router = mux.NewRouter()
@@ -126,6 +126,6 @@ func (a *API) serve() {
 	}
 
 	if err := s.ListenAndServe(); err != nil {
-		a.log.Fatalf("ListenAndServe() failed: ", err)
+		a.log.Infof("ListenAndServe() failed: ", err)
 	}
 }

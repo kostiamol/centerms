@@ -41,10 +41,10 @@ func NewRedis(a Addr, password string) (*Redis, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Dial(): %s", err)
 				}
-				if _, err := c.Do("AUTH", password); err != nil {
-					c.Close()
-					return nil, err
-				}
+				//if _, err := c.Do("AUTH", password); err != nil {
+				//	c.Close()
+				//	return nil, err
+				//}
 				return c, nil
 			},
 			TestOnBorrow: func(c redis.Conn, t time.Time) error {

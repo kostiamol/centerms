@@ -1,67 +1,45 @@
 package main
 
 import (
+	log_ "log"
 	"os"
 	"time"
 
-	"github.com/caarlos0/env"
+	"github.com/Sirupsen/logrus"
+	"github.com/joho/godotenv"
+	"github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/cfg"
 	"github.com/kostiamol/centerms/store"
-
-	"github.com/kostiamol/centerms/api"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: handlers logging
 // todo: look through the handlers
-// todo: metrics
 // todo: retry
 // todo: add Prometheus
 // todo: update README.md
+// todo: swagger
 
-type envVars struct {
-	AppID         string `env:"APP_ID" envDefault:"centerms"`
-	TTL           int    `env:"TTL" envDefault:"4"`
-	Retry         int    `env:"RETRY" envDefault:"10"`
-	LogLevel      string `env:"LOG_LEVEL" envDefault:"DEBUG"`
-	StoreHost     string `env:"STORE_HOST" envDefault:"127.0.0.1"`
-	StorePort     int    `env:"STORE_PORT" envDefault:"6379"`
-	StorePassword string `env:"STORE_PASSWORD" envDefault:"password"`
-	PortRPC       int    `env:"RPC_PORT" envDefault:"8090"`
-	PortREST      int    `env:"REST_PORT" envDefault:"8080"`
-	PortWebSocket int    `env:"WEBSOCKET_PORT" envDefault:"8070"`
+func init() {
+	if err := godotenv.Load(".env"); err != nil {
+		log_.Fatalf("Load() failed: %s", err)
+	}
 }
 
 func main() {
 	devCfgChan := "dev_cfg"
 	devDataChan := "dev_data"
 
-	log := &logrus.Logger{
-		Out:       os.Stdout,
-		Level:     logrus.DebugLevel,
-		Formatter: new(logrus.TextFormatter),
-	}
-
-	vars := envVars{}
-	if err := env.Parse(&vars); err != nil {
-		log.WithFields(logrus.Fields{
-			"func": "main",
-		}).Fatalf("Parse() failed: %s", err)
-		os.Exit(1)
-	}
-
-	lvl, err := logrus.ParseLevel(vars.LogLevel)
+	conf, err := cfg.NewConfig()
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"func": "main",
-		}).Fatalf("ParseLevel() failed: %s", err)
-	} else {
-		log.SetLevel(lvl)
+		log_.Fatalf("NewConfig(): %s", err)
 	}
 
-	redis, err := store.NewRedis(store.Addr{Host: vars.StoreHost, Port: int32(vars.StorePort)}, vars.StorePassword)
+	log, err := cfg.NewLog(conf.Service.AppID, conf.Service.LogLevel)
+	if err != nil {
+		log_.Fatalf("NewLog(): %s", err)
+	}
+
+	redis, err := store.NewRedis(store.Addr{Host: conf.Store.Host, Port: int32(conf.Store.Port)}, conf.Store.Password)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"func":  "main",
@@ -72,51 +50,52 @@ func main() {
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
 
-	data := svc.NewDataService(
+	// service initializations
+	dataSvc := svc.NewDataService(
 		&svc.DataServiceCfg{
 			Log:     logrus.NewEntry(log),
 			Ctrl:    ctrl,
 			Store:   redis,
 			PubChan: devDataChan,
 		})
-	go data.Run()
+	go dataSvc.Run()
 
-	stream := svc.NewStreamService(
+	streamSvc := svc.NewStreamService(
 		&svc.StreamServiceCfg{
 			Log:        logrus.NewEntry(log),
 			Ctrl:       ctrl,
 			Subscriber: redis,
 			PubChan:    devDataChan,
-			PortWS:     int32(vars.PortWebSocket),
+			PortWS:     int32(conf.Service.PortWebSocket),
 		})
-	go stream.Run()
+	go streamSvc.Run()
 
-	conf := svc.NewCfgService(
+	confSvc := svc.NewCfgService(
 		&svc.CfgServiceCfg{
 			Log:     logrus.NewEntry(log),
 			Ctrl:    ctrl,
 			Store:   redis,
 			SubChan: devCfgChan,
-			Retry:   time.Duration(vars.TTL),
+			Retry:   time.Duration(conf.Service.RetryTimeout),
 		})
-	go conf.Run()
+	go confSvc.Run()
 
-	api_ := api.NewAPI(
+	apiSvc := api.NewAPI(
 		&api.APICfg{
 			Log:          logrus.NewEntry(log),
 			PubChan:      devCfgChan,
-			PortRPC:      int32(vars.PortRPC),
-			PortREST:     int32(vars.PortREST),
-			CfgProvider:  conf,
-			DataProvider: data,
-			Retry:        time.Duration(vars.Retry),
+			PortRPC:      int32(conf.Service.PortRPC),
+			PortREST:     int32(conf.Service.PortREST),
+			CfgProvider:  confSvc,
+			DataProvider: dataSvc,
+			Retry:        time.Duration(conf.Service.RetryTimeout),
 		})
-	go api_.Run()
+	go apiSvc.Run()
 
 	ctrl.Wait()
 
 	log.WithFields(logrus.Fields{
 		"func":  "main",
 		"event": cfg.EventMSTerminated,
-	}).Infof("%s is down", vars.AppID)
+	}).Infof("%s is down", conf.Service.AppID)
 }

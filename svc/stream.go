@@ -73,7 +73,7 @@ func (s *StreamService) Run() {
 	s.log.WithFields(logrus.Fields{
 		"func":  "Run",
 		"event": cfg.EventSVCStarted,
-	}).Infof("is running on portWS: [%d]", s.portWS)
+	}).Infof("is running on: websocket port [%d]", s.portWS)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
