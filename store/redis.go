@@ -29,8 +29,8 @@ type (
 	}
 )
 
-// NewRedis creates a new instance of Redis store.
-func NewRedis(a Addr, password string) (*Redis, error) {
+// New creates a new instance of Redis store.
+func New(a Addr, password string) (*Redis, error) {
 	r := &Redis{
 		addr: a,
 		pool: &redis.Pool{

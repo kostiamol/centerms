@@ -56,7 +56,7 @@ func respError(w http.ResponseWriter, err error) {
 
 	code := http.StatusInternalServerError
 	resp := map[string]interface{}{
-		"code":    ErrService,
+		"code":    errService,
 		"message": "Internet Server Error",
 	}
 
@@ -66,11 +66,11 @@ func respError(w http.ResponseWriter, err error) {
 		resp["message"] = apiErr.Message
 
 		switch apiErr.Code {
-		case ErrNotFound:
+		case errNotFound:
 			code = http.StatusNotFound
-		case ErrBadRequest, ErrBadParam:
+		case errBadRequest, errBadParam:
 			code = http.StatusBadRequest
-		case ErrAuth, ErrBadJwt:
+		case errAuth, errBadJWT:
 			code = http.StatusUnauthorized
 		}
 	case validationError:

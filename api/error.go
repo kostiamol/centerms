@@ -7,12 +7,12 @@ import (
 )
 
 const (
-	ErrService    = "ERR_SERVICE"
-	ErrNotFound   = "ERR_NOT_FOUND"
-	ErrBadRequest = "ERR_BAD_REQUEST"
-	ErrBadParam   = "ERR_BAD_PARAM"
-	ErrAuth       = "ERR_NOT_AUTHORIZED"
-	ErrBadJwt     = "ERR_BAD_JWT"
+	errService    = "ERR_SERVICE"
+	errNotFound   = "ERR_NOT_FOUND"
+	errBadRequest = "ERR_BAD_REQUEST"
+	errBadParam   = "ERR_BAD_PARAM"
+	errAuth       = "ERR_NOT_AUTHORIZED"
+	errBadJWT     = "ERR_BAD_JWT"
 )
 
 type apiError struct {
@@ -20,7 +20,7 @@ type apiError struct {
 	Message string `json:"code"`
 }
 
-// Error() returns error as a string.
+// Error returns error as a string.
 func (e apiError) Error() string {
 	return e.Message
 }
@@ -28,21 +28,21 @@ func (e apiError) Error() string {
 func newBadJWTError(msg string) apiError {
 	logrus.Debugf("newBadJWTError: %s", msg)
 	return apiError{
-		Code:    ErrBadJwt,
+		Code:    errBadJWT,
 		Message: "Unauthorized",
 	}
 }
 
 func newAuthorizationError() apiError {
 	return apiError{
-		Code:    ErrAuth,
+		Code:    errAuth,
 		Message: "Unauthorized",
 	}
 }
 
 func newNotFoundError() apiError {
 	return apiError{
-		Code:    ErrNotFound,
+		Code:    errNotFound,
 		Message: "Not found",
 	}
 }
@@ -50,7 +50,7 @@ func newNotFoundError() apiError {
 func newValidationError(err url.Values) validationError {
 	return validationError{
 		apiError: apiError{
-			Code:    ErrBadParam,
+			Code:    errBadParam,
 			Message: "Bad request",
 		},
 		Errors: err,
@@ -63,6 +63,7 @@ type validationError struct {
 	Errors        url.Values
 }
 
+// Error returns error as a string.
 func (e validationError) Error() string {
 	return e.Message
 }

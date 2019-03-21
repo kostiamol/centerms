@@ -45,8 +45,8 @@ type (
 		privateKey   string
 	}
 
-	// APICfg is used to initialize an instance of API.
-	APICfg struct {
+	// Cfg is used to initialize an instance of API.
+	Cfg struct {
 		AppID        string
 		Log          *logrus.Entry
 		PubChan      string
@@ -60,8 +60,8 @@ type (
 	}
 )
 
-// NewAPI creates and initializes a new instance of API.
-func NewAPI(c *APICfg) *API {
+// New creates and initializes a new instance of API.
+func New(c *Cfg) *API {
 	return &API{
 		log:          c.Log.WithFields(logrus.Fields{"component": "api"}),
 		pubChan:      c.PubChan,

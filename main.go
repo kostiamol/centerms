@@ -35,9 +35,9 @@ func main() {
 		log_.Fatalf("NewLog(): %s", err)
 	}
 
-	redis, err := store.NewRedis(store.Addr{Host: conf.Store.Host, Port: int32(conf.Store.Port)}, conf.Store.Password)
+	store, err := store.New(store.Addr{Host: conf.Store.Host, Port: int32(conf.Store.Port)}, conf.Store.Password)
 	if err != nil {
-		log_.Fatalf("NewRedis(): %s", err)
+		log_.Fatalf("New(): %s", err)
 	}
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
@@ -47,7 +47,7 @@ func main() {
 		&svc.DataServiceCfg{
 			Log:     logrus.NewEntry(log),
 			Ctrl:    ctrl,
-			Store:   redis,
+			Store:   store,
 			PubChan: cfg.DevDataChan,
 		})
 	go dataSvc.Run()
@@ -56,7 +56,7 @@ func main() {
 		&svc.StreamServiceCfg{
 			Log:        logrus.NewEntry(log),
 			Ctrl:       ctrl,
-			Subscriber: redis,
+			Subscriber: store,
 			PubChan:    cfg.DevDataChan,
 			PortWS:     int32(conf.Service.PortWebSocket),
 		})
@@ -66,14 +66,14 @@ func main() {
 		&svc.CfgServiceCfg{
 			Log:     logrus.NewEntry(log),
 			Ctrl:    ctrl,
-			Store:   redis,
+			Store:   store,
 			SubChan: cfg.DevCfgChan,
 			Retry:   time.Duration(conf.Service.RetryTimeout),
 		})
 	go confSvc.Run()
 
-	apiSvc := api.NewAPI(
-		&api.APICfg{
+	apiSvc := api.New(
+		&api.Cfg{
 			Log:          logrus.NewEntry(log),
 			PubChan:      cfg.DevCfgChan,
 			PortRPC:      int32(conf.Service.PortRPC),

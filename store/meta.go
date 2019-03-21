@@ -1,18 +1,18 @@
 package store
 
-// Meta .
+// Meta is an interface for interaction with response's metadata.
 type Meta interface {
 	GetMeta() map[string]interface{}
 }
 
-// Pagination .
+// Pagination holds response's metadata.
 type Pagination struct {
 	ResultCount uint `json:"result_count"`
 	Limit       uint `json:"limit"`
 	Offset      uint `json:"offset"`
 }
 
-// GetMeta return pagination meta
+// GetMetaData returns response's metadata.
 func (p Pagination) GetMetaData() map[string]interface{} {
 	m := map[string]interface{}{}
 

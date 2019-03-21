@@ -15,9 +15,12 @@ const (
 	authHeader = "Authorization"
 )
 
-type tokenValidator struct {
-	publicKey *rsa.PublicKey
-}
+type (
+	tokenValidator struct {
+		publicKey *rsa.PublicKey
+	}
+	ownerID string
+)
 
 func newTokenValidator(publicKey string) (*tokenValidator, error) {
 	pk, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicKey))
@@ -35,18 +38,18 @@ func (t *tokenValidator) validator(next http.HandlerFunc, name string) http.Hand
 			return
 		}
 
-		ownerID, ok := claims[ownerIDKey]
+		owner, ok := claims[ownerIDKey]
 		if !ok {
 			respError(w, newBadJWTError("empty ownerID"))
 			return
 		}
-		ownerIDStr, ok := ownerID.(string)
+		ownerIDStr, ok := owner.(string)
 		if !ok {
 			respError(w, newBadJWTError("invalid ownerID"))
 			return
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), ownerIDKey, ownerIDStr))
+		r = r.WithContext(context.WithValue(r.Context(), ownerID(ownerIDKey), ownerIDStr))
 		next(w, r)
 	}
 }
