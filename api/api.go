@@ -42,6 +42,7 @@ type (
 		token        *tokenValidator
 		metric       *metric
 		publicKey    string
+		privateKey   string
 	}
 
 	// APICfg is used to initialize an instance of API.
@@ -55,6 +56,7 @@ type (
 		DataProvider dataProvider
 		Retry        time.Duration
 		PublicKey    string
+		PrivateKey   string
 	}
 )
 
@@ -69,6 +71,7 @@ func NewAPI(c *APICfg) *API {
 		dataProvider: c.DataProvider,
 		retry:        c.Retry,
 		publicKey:    c.PublicKey,
+		privateKey:   c.PrivateKey,
 	}
 }
 
@@ -81,8 +84,7 @@ func (a *API) Run() {
 	}).Infof("is running on: rpc port [%d], rest port [%d]", a.portRPC, a.portREST)
 
 	var err error
-	a.token, err = newTokenValidator(a.publicKey)
-	if err != nil {
+	if a.token, err = newTokenValidator(a.publicKey); err != nil {
 		a.log.Fatalf("newTokenValidator(): %s", err)
 	}
 
@@ -126,6 +128,6 @@ func (a *API) serve() {
 	}
 
 	if err := s.ListenAndServe(); err != nil {
-		a.log.Infof("ListenAndServe() failed: ", err)
+		a.log.Infof("ListenAndServe() failed: %s", err)
 	}
 }

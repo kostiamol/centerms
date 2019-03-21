@@ -9,6 +9,9 @@ import (
 
 // Inner log events.
 const (
+	DevCfgChan  = "dev_cfg"
+	DevDataChan = "dev_data"
+
 	EventCfgPatchCreated = "cfg_patch_created"
 	EventDevRegistered   = "dev_registered"
 	EventMSTerminated    = "ms_terminated"
@@ -25,6 +28,7 @@ type (
 	Config struct {
 		Service Service
 		Store   Store
+		Token   Token
 	}
 
 	сonfiger interface {
@@ -48,6 +52,10 @@ func NewConfig() (*Config, error) {
 			Host:     os.Getenv("STORE_HOST"),
 			Port:     uintEnv("STORE_PORT"),
 			Password: os.Getenv("STORE_PASSWORD"),
+		},
+		Token: Token{
+			PublicKey:  os.Getenv("PUBLIC_KEY"),
+			PrivateKey: os.Getenv("PRIVATE_KEY"),
 		},
 	}
 

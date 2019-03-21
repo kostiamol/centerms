@@ -2,7 +2,6 @@ package main
 
 import (
 	log_ "log"
-	"os"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -21,14 +20,11 @@ import (
 
 func init() {
 	if err := godotenv.Load(".env"); err != nil {
-		log_.Fatalf("Load() failed: %s", err)
+		log_.Fatalf("Load(): %s", err)
 	}
 }
 
 func main() {
-	devCfgChan := "dev_cfg"
-	devDataChan := "dev_data"
-
 	conf, err := cfg.NewConfig()
 	if err != nil {
 		log_.Fatalf("NewConfig(): %s", err)
@@ -41,22 +37,18 @@ func main() {
 
 	redis, err := store.NewRedis(store.Addr{Host: conf.Store.Host, Port: int32(conf.Store.Port)}, conf.Store.Password)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"func":  "main",
-			"event": cfg.EventStoreInit,
-		}).Fatalf("NewRedis(): %s", err)
-		os.Exit(1)
+		log_.Fatalf("NewRedis(): %s", err)
 	}
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
 
-	// service initializations
+	// initialization of the services
 	dataSvc := svc.NewDataService(
 		&svc.DataServiceCfg{
 			Log:     logrus.NewEntry(log),
 			Ctrl:    ctrl,
 			Store:   redis,
-			PubChan: devDataChan,
+			PubChan: cfg.DevDataChan,
 		})
 	go dataSvc.Run()
 
@@ -65,7 +57,7 @@ func main() {
 			Log:        logrus.NewEntry(log),
 			Ctrl:       ctrl,
 			Subscriber: redis,
-			PubChan:    devDataChan,
+			PubChan:    cfg.DevDataChan,
 			PortWS:     int32(conf.Service.PortWebSocket),
 		})
 	go streamSvc.Run()
@@ -75,7 +67,7 @@ func main() {
 			Log:     logrus.NewEntry(log),
 			Ctrl:    ctrl,
 			Store:   redis,
-			SubChan: devCfgChan,
+			SubChan: cfg.DevCfgChan,
 			Retry:   time.Duration(conf.Service.RetryTimeout),
 		})
 	go confSvc.Run()
@@ -83,19 +75,18 @@ func main() {
 	apiSvc := api.NewAPI(
 		&api.APICfg{
 			Log:          logrus.NewEntry(log),
-			PubChan:      devCfgChan,
+			PubChan:      cfg.DevCfgChan,
 			PortRPC:      int32(conf.Service.PortRPC),
 			PortREST:     int32(conf.Service.PortREST),
 			CfgProvider:  confSvc,
 			DataProvider: dataSvc,
 			Retry:        time.Duration(conf.Service.RetryTimeout),
+			PublicKey:    conf.Token.PublicKey,
+			PrivateKey:   conf.Token.PrivateKey,
 		})
 	go apiSvc.Run()
 
 	ctrl.Wait()
 
-	log.WithFields(logrus.Fields{
-		"func":  "main",
-		"event": cfg.EventMSTerminated,
-	}).Infof("%s is down", conf.Service.AppID)
+	log_.Printf("%s is down", conf.Service.AppID)
 }

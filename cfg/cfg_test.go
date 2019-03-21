@@ -1,7 +1,6 @@
 package cfg
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -25,9 +24,13 @@ func TestConfig(t *testing.T) {
 			PortWebSocket: 3333,
 		},
 		Store: Store{
-			Host:     os.Getenv("STORE_HOST"),
-			Port:     uintEnv("STORE_PORT"),
-			Password: os.Getenv("STORE_PASSWORD"),
+			Host:     "localhost",
+			Port:     4444,
+			Password: "password",
+		},
+		Token: Token{
+			PublicKey:  "pubkey",
+			PrivateKey: "privkey",
 		},
 	}
 	err := c.validate()
@@ -99,5 +102,22 @@ func TestStoreConfig(t *testing.T) {
 
 	s = Store{Host: "localhost", Port: 1111}
 	err = s.validate()
+	assert.NotNil(t, err)
+}
+
+func TestTokenConfig(t *testing.T) {
+	tkn := Token{
+		PublicKey:  "pubkey",
+		PrivateKey: "privkey",
+	}
+	err := tkn.validate()
+	assert.Nil(t, err)
+
+	tkn = Token{}
+	err = tkn.validate()
+	assert.NotNil(t, err)
+
+	tkn = Token{PublicKey: "pubkey"}
+	err = tkn.validate()
 	assert.NotNil(t, err)
 }

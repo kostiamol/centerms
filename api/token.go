@@ -19,12 +19,12 @@ type tokenValidator struct {
 	publicKey *rsa.PublicKey
 }
 
-func newTokenValidator(pubKey string) (*tokenValidator, error) {
-	publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(pubKey))
+func newTokenValidator(publicKey string) (*tokenValidator, error) {
+	pk, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicKey))
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse RSA public key: %v", err)
 	}
-	return &tokenValidator{publicKey: publicKey}, nil
+	return &tokenValidator{publicKey: pk}, nil
 }
 
 func (t *tokenValidator) validator(next http.HandlerFunc, name string) http.HandlerFunc {
@@ -40,7 +40,6 @@ func (t *tokenValidator) validator(next http.HandlerFunc, name string) http.Hand
 			respError(w, newBadJWTError("empty ownerID"))
 			return
 		}
-
 		ownerIDStr, ok := ownerID.(string)
 		if !ok {
 			respError(w, newBadJWTError("invalid ownerID"))
