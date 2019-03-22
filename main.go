@@ -1,7 +1,6 @@
 package main
 
 import (
-	log_ "log"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -20,73 +19,73 @@ import (
 
 func init() {
 	if err := godotenv.Load(".env"); err != nil {
-		log_.Fatalf("Load(): %s", err)
+		logrus.Fatalf("Load(): %s", err)
 	}
 }
 
 func main() {
-	conf, err := cfg.NewConfig()
+	config, err := cfg.NewConfig()
 	if err != nil {
-		log_.Fatalf("NewConfig(): %s", err)
+		logrus.Fatalf("NewConfig(): %s", err)
 	}
 
-	log, err := cfg.NewLog(conf.Service.AppID, conf.Service.LogLevel)
+	store, err := store.New(store.Addr{Host: config.Store.Host, Port: config.Store.Port}, config.Store.Password)
 	if err != nil {
-		log_.Fatalf("NewLog(): %s", err)
+		logrus.Fatalf("New(): %s", err)
 	}
 
-	store, err := store.New(store.Addr{Host: conf.Store.Host, Port: conf.Store.Port}, conf.Store.Password)
+	log, err := cfg.NewLog(config.Service.AppID, config.Service.LogLevel)
 	if err != nil {
-		log_.Fatalf("New(): %s", err)
+		logrus.Fatalf("NewLog(): %s", err)
 	}
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
 
-	// initialization of the services
-	dataSvc := svc.NewDataService(
+	// initialization of the services and api
+	data := svc.NewDataService(
 		&svc.DataServiceCfg{
 			Log:     logrus.NewEntry(log),
 			Ctrl:    ctrl,
 			Store:   store,
 			PubChan: cfg.DevDataChan,
 		})
-	go dataSvc.Run()
+	go data.Run()
 
-	streamSvc := svc.NewStreamService(
+	stream := svc.NewStreamService(
 		&svc.StreamServiceCfg{
 			Log:        logrus.NewEntry(log),
 			Ctrl:       ctrl,
 			Subscriber: store,
 			PubChan:    cfg.DevDataChan,
-			PortWS:     int32(conf.Service.PortWebSocket),
+			PortWS:     int32(config.Service.PortWebSocket),
 		})
-	go streamSvc.Run()
+	go stream.Run()
 
-	confSvc := svc.NewCfgService(
+	conf := svc.NewCfgService(
 		&svc.CfgServiceCfg{
 			Log:     logrus.NewEntry(log),
 			Ctrl:    ctrl,
 			Store:   store,
 			SubChan: cfg.DevCfgChan,
-			Retry:   time.Duration(conf.Service.RetryTimeout),
+			Retry:   time.Duration(config.Service.RetryTimeout),
 		})
-	go confSvc.Run()
+	go conf.Run()
 
-	apiSvc := api.New(
+	api := api.New(
 		&api.Cfg{
 			Log:          logrus.NewEntry(log),
 			PubChan:      cfg.DevCfgChan,
-			PortRPC:      int32(conf.Service.PortRPC),
-			PortREST:     int32(conf.Service.PortREST),
-			CfgProvider:  confSvc,
-			DataProvider: dataSvc,
-			Retry:        time.Duration(conf.Service.RetryTimeout),
-			PublicKey:    conf.Token.PublicKey,
-			PrivateKey:   conf.Token.PrivateKey,
+			PortRPC:      int32(config.Service.PortRPC),
+			PortREST:     int32(config.Service.PortREST),
+			CfgProvider:  conf,
+			DataProvider: data,
+			Retry:        time.Duration(config.Service.RetryTimeout),
+			PublicKey:    config.Token.PublicKey,
+			PrivateKey:   config.Token.PrivateKey,
 		})
-	go apiSvc.Run()
+	go api.Run()
 
 	ctrl.Wait()
 
-	log_.Printf("%s is down", conf.Service.AppID)
+	logrus.Infof("%s is down", config.Service.AppID)
 }
