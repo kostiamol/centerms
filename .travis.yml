@@ -27,4 +27,4 @@ script:
 - gocyclo -over 19 $GO_FILES
 - golint -set_exit_status $(go list -mod=vendor ./...)
 - go test -v -covermode=count -coverprofile=coverage.out
-- goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
+- goveralls -coverprofile=coverage.out -service=travis-ci -repotoken=$COVERALLS_TOKEN
