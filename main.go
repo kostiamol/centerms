@@ -35,7 +35,7 @@ func main() {
 		log_.Fatalf("NewLog(): %s", err)
 	}
 
-	store, err := store.New(store.Addr{Host: conf.Store.Host, Port: int32(conf.Store.Port)}, conf.Store.Password)
+	store, err := store.New(store.Addr{Host: conf.Store.Host, Port: conf.Store.Port}, conf.Store.Password)
 	if err != nil {
 		log_.Fatalf("New(): %s", err)
 	}

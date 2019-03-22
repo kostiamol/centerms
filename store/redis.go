@@ -25,7 +25,7 @@ type (
 	// Addr is used to store remote server's host and port.
 	Addr struct {
 		Host string
-		Port int32
+		Port uint64
 	}
 )
 
