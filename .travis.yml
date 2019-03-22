@@ -1,26 +1,30 @@
 language: go
 go:
-    - tip
+- tip
 git:
-    depth: 1
+  depth: 1
 os:
-    - linux
+- linux
 dist: xenial
 env:
-    - GO111MODULE=on
+  matrix:
+  - GO111MODULE=on
+  - secure: DVKn2X1HNrk24Iya/M1YVmDGjjIdoAXdI8x8/HRmxrKufsFjHt+MuoiCD/TduC95BPuqUP0ossCJQKGrGeZjHuljV8pWMwMllaLUZb9Npf6iDOL7ekvSHl8HSlYaouh855eqMUD7rr172sRCGof4HRHRHfggkd+muojdanFfKF40p5/nSX3XLIgXLySB3aP9DhPXY2ffYj4CtLAxQJQjbmZOREB2T6wA9hEbUat+jqp/tl/X3V2gGcTYQZDHxIjZUutrmorCj4/Qhcdwpvu+HjLY3ekmQxdfzga0tzpEsoWO3pnpTXequ9wtDgqCrOe0Tpz4G8p3OIYPPqgnCaHsjA5P/xrpz2nIkB4yB8zdFBNDh+GsIo3gX6Qgpix9LsSRYhAObsmkKmlHg4isLNHbno7XTf1HwoQnqjDq0HaQn0IlgiTpTMS/H9jPDo4XuqOSfjprTwCUINn69YKtBNNkMHpQMSxcO1Hs0mruXnGJnG8z3dJRpAla3fWjqgFnbF784dcVocg0Mu9V9m8o+eMUt+Eo3wK1DLNbuDcYaMKvbFov8bIZ4lUgQJaaDEnLreIT6HjP2nQkJ5O1+gV65JhL7+uxo0GQZfaXb127g/G9Yx2zGi6IM0J0PfQQ4AfiITYgddyhqjCe9lbfnab1P5phC8v/Via4mNGxWbwy/ZBMlac=
 install: true
 matrix:
-    fast_finish: true
+  fast_finish: true
 notifications:
-    email: false
+  email: false
 before_script:
-    - GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/ | grep -v /proto/)
-    - go install -mod=vendor golang.org/x/lint/golint
-    - go install -mod=vendor github.com/fzipp/gocyclo
-    - go install -mod=vendor golang.org/x/tools/cmd/cover
-    - go install -mod=vendor github.com/mattn/goveralls
+- GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/ | grep -v /proto/)
+- go install -mod=vendor golang.org/x/lint/golint
+- go install -mod=vendor github.com/fzipp/gocyclo
+- go install -mod=vendor golang.org/x/tools/cmd/cover
+- go install -mod=vendor github.com/mattn/goveralls
 script:
-    - go test -mod=vendor -v -race ./...
-    - go vet -mod=vendor ./...
-    - gocyclo -over 19 $GO_FILES
-    - golint -set_exit_status $(go list -mod=vendor ./...)
+- go test -mod=vendor -v -race ./...
+- go vet -mod=vendor ./...
+- gocyclo -over 19 $GO_FILES
+- golint -set_exit_status $(go list -mod=vendor ./...)
+- go test -v -covermode=count -coverprofile=coverage.out
+- goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
