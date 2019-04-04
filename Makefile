@@ -9,11 +9,16 @@ gen:
     	./proto/*.proto
 
 build:
-	go build -o centerms.exe
+	go build -o centerms
+
+lint:
+	golangci-lint run --no-config --issues-exit-code=0 --deadline=30m \
+        --disable-all --enable=deadcode  --enable=gocyclo --enable=golint --enable=varcheck \
+        --enable=structcheck --enable=maligned --enable=errcheck --enable=dupl --enable=ineffassign \
+        --enable=interfacer --enable=unconvert --enable=goconst --enable=gosec --enable=megacheck
 
 run:
-	go build -o centerms.exe
-	./centerms.exe
+	./centerms
 
 clean:
-	rm centerms.exe
+	rm centerms
