@@ -33,21 +33,21 @@ func newBadJWTError(msg string) apiError {
 	}
 }
 
-func newAuthorizationError() apiError {
+func newAuthorizationError() apiError { // nolint
 	return apiError{
 		Code:    errAuth,
 		Message: "Unauthorized",
 	}
 }
 
-func newNotFoundError() apiError {
+func newNotFoundError() apiError { // nolint
 	return apiError{
 		Code:    errNotFound,
 		Message: "Not found",
 	}
 }
 
-func newValidationError(err url.Values) validationError {
+func newValidationError(err url.Values) validationError { // nolint
 	return validationError{
 		apiError: apiError{
 			Code:    errBadParam,

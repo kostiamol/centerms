@@ -81,13 +81,8 @@ func (s *DataService) Run() {
 }
 
 func (s *DataService) listenTermination() {
-	for {
-		select {
-		case <-s.ctrl.StopChan:
-			s.terminate()
-			return
-		}
-	}
+	<-s.ctrl.StopChan
+	s.terminate()
 }
 
 func (s *DataService) terminate() {
@@ -106,7 +101,7 @@ func (s *DataService) SaveDevData(data *DevData) error {
 		}).Errorf("%s", err)
 		return err
 	}
-	go s.pubDevData(data)
+	go s.pubDevData(data) // nolint
 	return nil
 }
 

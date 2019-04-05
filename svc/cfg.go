@@ -100,13 +100,8 @@ func (s *CfgService) Run() {
 }
 
 func (s *CfgService) listenTermination() {
-	for {
-		select {
-		case <-s.ctrl.StopChan:
-			s.terminate()
-			return
-		}
-	}
+	<-s.ctrl.StopChan
+	s.terminate()
 }
 
 func (s *CfgService) terminate() {
@@ -128,7 +123,7 @@ func (s *CfgService) listenCfgPatches(ctx context.Context) {
 		}
 	}()
 
-	go s.store.Subscribe(s.sub.Chan, s.sub.ChanName)
+	go s.store.Subscribe(s.sub.Chan, s.sub.ChanName) // nolint
 
 	var c DevCfg
 	for {

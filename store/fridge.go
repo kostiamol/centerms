@@ -71,23 +71,23 @@ func (r *Redis) saveFridgeData(d *svc.DevData) error {
 	paramsKey := devKey + partialDevParamsKey
 
 	if _, err := r.hmset("devParamsKeys", paramsKey); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): SADD() failed: ")
 	}
 	if _, err := r.hmset(devKey, "ReqTime", fmt.Sprint(d.Time)); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): HMSET() failed: ")
 	}
 	if _, err := r.sadd(paramsKey, "TopCompart", "BotCompart"); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): SADD() failed: ")
 	}
 	if err := r.saveFridgeCompartData(fridge.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): saveFridgeCompartData(): ")
 	}
 	if err := r.saveFridgeCompartData(fridge.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: saveFridgeData(): saveFridgeCompartData(): ")
 	}
 	return nil
@@ -95,8 +95,8 @@ func (r *Redis) saveFridgeData(d *svc.DevData) error {
 
 func (r *Redis) saveFridgeCompartData(tempCam map[int64]float32, key string) error {
 	for time, temp := range tempCam {
-		_, err := r.zadd(key, strconv.FormatInt(int64(time), 10),
-			strconv.FormatInt(int64(time), 10)+":"+
+		_, err := r.zadd(key, strconv.FormatInt(time, 10),
+			strconv.FormatInt(time, 10)+":"+
 				strconv.FormatFloat(float64(temp), 'f', -1, 32))
 		if err != nil {
 			return errors.Wrap(err, "ZADD() failed: ")
@@ -180,24 +180,24 @@ func (r *Redis) setFridgeCfg(c *svc.DevCfg, m *svc.DevMeta) error {
 
 	cfgKey := c.MAC + partialDevCfgKey
 	if _, err := r.multi(); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): MULTI() failed: ")
 	}
 	if _, err := r.hmset(cfgKey, "TurnedOn", fmt.Sprint(fridge.TurnedOn)); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): HMSET() failed: ")
 	}
 	if _, err := r.hmset(cfgKey, "CollectFreq", fmt.Sprint(fridge.CollectFreq)); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): HMSET() failed: ")
 	}
 	if _, err := r.hmset(cfgKey, "SendFreq", fmt.Sprint(fridge.SendFreq)); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): HMSet() failed: ")
 	}
 
 	if _, err := r.exec(); err != nil {
-		r.discard()
+		_, err = r.discard()
 		return errors.Wrap(err, "store: setFridgeCfg(): EXEC() failed: ")
 	}
 	return nil

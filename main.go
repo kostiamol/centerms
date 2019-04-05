@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/joho/godotenv"
 	"github.com/kostiamol/centerms/api"
@@ -67,7 +65,7 @@ func main() {
 			Ctrl:    ctrl,
 			Store:   store,
 			SubChan: cfg.DevCfgChan,
-			Retry:   time.Duration(config.Service.RetryTimeout),
+			Retry:   config.Service.RetryTimeout,
 		})
 	go conf.Run()
 
@@ -79,7 +77,7 @@ func main() {
 			PortREST:     int32(config.Service.PortREST),
 			CfgProvider:  conf,
 			DataProvider: data,
-			Retry:        time.Duration(config.Service.RetryTimeout),
+			Retry:        config.Service.RetryTimeout,
 			PublicKey:    config.Token.PublicKey,
 			PrivateKey:   config.Token.PrivateKey,
 		})

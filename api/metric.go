@@ -53,7 +53,7 @@ func (m *metric) ErrorCounter(label string) {
 func (m *metric) timing(start time.Time, label string) {
 	m.serviceTiming.
 		WithLabelValues(label).
-		Observe(float64(time.Since(start).Seconds()))
+		Observe(time.Since(start).Seconds())
 }
 
 func (m *metric) timeTracker(next http.HandlerFunc, label string) http.HandlerFunc {

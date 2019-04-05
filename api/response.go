@@ -9,7 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-func respMeta(w http.ResponseWriter, meta interface{}) {
+func respMeta(w http.ResponseWriter, meta interface{}) { // nolint
 	resp := map[string]interface{}{"meta": meta}
 	b, err := json.Marshal(resp)
 	if err != nil {
@@ -24,7 +24,7 @@ func respMeta(w http.ResponseWriter, meta interface{}) {
 	}
 }
 
-func resp(w http.ResponseWriter, data interface{}, md ...store.Meta) {
+func resp(w http.ResponseWriter, data interface{}, md ...store.Meta) { // nolint
 	resp := map[string]interface{}{"data": data}
 
 	meta := map[string]interface{}{}

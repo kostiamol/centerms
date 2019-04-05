@@ -8,7 +8,6 @@ import (
 	"github.com/kostiamol/centerms/svc"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 )
@@ -39,17 +38,12 @@ var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 	}
 })
 
-var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
-	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-		return mySigningKey, nil
-	},
-	SigningMethod: jwt.SigningMethodHS256,
-})
-
 func (a *API) health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok"}`))
+	if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
+		logrus.Errorf("Write(): %s", err)
+	}
 }
 
 func (a *API) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {

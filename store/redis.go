@@ -109,12 +109,6 @@ func (r *Redis) zadd(key string, args ...interface{}) ([]string, error) {
 	return redis.Strings(redis.Bytes(conn.Do("ZADD", key, args)))
 }
 
-func (r *Redis) hset(key string) (int, error) {
-	conn := r.pool.Get()
-	defer conn.Close()
-	return redis.Int(redis.Bytes(conn.Do("HSET", key)))
-}
-
 func (r *Redis) hget(key, field string) (string, error) {
 	conn := r.pool.Get()
 	defer conn.Close()

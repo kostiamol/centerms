@@ -8,11 +8,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	fridge = "fridge"
+	washer = "washer"
+)
+
 // GetDevsData returns the data concerning all the devices.
 func (r *Redis) GetDevsData() ([]svc.DevData, error) {
 	devParamsKeys, err := r.smembers("devParamsKeys")
 	if err != nil {
-		errors.Wrap(err, "store: GetDevsData(): SMEMBERS() for devParamsKeys failed: ")
+		return nil, errors.Wrap(err, "store: GetDevsData(): SMEMBERS() for devParamsKeys failed: ")
 	}
 
 	devParamsKeysTokens := make([][]string, len(devParamsKeys))
@@ -34,13 +39,13 @@ func (r *Redis) GetDevsData() ([]svc.DevData, error) {
 		data := make(map[string][]string)
 		params, err := r.smembers(devParamsKeys[index])
 		if err != nil {
-			errors.Wrapf(err, "store: GetDevsData(): SMEMBERS() for %s failed: ", devParamsKeys[index])
+			return nil, errors.Wrapf(err, "store: GetDevsData(): SMEMBERS() for %s failed: ", devParamsKeys[index])
 		}
 
 		for i, p := range params {
 			data[p], err = r.zrangebyscore(devParamsKeys[index]+":"+p, "-inf", "inf")
 			if err != nil {
-				errors.Wrapf(err, "store: GetDevsData(): ZRANGEBYSCORE() for %s failed: ", devParamsKeys[i])
+				return nil, errors.Wrapf(err, "store: GetDevsData(): ZRANGEBYSCORE() for %s failed: ", devParamsKeys[i])
 			}
 		}
 		devsData = append(devsData, devData)
@@ -52,15 +57,15 @@ func (r *Redis) GetDevsData() ([]svc.DevData, error) {
 func (r *Redis) GetDevMeta(id string) (*svc.DevMeta, error) {
 	t, err := r.hget("id:"+id, "type")
 	if err != nil {
-		errors.Wrap(err, "store: GetDevMeta(): HGET() for type failed: ")
+		return nil, errors.Wrap(err, "store: GetDevMeta(): HGET() for type failed: ")
 	}
 	n, err := r.hget("id:"+id, "name")
 	if err != nil {
-		errors.Wrap(err, "store: GetDevMeta():  HGET() for name failed: ")
+		return nil, errors.Wrap(err, "store: GetDevMeta():  HGET() for name failed: ")
 	}
 	m, err := r.hget("id:"+id, "mac")
 	if err != nil {
-		errors.Wrap(err, "store: GetDevMeta():  HGET() for mac failed: ")
+		return nil, errors.Wrap(err, "store: GetDevMeta():  HGET() for mac failed: ")
 	}
 
 	return &svc.DevMeta{
@@ -104,9 +109,9 @@ func (r *Redis) GetDevData(id string) (*svc.DevData, error) {
 	}
 
 	switch m.Type {
-	case "fridge":
+	case fridge:
 		return r.getFridgeData(m)
-	case "washer":
+	case washer:
 		return r.getWasherData(m)
 	default:
 		return nil, errors.New("store: GetDevData(): dev type is unknown")
@@ -116,9 +121,9 @@ func (r *Redis) GetDevData(id string) (*svc.DevData, error) {
 // SaveDevData saves data concerning given device.
 func (r *Redis) SaveDevData(d *svc.DevData) error {
 	switch d.Meta.Type {
-	case "fridge":
+	case fridge:
 		return r.saveFridgeData(d)
-	case "washer":
+	case washer:
 		return r.saveWasherData(d)
 	default:
 		return errors.New("store: SaveDevData(): dev type is unknown")
@@ -133,9 +138,9 @@ func (r *Redis) GetDevCfg(id string) (*svc.DevCfg, error) {
 	}
 
 	switch m.Type {
-	case "fridge":
+	case fridge:
 		return r.getFridgeCfg(m)
-	case "washer":
+	case washer:
 		return r.getWasherCfg(m)
 	default:
 		return nil, errors.New("store: GetDevCfg(): dev type is unknown")
@@ -150,9 +155,9 @@ func (r *Redis) SetDevCfg(id string, c *svc.DevCfg) error {
 	}
 
 	switch m.Type {
-	case "fridge":
+	case fridge:
 		return r.setFridgeCfg(c, m)
-	case "washer":
+	case washer:
 		return r.setWasherCfg(c)
 	default:
 		return errors.New("store: SetDevCfg(): dev type is unknown")
@@ -162,9 +167,9 @@ func (r *Redis) SetDevCfg(id string, c *svc.DevCfg) error {
 // GetDevDefaultCfg returns default configuration for the given device.
 func (r *Redis) GetDevDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	switch m.Type {
-	case "fridge":
+	case fridge:
 		return r.getFridgeDefaultCfg(m)
-	case "washer":
+	case washer:
 		return r.getWasherDefaultCfg(m)
 	default:
 		return nil, errors.New("store: GetDevDefaultCfg(): dev type is unknown")
@@ -185,7 +190,7 @@ func (r *Redis) Subscribe(c chan []byte, channel ...string) error {
 	conn := redis.PubSubConn{Conn: r.pool.Get()}
 	for _, cn := range channel {
 		if err := conn.Subscribe(cn); err != nil {
-			errors.Wrap(err, "store: SUBSCRIBE() failed: ")
+			return errors.Wrap(err, "store: SUBSCRIBE() failed: ")
 		}
 	}
 	for {

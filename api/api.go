@@ -88,8 +88,11 @@ func (a *API) Run() {
 		a.log.Fatalf("newTokenValidator(): %s", err)
 	}
 
-	a.router = mux.NewRouter()
 	a.metric = newMetric(a.appID)
+
+	a.runRPCServer()
+
+	a.router = mux.NewRouter()
 	a.registerRoutes()
 	a.serve()
 }

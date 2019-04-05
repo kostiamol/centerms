@@ -104,13 +104,8 @@ func (s *StreamService) Run() {
 }
 
 func (s *StreamService) listenTermination() {
-	for {
-		select {
-		case <-s.ctrl.StopChan:
-			s.terminate()
-			return
-		}
-	}
+	<-s.ctrl.StopChan
+	s.terminate()
 }
 
 func (s *StreamService) terminate() {
@@ -168,12 +163,12 @@ func (s *StreamService) listenPubs(ctx context.Context) {
 		}
 	}()
 
-	go s.subscriber.Subscribe(s.sub.Chan, s.sub.ChanName)
+	go s.subscriber.Subscribe(s.sub.Chan, s.sub.ChanName) // nolint
 
 	for {
 		select {
 		case msg := <-s.sub.Chan:
-			go s.stream(ctx, msg)
+			go s.stream(ctx, msg) // nolint
 
 		case <-ctx.Done():
 			return
@@ -282,11 +277,11 @@ func (l *connList) addConn(c *websocket.Conn) {
 	l.Unlock()
 }
 
-func (l *connList) removeConn(c *websocket.Conn) bool {
+func (l *connList) removeConn(conn *websocket.Conn) bool {
 	l.Lock()
 	defer l.Unlock()
 	for i, c := range l.Conns {
-		if c == c {
+		if conn == c {
 			l.Conns = append(l.Conns[:i], l.Conns[i+1:]...)
 			return true
 		}
