@@ -51,6 +51,8 @@ github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/golang/mock/gomock
 # github.com/golang/protobuf v1.2.0
 github.com/golang/protobuf/proto
+github.com/golang/protobuf/jsonpb
+github.com/golang/protobuf/ptypes/struct
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
@@ -143,6 +145,14 @@ github.com/gorilla/context
 github.com/gorilla/mux
 # github.com/gorilla/websocket v1.4.0
 github.com/gorilla/websocket
+# github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
+github.com/grpc-ecosystem/go-grpc-middleware
+github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus
+github.com/grpc-ecosystem/go-grpc-middleware/recovery
+github.com/grpc-ecosystem/go-grpc-middleware/logging
+github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus
+github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus
+github.com/grpc-ecosystem/go-grpc-middleware/tags
 # github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce
 github.com/hashicorp/hcl
 github.com/hashicorp/hcl/hcl/printer
@@ -304,14 +314,14 @@ golang.org/x/tools/internal/module
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.14.0
 google.golang.org/grpc
+google.golang.org/grpc/codes
+google.golang.org/grpc/grpclog
 google.golang.org/grpc/balancer
 google.golang.org/grpc/balancer/roundrobin
-google.golang.org/grpc/codes
 google.golang.org/grpc/connectivity
 google.golang.org/grpc/credentials
 google.golang.org/grpc/encoding
 google.golang.org/grpc/encoding/proto
-google.golang.org/grpc/grpclog
 google.golang.org/grpc/internal
 google.golang.org/grpc/internal/backoff
 google.golang.org/grpc/internal/channelz
