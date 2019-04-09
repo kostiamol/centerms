@@ -3,8 +3,12 @@ package api
 import (
 	"github.com/kostiamol/centerms/svc"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+
 	"github.com/kostiamol/centerms/cfg"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/kostiamol/centerms/proto"
 
 	"fmt"
@@ -30,7 +34,16 @@ func (a *API) runRPCServer() {
 			"func": "runRPCServer",
 		}).Fatalf("Listen() failed: %s", err)
 	}
-	s := grpc.NewServer()
+
+	grpc_logrus.ReplaceGrpcLogger(a.log)
+
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpc_logrus.UnaryServerInterceptor(a.log),
+			grpc_recovery.UnaryServerInterceptor(),
+		)),
+	)
+
 	proto.RegisterCenterServiceServer(s, a)
 	if err := s.Serve(l); err != nil {
 		a.log.WithFields(logrus.Fields{
