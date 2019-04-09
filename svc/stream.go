@@ -8,9 +8,9 @@ import (
 
 	"github.com/kostiamol/centerms/cfg"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 
 	"sync"
 

@@ -11,10 +11,10 @@ import (
 
 	"encoding/json"
 
-	"github.com/Sirupsen/logrus"
 	gproto "github.com/golang/protobuf/proto"
 	"github.com/nats-io/go-nats"
 	"github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 )
 
 const (

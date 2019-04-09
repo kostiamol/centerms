@@ -7,9 +7,9 @@ import (
 
 	"github.com/kostiamol/centerms/svc"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 var mySigningKey = []byte("secret")

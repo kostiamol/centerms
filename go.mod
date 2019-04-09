@@ -1,7 +1,6 @@
 module github.com/kostiamol/centerms
 
 require (
-	github.com/Sirupsen/logrus v1.0.6
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/garyburd/redigo v1.6.0
@@ -13,6 +12,7 @@ require (
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/websocket v1.4.0
 	github.com/joho/godotenv v1.3.0
+	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/mattn/goveralls v0.0.2
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mwitkow/go-proto-validators v0.0.0-20180403085117-0950a7990007
@@ -29,10 +29,11 @@ require (
 	github.com/prometheus/procfs v0.0.0-20180725123919-05ee40e3a273 // indirect
 	github.com/rs/cors v1.6.0
 	github.com/satori/go.uuid v1.2.0
-	github.com/sirupsen/logrus v1.2.0 // indirect
-	github.com/stretchr/testify v1.2.2
+	github.com/sirupsen/logrus v1.4.1
+	github.com/stretchr/testify v1.3.0
 	golang.org/x/net v0.0.0-20190313220215-9f648a60d977
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
+	golang.org/x/sys v0.0.0-20190405154228-4b34438f7a67 // indirect
 	google.golang.org/genproto v0.0.0-20180831171423-11092d34479b // indirect
 	google.golang.org/grpc v1.14.0
 )

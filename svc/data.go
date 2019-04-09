@@ -5,7 +5,7 @@ import (
 
 	"github.com/kostiamol/centerms/cfg"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"golang.org/x/net/context"
 )

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/joho/godotenv"
 	"github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/cfg"
 	"github.com/kostiamol/centerms/store"
 	"github.com/kostiamol/centerms/svc"
+	"github.com/sirupsen/logrus"
 )
 
 // todo: look through the handlers

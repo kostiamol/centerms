@@ -6,10 +6,10 @@ import (
 
 	"github.com/kostiamol/centerms/svc"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/kostiamol/centerms/cfg"
 	"github.com/rs/cors"
+	"github.com/sirupsen/logrus"
 
 	"fmt"
 )

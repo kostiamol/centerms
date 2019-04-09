@@ -6,7 +6,7 @@ import (
 
 	"github.com/kostiamol/centerms/store"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func respMeta(w http.ResponseWriter, meta interface{}) { // nolint
