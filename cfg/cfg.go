@@ -1,6 +1,8 @@
 package cfg
 
 import (
+	"encoding/base64"
+	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -38,6 +40,16 @@ type (
 
 // NewConfig initializes and returns configuration structure with environment variables.
 func NewConfig() (*Config, error) {
+	publicKey, err := decodeEnv("PUBLIC_KEY")
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, err := decodeEnv("PRIVATE_KEY")
+	if err != nil {
+		return nil, err
+	}
+
 	c := &Config{
 		Service: Service{
 			AppID:         os.Getenv("APP_ID"),
@@ -54,12 +66,12 @@ func NewConfig() (*Config, error) {
 			Password: os.Getenv("STORE_PASSWORD"),
 		},
 		Token: Token{
-			PublicKey:  os.Getenv("PUBLIC_KEY"),
-			PrivateKey: os.Getenv("PRIVATE_KEY"),
+			PublicKey:  publicKey,
+			PrivateKey: privateKey,
 		},
 	}
 
-	err := c.validate()
+	err = c.validate()
 	return c, err
 }
 
@@ -88,4 +100,17 @@ func uintEnv(env string) uint64 {
 		return 0
 	}
 	return u
+}
+
+func decodeEnv(env string) (string, error) {
+	v := os.Getenv(env)
+	if v == "" {
+		return "", nil
+	}
+
+	dec, err := base64.StdEncoding.DecodeString(v)
+	if err != nil {
+		return "", fmt.Errorf("DecodeString(): %s", err)
+	}
+	return string(dec), nil
 }
