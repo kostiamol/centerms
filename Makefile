@@ -22,3 +22,15 @@ run:
 
 clean:
 	rm centerms
+
+dbuild:
+	docker build -t centerms .
+
+dlint:
+	hadolint Dockerfile
+
+up:
+	docker-compose up
+
+down:
+	docker-compose down
