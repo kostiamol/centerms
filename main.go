@@ -17,7 +17,7 @@ import (
 
 func init() {
 	if err := godotenv.Load(".env"); err != nil {
-		logrus.Fatalf("Load(): %s", err)
+		logrus.Errorf("Load(): %s", err)
 	}
 }
 
