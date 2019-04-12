@@ -2,6 +2,8 @@
 package svc
 
 import (
+	"strconv"
+
 	"github.com/kostiamol/centerms/cfg"
 	"github.com/kostiamol/centerms/proto"
 	"golang.org/x/net/context"
@@ -25,20 +27,27 @@ const (
 type (
 	// CfgService is used to deal with device configurations.
 	CfgService struct {
-		log   *logrus.Entry
-		ctrl  Ctrl
-		store cfgStorer
-		sub   subscription
-		retry time.Duration
+		log      *logrus.Entry
+		ctrl     Ctrl
+		store    cfgStorer
+		sub      subscription
+		retry    time.Duration
+		natsAddr Addr
+	}
+
+	Addr struct {
+		Host string
+		Port uint64
 	}
 
 	// CfgServiceCfg is used to initialize an instance of CfgService.
 	CfgServiceCfg struct {
-		Log     *logrus.Entry
-		Ctrl    Ctrl
-		Store   cfgStorer
-		SubChan string
-		Retry   time.Duration
+		Log      *logrus.Entry
+		Ctrl     Ctrl
+		Store    cfgStorer
+		SubChan  string
+		Retry    time.Duration
+		NATSAddr Addr
 	}
 
 	cfgStorer interface {
@@ -73,7 +82,8 @@ func NewCfgService(c *CfgServiceCfg) *CfgService {
 			ChanName: c.SubChan,
 			Chan:     make(chan []byte),
 		},
-		retry: c.Retry,
+		retry:    c.Retry,
+		natsAddr: c.NATSAddr,
 	}
 }
 
@@ -153,7 +163,7 @@ func (s *CfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
 		}
 	}()
 
-	conn, err := nats.Connect(nats.DefaultURL)
+	conn, err := nats.Connect(s.natsAddr.Host + strconv.FormatUint(s.natsAddr.Port, 10))
 	for err != nil {
 		s.log.WithFields(logrus.Fields{
 			"func": "pubNewCfgPatchEvent",
@@ -161,6 +171,11 @@ func (s *CfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
 		duration := time.Duration(rand.Intn(int(s.retry.Seconds())))
 		time.Sleep(time.Second*duration + 1)
 		conn, err = nats.Connect(nats.DefaultURL)
+		if err != nil {
+			s.log.WithFields(logrus.Fields{
+				"func": "pubNewCfgPatchEvent",
+			}).Errorf("Connect(): %s", err)
+		}
 	}
 	defer conn.Close()
 

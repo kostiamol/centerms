@@ -29,6 +29,7 @@ type (
 	// Config holds the app config.
 	Config struct {
 		Service Service
+		NATS    NATS
 		Store   Store
 		Token   Token
 	}
@@ -59,6 +60,10 @@ func NewConfig() (*Config, error) {
 			PortRPC:       uintEnv("PORT_RPC"),
 			PortREST:      uintEnv("PORT_REST"),
 			PortWebSocket: uintEnv("PORT_WEBSOCKET"),
+		},
+		NATS: NATS{
+			Host: os.Getenv("NATS_HOST"),
+			Port: uintEnv("NATS_PORT"),
 		},
 		Store: Store{
 			Host:     os.Getenv("STORE_HOST"),

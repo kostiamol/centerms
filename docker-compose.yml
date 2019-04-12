@@ -7,6 +7,13 @@ services:
     networks:
       - backend
 
+  nats:
+    image: nats:latest
+    ports:
+      - "4222"
+    networks:
+      - backend
+
   centerms:
     build: .
     image: centerms
@@ -15,11 +22,12 @@ services:
     ports:
       - "8070:8070"
       - "8080:8080"
-      - "8090:8090"
+      - "8090"
     networks:
       - backend
     depends_on:
       - redis
+      - nats
 
 networks:
   backend:

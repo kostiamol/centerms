@@ -13,13 +13,13 @@ type Store struct {
 
 func (s Store) validate() error {
 	if s.Host == "" {
-		return fmt.Errorf("StoreHost is missing")
+		return fmt.Errorf("storeHost is missing")
 	}
 	if s.Port == 0 {
-		return fmt.Errorf("StorePort is missing")
+		return fmt.Errorf("storePort is missing")
 	}
 	if s.Password == "" {
-		return fmt.Errorf("LogLevel is missing")
+		return fmt.Errorf("logLevel is missing")
 	}
 	return nil
 }

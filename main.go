@@ -17,7 +17,7 @@ import (
 
 func init() {
 	if err := godotenv.Load(".env"); err != nil {
-		logrus.Errorf("Load(): %s", err)
+		logrus.Infof("Load(): %s", err)
 	}
 }
 
@@ -39,7 +39,7 @@ func main() {
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
 
-	// initialization of the services and api
+	// services and api initialization
 	data := svc.NewDataService(
 		&svc.DataServiceCfg{
 			Log:     logrus.NewEntry(log),
@@ -61,11 +61,12 @@ func main() {
 
 	conf := svc.NewCfgService(
 		&svc.CfgServiceCfg{
-			Log:     logrus.NewEntry(log),
-			Ctrl:    ctrl,
-			Store:   store,
-			SubChan: cfg.DevCfgChan,
-			Retry:   config.Service.RetryTimeout,
+			Log:      logrus.NewEntry(log),
+			Ctrl:     ctrl,
+			Store:    store,
+			SubChan:  cfg.DevCfgChan,
+			Retry:    config.Service.RetryTimeout,
+			NATSAddr: svc.Addr{Host: config.NATS.Host, Port: config.NATS.Port},
 		})
 	go conf.Run()
 
