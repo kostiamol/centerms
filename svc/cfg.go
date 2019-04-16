@@ -32,12 +32,7 @@ type (
 		store    cfgStorer
 		sub      subscription
 		retry    time.Duration
-		natsAddr Addr
-	}
-
-	Addr struct {
-		Host string
-		Port uint64
+		natsAddr cfg.Addr
 	}
 
 	// CfgServiceCfg is used to initialize an instance of CfgService.
@@ -47,7 +42,7 @@ type (
 		Store    cfgStorer
 		SubChan  string
 		Retry    time.Duration
-		NATSAddr Addr
+		NATSAddr cfg.Addr
 	}
 
 	cfgStorer interface {

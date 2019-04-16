@@ -24,12 +24,13 @@ func TestConfig(t *testing.T) {
 			PortWebSocket: 3333,
 		},
 		NATS: NATS{
-			Host: "localhost",
-			Port: 4222,
-		},
+			Addr: Addr{
+				Host: "localhost",
+				Port: 4222}},
 		Store: Store{
-			Host:     "localhost",
-			Port:     6379,
+			Addr: Addr{
+				Host: "localhost",
+				Port: 6379},
 			Password: "password",
 		},
 		Token: Token{
@@ -89,8 +90,7 @@ func TestServiceConfig(t *testing.T) {
 
 func TestStoreConfig(t *testing.T) {
 	s := Store{
-		Host:     "localhost",
-		Port:     1111,
+		Addr:     Addr{Host: "localhost", Port: 1111},
 		Password: "password",
 	}
 	err := s.validate()
@@ -100,20 +100,17 @@ func TestStoreConfig(t *testing.T) {
 	err = s.validate()
 	assert.NotNil(t, err)
 
-	s = Store{Host: "localhost"}
+	s = Store{Addr: Addr{Host: "localhost"}}
 	err = s.validate()
 	assert.NotNil(t, err)
 
-	s = Store{Host: "localhost", Port: 1111}
+	s = Store{Addr: Addr{Host: "localhost", Port: 1111}}
 	err = s.validate()
 	assert.NotNil(t, err)
 }
 
 func TestTokenConfig(t *testing.T) {
-	tkn := Token{
-		PublicKey:  "pubkey",
-		PrivateKey: "privkey",
-	}
+	tkn := Token{PublicKey: "pubkey", PrivateKey: "privkey"}
 	err := tkn.validate()
 	assert.Nil(t, err)
 
@@ -127,10 +124,7 @@ func TestTokenConfig(t *testing.T) {
 }
 
 func TestNATSConfig(t *testing.T) {
-	n := NATS{
-		Host: "localhost",
-		Port: 1111,
-	}
+	n := NATS{Addr: Addr{Host: "localhost", Port: 1111}}
 	err := n.validate()
 	assert.Nil(t, err)
 
@@ -138,7 +132,7 @@ func TestNATSConfig(t *testing.T) {
 	err = n.validate()
 	assert.NotNil(t, err)
 
-	n = NATS{Host: "localhost"}
+	n = NATS{Addr: Addr{Host: "localhost"}}
 	err = n.validate()
 	assert.NotNil(t, err)
 }

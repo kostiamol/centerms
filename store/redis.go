@@ -4,6 +4,8 @@ package store
 import (
 	"time"
 
+	"github.com/kostiamol/centerms/cfg"
+
 	"github.com/garyburd/redigo/redis"
 
 	"fmt"
@@ -18,19 +20,13 @@ const (
 type (
 	// Redis is used to provide a storage based on redis db under the hood.
 	Redis struct {
-		addr Addr
+		addr cfg.Addr
 		pool *redis.Pool
-	}
-
-	// Addr is used to store remote server's host and port.
-	Addr struct {
-		Host string
-		Port uint64
 	}
 )
 
 // New creates a new instance of Redis store.
-func New(a Addr, password string) (*Redis, error) {
+func New(a cfg.Addr, password string) (*Redis, error) {
 	r := &Redis{
 		addr: a,
 		pool: &redis.Pool{

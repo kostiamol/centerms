@@ -34,6 +34,12 @@ type (
 		Token   Token
 	}
 
+	// Addr holds remote server's host and port.
+	Addr struct {
+		Host string
+		Port uint64
+	}
+
 	сonfiger interface {
 		validate() error
 	}
@@ -59,22 +65,18 @@ func NewConfig() (*Config, error) {
 			RetryTimeout:  time.Duration(uintEnv("RETRY_TIMEOUT")),
 			PortRPC:       uintEnv("PORT_RPC"),
 			PortREST:      uintEnv("PORT_REST"),
-			PortWebSocket: uintEnv("PORT_WEBSOCKET"),
-		},
+			PortWebSocket: uintEnv("PORT_WEBSOCKET")},
 		NATS: NATS{
-			Host: os.Getenv("NATS_HOST"),
-			Port: uintEnv("NATS_PORT"),
-		},
+			Addr: Addr{
+				Host: os.Getenv("NATS_HOST"),
+				Port: uintEnv("NATS_PORT")}},
 		Store: Store{
-			Host:     os.Getenv("STORE_HOST"),
-			Port:     uintEnv("STORE_PORT"),
-			Password: os.Getenv("STORE_PASSWORD"),
-		},
+			Addr: Addr{Host: os.Getenv("STORE_HOST"),
+				Port: uintEnv("STORE_PORT")},
+			Password: os.Getenv("STORE_PASSWORD")},
 		Token: Token{
 			PublicKey:  publicKey,
-			PrivateKey: privateKey,
-		},
-	}
+			PrivateKey: privateKey}}
 
 	err = c.validate()
 	return c, err

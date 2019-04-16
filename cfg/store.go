@@ -6,16 +6,15 @@ import (
 
 // Store holds store configuration.
 type Store struct {
-	Host     string
-	Port     uint64
+	Addr     Addr
 	Password string
 }
 
 func (s Store) validate() error {
-	if s.Host == "" {
+	if s.Addr.Host == "" {
 		return fmt.Errorf("storeHost is missing")
 	}
-	if s.Port == 0 {
+	if s.Addr.Port == 0 {
 		return fmt.Errorf("storePort is missing")
 	}
 	if s.Password == "" {

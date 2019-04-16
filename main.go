@@ -27,7 +27,9 @@ func main() {
 		logrus.Fatalf("NewConfig(): %s", err)
 	}
 
-	store, err := store.New(store.Addr{Host: config.Store.Host, Port: config.Store.Port}, config.Store.Password)
+	store, err := store.New(
+		cfg.Addr{Host: config.Store.Addr.Host, Port: config.Store.Addr.Port},
+		config.Store.Password)
 	if err != nil {
 		logrus.Fatalf("New(): %s", err)
 	}
@@ -66,7 +68,7 @@ func main() {
 			Store:    store,
 			SubChan:  cfg.DevCfgChan,
 			Retry:    config.Service.RetryTimeout,
-			NATSAddr: svc.Addr{Host: config.NATS.Host, Port: config.NATS.Port},
+			NATSAddr: cfg.Addr{Host: config.NATS.Addr.Host, Port: config.NATS.Addr.Port},
 		})
 	go conf.Run()
 

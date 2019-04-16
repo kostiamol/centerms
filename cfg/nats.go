@@ -6,15 +6,14 @@ import (
 
 // NATS holds nats configuration.
 type NATS struct {
-	Host string
-	Port uint64
+	Addr Addr
 }
 
 func (n NATS) validate() error {
-	if n.Host == "" {
+	if n.Addr.Host == "" {
 		return fmt.Errorf("natsHost is missing")
 	}
-	if n.Port == 0 {
+	if n.Addr.Port == 0 {
 		return fmt.Errorf("natsPort is missing")
 	}
 	return nil
