@@ -2,8 +2,6 @@ package api
 
 import (
 	"net/url"
-
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -26,7 +24,6 @@ func (e apiError) Error() string {
 }
 
 func newBadJWTError(msg string) apiError {
-	logrus.Debugf("newBadJWTError: %s", msg)
 	return apiError{
 		Code:    errBadJWT,
 		Message: "Unauthorized",

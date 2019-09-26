@@ -3,9 +3,9 @@ package svc
 import (
 	"encoding/json"
 
-	"github.com/kostiamol/centerms/cfg"
+	"go.uber.org/zap"
 
-	"github.com/sirupsen/logrus"
+	"github.com/kostiamol/centerms/cfg"
 
 	"golang.org/x/net/context"
 )
@@ -13,7 +13,7 @@ import (
 type (
 	// DataService is used to deal with device data.
 	DataService struct {
-		log     *logrus.Entry
+		log     *zap.SugaredLogger
 		ctrl    Ctrl
 		store   dataStorer
 		pubChan string
@@ -21,7 +21,7 @@ type (
 
 	// DataServiceCfg is used to initialize an instance of DataService.
 	DataServiceCfg struct {
-		Log     *logrus.Entry
+		Log     *zap.SugaredLogger
 		Ctrl    Ctrl
 		Store   dataStorer
 		PubChan string
@@ -52,7 +52,7 @@ type (
 // NewDataService creates and initializes a new instance of DataService.
 func NewDataService(c *DataServiceCfg) *DataService {
 	return &DataService{
-		log:     c.Log.WithFields(logrus.Fields{"component": "data"}),
+		log:     c.Log.With("component", "data"),
 		ctrl:    c.Ctrl,
 		store:   c.Store,
 		pubChan: c.PubChan,
@@ -61,18 +61,12 @@ func NewDataService(c *DataServiceCfg) *DataService {
 
 // Run launches the service by running goroutine that listens for the service termination.
 func (s *DataService) Run() {
-	s.log.WithFields(logrus.Fields{
-		"func":  "Run",
-		"event": cfg.EventSVCStarted,
-	}).Info("is running")
+	s.log.With("event", cfg.EventComponentStarted).Info("is running")
 
 	_, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "Run",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
+			s.log.With("func", "Run", "event", cfg.EventPanic).Errorf("%s", r)
 			cancel()
 			s.terminate()
 		}
@@ -86,19 +80,15 @@ func (s *DataService) listenTermination() {
 }
 
 func (s *DataService) terminate() {
-	s.log.WithFields(logrus.Fields{
-		"func":  "terminate",
-		"event": cfg.EventSVCShutdown,
-	}).Infoln("svc is down")
+	s.log.With("event", cfg.EventComponentShutdown).Info("svc is down")
+	s.log.Sync() // nolint
 	s.ctrl.Terminate()
 }
 
 // SaveDevData is used to save device data to the store.
 func (s *DataService) SaveDevData(data *DevData) error {
 	if err := s.store.SaveDevData(data); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "SaveDevData",
-		}).Errorf("%s", err)
+		s.log.Errorf("SaveDevData(): %s", err)
 		return err
 	}
 	go s.pubDevData(data) // nolint
@@ -108,24 +98,17 @@ func (s *DataService) SaveDevData(data *DevData) error {
 func (s *DataService) pubDevData(data *DevData) error {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "pubDevData",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
+			s.log.With("event", cfg.EventPanic).Errorf("pubDevData(): %s", r)
 			s.terminate()
 		}
 	}()
 	b, err := json.Marshal(data)
 	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "pubDevData",
-		}).Errorf("%s", err)
+		s.log.Errorf("pubDevData(): %s", err)
 		return err
 	}
 	if _, err = s.store.Publish(b, s.pubChan); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "pubDevData",
-		}).Errorf("%s", err)
+		s.log.Errorf("pubDevData(): %s", err)
 		return err
 	}
 	return nil
@@ -135,9 +118,7 @@ func (s *DataService) pubDevData(data *DevData) error {
 func (s *DataService) GetDevData(id string) (*DevData, error) {
 	d, err := s.store.GetDevData(id)
 	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "GetDevData",
-		}).Errorf("%s", err)
+		s.log.Errorf("GetDevData(): %s", err)
 		return nil, err
 	}
 	return d, nil
@@ -147,9 +128,7 @@ func (s *DataService) GetDevData(id string) (*DevData, error) {
 func (s *DataService) GetDevsData() ([]DevData, error) {
 	ds, err := s.store.GetDevsData()
 	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "GetDevsData",
-		}).Errorf("%s", err)
+		s.log.Errorf("GetDevsData(): %s", err)
 		return nil, err
 	}
 	return ds, nil

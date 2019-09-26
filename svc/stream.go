@@ -6,13 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kostiamol/centerms/cfg"
+
+	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
-
-	"sync"
 
 	"context"
 
@@ -22,7 +23,7 @@ import (
 type (
 	// StreamService is used to deal with streaming of data from the device to web client (dashboard).
 	StreamService struct {
-		log        *logrus.Entry
+		log        *zap.SugaredLogger
 		ctrl       Ctrl
 		subscriber subscriber
 		sub        subscription
@@ -33,7 +34,7 @@ type (
 
 	// StreamServiceCfg is used to initialize an instance of StreamService.
 	StreamServiceCfg struct {
-		Log        *logrus.Entry
+		Log        *zap.SugaredLogger
 		Ctrl       Ctrl
 		Subscriber subscriber
 		PubChan    string
@@ -51,7 +52,7 @@ func NewStreamService(c *StreamServiceCfg) *StreamService {
 		portWS:     c.PortWS,
 		subscriber: c.Subscriber,
 		ctrl:       c.Ctrl,
-		log:        c.Log.WithFields(logrus.Fields{"component": "stream"}),
+		log:        c.Log.With("component", "stream"),
 		conns:      *newStreamConns(),
 		sub: subscription{
 			ChanName: c.PubChan,
@@ -70,18 +71,13 @@ func NewStreamService(c *StreamServiceCfg) *StreamService {
 // Run launches the service by running goroutines for listening the service termination, new device data,
 // closed web client connections and publishing new device data to web clients with open connections.
 func (s *StreamService) Run() {
-	s.log.WithFields(logrus.Fields{
-		"func":  "Run",
-		"event": cfg.EventSVCStarted,
-	}).Infof("is running on: websocket port [%d]", s.portWS)
+	s.log.With("event", cfg.EventComponentStarted).
+		Infof("is running on websocket port [%d]", s.portWS)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "Run",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
+			s.log.With("event", cfg.EventPanic).Errorf("%s", r)
 			cancel()
 			s.terminate()
 		}
@@ -109,10 +105,8 @@ func (s *StreamService) listenTermination() {
 }
 
 func (s *StreamService) terminate() {
-	s.log.WithFields(logrus.Fields{
-		"func":  "terminate",
-		"event": cfg.EventSVCShutdown,
-	}).Info("svc is down")
+	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
+	s.log.Sync() // nolint
 	s.ctrl.Terminate()
 }
 
@@ -121,10 +115,7 @@ type devID string
 func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "addConnHandler",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
+			s.log.With("event", cfg.EventPanic).Errorf("addConnHandler: %s", r)
 			s.terminate()
 		}
 	}()
@@ -140,25 +131,17 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "addConnHandler",
-		}).Errorf("Upgrade() failed %s", err)
+		s.log.Errorf("addConnHandler(): Upgrade() failed %s", err)
 		return
 	}
 	s.conns.idConns[id].addConn(conn)
-	s.log.WithFields(logrus.Fields{
-		"func":  "addConnHandler",
-		"event": cfg.EventWSConnAdded,
-	}).Infof("addr: %v", conn.RemoteAddr())
+	s.log.With("event", cfg.EventWSConnAdded).Infof("addConnHandler(): addr: %v", conn.RemoteAddr())
 }
 
 func (s *StreamService) listenPubs(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "listenPubs",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
+			s.log.With("event", cfg.EventPanic).Errorf("listenPubs(): %s", r)
 			s.terminate()
 		}
 	}()
@@ -179,19 +162,14 @@ func (s *StreamService) listenPubs(ctx context.Context) {
 func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "stream",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
+			s.log.With("event", cfg.EventPanic).Errorf("stream(): %s", r)
 			s.terminate()
 		}
 	}()
 
 	var dev DevData
 	if err := json.Unmarshal(msg, &dev); err != nil {
-		s.log.WithFields(logrus.Fields{
-			"func": "stream",
-		}).Errorf("Unmarshal() failed: %s", err)
+		s.log.Errorf("stream(): Unmarshal() failed: %s", err)
 		return err
 	}
 
@@ -205,10 +183,8 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 				err := conn.WriteMessage(1, msg)
 				s.conns.idConns[devID(dev.Meta.MAC)].Unlock()
 				if err != nil {
-					s.log.WithFields(logrus.Fields{
-						"func":  "stream",
-						"event": cfg.EventWSConnRemoved,
-					}).Infof("addr: %v", conn.RemoteAddr())
+					s.log.With("event", cfg.EventWSConnRemoved).
+						Infof("stream(): addr: %v", conn.RemoteAddr())
 					s.conns.closedConns <- conn
 					return err
 				}
@@ -222,10 +198,7 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 func (s *StreamService) listenClosedConns(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.WithFields(logrus.Fields{
-				"func":  "listenClosedConns",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
+			s.log.With("event", cfg.EventPanic).Errorf("listenClosedConns(): %s", r)
 			s.terminate()
 		}
 	}()

@@ -3,8 +3,6 @@ package api
 import (
 	"net/http"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 func (a *API) registerRoute(method, path string, handler http.HandlerFunc, middlewares ...func(next http.HandlerFunc, name string) http.HandlerFunc) {
@@ -18,11 +16,6 @@ func (a *API) requestLogger(next http.HandlerFunc, name string) http.HandlerFunc
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next(w, r)
-		a.log.WithFields(logrus.Fields{
-			"method":   r.Method,
-			"uri":      r.RequestURI,
-			"name":     name,
-			"duration": time.Since(start),
-		}).Info()
+		a.log.With("method", r.Method, "uri", r.RequestURI, "name", name, "duration", time.Since(start)).Info()
 	}
 }

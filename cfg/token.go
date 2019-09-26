@@ -10,7 +10,7 @@ type Token struct {
 	PrivateKey string
 }
 
-func (t Token) validate() error {
+func (t Token) Validate() error {
 	if t.PublicKey == "" {
 		return fmt.Errorf("PublicKey is missing")
 	}

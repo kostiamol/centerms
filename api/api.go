@@ -4,14 +4,15 @@ import (
 	"net/http"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kostiamol/centerms/svc"
+
+	"fmt"
 
 	"github.com/gorilla/mux"
 	"github.com/kostiamol/centerms/cfg"
 	"github.com/rs/cors"
-	"github.com/sirupsen/logrus"
-
-	"fmt"
 )
 
 type (
@@ -31,7 +32,7 @@ type (
 	// API is used to deal with user's queries from the web client (dashboard).
 	API struct {
 		appID        string
-		log          *logrus.Entry
+		log          *zap.SugaredLogger
 		pubChan      string
 		portRPC      int32
 		portREST     int32
@@ -48,7 +49,7 @@ type (
 	// Cfg is used to initialize an instance of API.
 	Cfg struct {
 		AppID        string
-		Log          *logrus.Entry
+		Log          *zap.SugaredLogger
 		PubChan      string
 		PortRPC      int32
 		PortREST     int32
@@ -63,7 +64,7 @@ type (
 // New creates and initializes a new instance of API.
 func New(c *Cfg) *API {
 	return &API{
-		log:          c.Log.WithFields(logrus.Fields{"component": "api"}),
+		log:          c.Log.With("component", "api"),
 		pubChan:      c.PubChan,
 		portRPC:      c.PortRPC,
 		portREST:     c.PortREST,
@@ -78,10 +79,8 @@ func New(c *Cfg) *API {
 // Run launches the service by running goroutines for listening the service termination and queries
 // from the web client.
 func (a *API) Run() {
-	a.log.WithFields(logrus.Fields{
-		"func":  "Run",
-		"event": cfg.EventSVCStarted,
-	}).Infof("is running on: rpc port [%d], rest port [%d]", a.portRPC, a.portREST)
+	a.log.With("event", cfg.EventComponentStarted).
+		Infof("is running on rpc port [%d] rest port [%d]", a.portRPC, a.portREST)
 
 	var err error
 	if a.token, err = newTokenValidator(a.publicKey); err != nil {
@@ -131,6 +130,6 @@ func (a *API) serve() {
 	}
 
 	if err := s.ListenAndServe(); err != nil {
-		a.log.Infof("ListenAndServe() failed: %s", err)
+		a.log.Fatalf("ListenAndServe(): %s", err)
 	}
 }

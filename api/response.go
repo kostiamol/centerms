@@ -5,8 +5,6 @@ import (
 	"net/http"
 
 	"github.com/kostiamol/centerms/store"
-
-	"github.com/sirupsen/logrus"
 )
 
 func respMeta(w http.ResponseWriter, meta interface{}) { // nolint
@@ -20,7 +18,7 @@ func respMeta(w http.ResponseWriter, meta interface{}) { // nolint
 	w.Header().Set("Content-Type", "application/json")
 
 	if _, err = w.Write(b); err != nil {
-		logrus.Error(err)
+		// logrus.Error(err)
 	}
 }
 
@@ -47,7 +45,7 @@ func resp(w http.ResponseWriter, data interface{}, md ...store.Meta) { // nolint
 	w.Header().Set("Content-Type", "application/json")
 
 	if _, err = w.Write(b); err != nil {
-		logrus.Error(err)
+		// logrus.Error(err)
 	}
 }
 
@@ -83,17 +81,17 @@ func respError(w http.ResponseWriter, err error) {
 		resp["message"] = apiErr.Message
 		resp["validation_errors"] = map[string]interface{}{"_error": globalErr, "errors": apiErr.Errors}
 	default:
-		logrus.WithField("API", "jsonError").Error(err)
+		// logrus.WithField("API", "jsonError").Error(err)
 	}
 
 	b, err := json.Marshal(resp)
 	if err != nil {
-		logrus.Error(err)
+		// logrus.Error(err)
 	}
 
 	w.WriteHeader(code)
 
 	if _, err = w.Write(b); err != nil {
-		logrus.Error(err)
+		// logrus.Error(err)
 	}
 }

@@ -1,9 +1,9 @@
 package api
 
 import (
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/kostiamol/centerms/svc"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 
 	"github.com/kostiamol/centerms/cfg"
@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -22,33 +21,26 @@ import (
 func (a *API) runRPCServer() {
 	defer func() {
 		if r := recover(); r != nil {
-			a.log.WithFields(logrus.Fields{
-				"func":  "listenCfg",
-				"event": cfg.EventPanic,
-			}).Errorf("%s", r)
+			a.log.With("event", cfg.EventPanic).Errorf("runRPCServer(): %s", r)
 		}
 	}()
-	l, err := net.Listen("tcp", ":"+fmt.Sprint(a.portRPC))
-	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "runRPCServer",
-		}).Fatalf("Listen() failed: %s", err)
-	}
 
-	grpc_logrus.ReplaceGrpcLogger(a.log)
-
+	grpc_zap.ReplaceGrpcLogger(a.log.Desugar())
 	s := grpc.NewServer(
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			grpc_logrus.UnaryServerInterceptor(a.log),
+			grpc_zap.UnaryServerInterceptor(a.log.Desugar()),
 			grpc_recovery.UnaryServerInterceptor(),
 		)),
 	)
 
+	l, err := net.Listen("tcp", ":"+fmt.Sprint(a.portRPC))
+	if err != nil {
+		a.log.Fatalf("Listen() failed: %s", err)
+	}
+
 	proto.RegisterCenterServiceServer(s, a)
 	if err := s.Serve(l); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "runRPCServer",
-		}).Fatalf("Serve() failed: %s", err)
+		a.log.Fatalf("Serve(): %s", err)
 	}
 }
 
@@ -60,15 +52,13 @@ func (a *API) SetDevInitCfg(ctx context.Context, r *proto.SetDevInitCfgRequest) 
 		Name: r.Meta.Name,
 		MAC:  r.Meta.Mac,
 	}
+
 	c, err := a.cfgProvider.SetDevInitCfg(&m)
 	if err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "SetDevInitCfg",
-		}).Errorf("SetDevInitCfg() failed: %s", err)
+		return nil, fmt.Errorf("SetDevInitCfg(): %s", err)
 	}
-	return &proto.SetDevInitCfgResponse{
-		Cfg: c.Data,
-	}, nil
+
+	return &proto.SetDevInitCfgResponse{Cfg: c.Data}, nil
 }
 
 // SaveDevData saves data from device using DataService.
@@ -82,12 +72,10 @@ func (a *API) SaveDevData(ctx context.Context, r *proto.SaveDevDataRequest) (*pr
 		},
 		Data: r.Data,
 	}
+
 	if err := a.dataProvider.SaveDevData(&d); err != nil {
-		a.log.WithFields(logrus.Fields{
-			"func": "SaveDevData",
-		}).Errorf("SaveDevData() failed: %s", err)
+		return nil, fmt.Errorf("SaveDevData(): %s", err)
 	}
-	return &proto.SaveDevDataResponse{
-		Status: "OK",
-	}, nil
+
+	return &proto.SaveDevDataResponse{Status: "OK"}, nil
 }

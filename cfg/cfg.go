@@ -14,15 +14,15 @@ const (
 	DevCfgChan  = "dev_cfg"
 	DevDataChan = "dev_data"
 
-	EventCfgPatchCreated = "cfg_patch_created"
-	EventDevRegistered   = "dev_registered"
-	EventMSTerminated    = "ms_terminated"
-	EventPanic           = "panic"
-	EventStoreInit       = "store_init"
-	EventSVCStarted      = "svc_started"
-	EventSVCShutdown     = "svc_shutdown"
-	EventWSConnAdded     = "ws_conn_added"
-	EventWSConnRemoved   = "ws_conn_removed"
+	EventCfgPatchCreated   = "cfg_patch_created"
+	EventDevRegistered     = "dev_registered"
+	EventMSTerminated      = "ms_terminated"
+	EventPanic             = "panic"
+	EventStoreInit         = "store_init"
+	EventComponentStarted  = "component_started"
+	EventComponentShutdown = "component_shutdown"
+	EventWSConnAdded       = "ws_conn_added"
+	EventWSConnRemoved     = "ws_conn_removed"
 )
 
 type (
@@ -45,13 +45,12 @@ type (
 	}
 )
 
-// NewConfig initializes and returns configuration structure with environment variables.
-func NewConfig() (*Config, error) {
+// InitConfig initializes and returns configuration structure with environment variables.
+func InitConfig() (*Config, error) {
 	publicKey, err := decodeEnv("PUBLIC_KEY")
 	if err != nil {
 		return nil, err
 	}
-
 	privateKey, err := decodeEnv("PRIVATE_KEY")
 	if err != nil {
 		return nil, err

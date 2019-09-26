@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewConfig(t *testing.T) {
-	_, err := NewConfig()
+	_, err := InitConfig()
 	assert.NotNil(t, err)
 }
 
@@ -111,15 +111,15 @@ func TestStoreConfig(t *testing.T) {
 
 func TestTokenConfig(t *testing.T) {
 	tkn := Token{PublicKey: "pubkey", PrivateKey: "privkey"}
-	err := tkn.validate()
+	err := tkn.Validate()
 	assert.Nil(t, err)
 
 	tkn = Token{}
-	err = tkn.validate()
+	err = tkn.Validate()
 	assert.NotNil(t, err)
 
 	tkn = Token{PublicKey: "pubkey"}
-	err = tkn.validate()
+	err = tkn.Validate()
 	assert.NotNil(t, err)
 }
 
