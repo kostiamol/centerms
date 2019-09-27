@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"go.uber.org/zap"
+	"github.com/kostiamol/centerms/log"
 
 	"github.com/kostiamol/centerms/svc"
 
@@ -32,7 +32,7 @@ type (
 	// API is used to deal with user's queries from the web client (dashboard).
 	API struct {
 		appID        string
-		log          *zap.SugaredLogger
+		log          log.Logger
 		pubChan      string
 		portRPC      int32
 		portREST     int32
@@ -49,7 +49,7 @@ type (
 	// Cfg is used to initialize an instance of API.
 	Cfg struct {
 		AppID        string
-		Log          *zap.SugaredLogger
+		Log          log.Logger
 		PubChan      string
 		PortRPC      int32
 		PortREST     int32

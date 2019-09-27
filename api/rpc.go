@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/kostiamol/centerms/svc"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/recovery"
@@ -25,10 +24,8 @@ func (a *API) runRPCServer() {
 		}
 	}()
 
-	grpc_zap.ReplaceGrpcLogger(a.log.Desugar())
 	s := grpc.NewServer(
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			grpc_zap.UnaryServerInterceptor(a.log.Desugar()),
 			grpc_recovery.UnaryServerInterceptor(),
 		)),
 	)

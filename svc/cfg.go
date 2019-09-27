@@ -4,7 +4,7 @@ package svc
 import (
 	"strconv"
 
-	"go.uber.org/zap"
+	"github.com/kostiamol/centerms/log"
 
 	"github.com/kostiamol/centerms/cfg"
 	"github.com/kostiamol/centerms/proto"
@@ -28,7 +28,7 @@ const (
 type (
 	// CfgService is used to deal with device configurations.
 	CfgService struct {
-		log      *zap.SugaredLogger
+		log      log.Logger
 		ctrl     Ctrl
 		store    cfgStorer
 		sub      subscription
@@ -38,7 +38,7 @@ type (
 
 	// CfgServiceCfg is used to initialize an instance of CfgService.
 	CfgServiceCfg struct {
-		Log      *zap.SugaredLogger
+		Log      log.Logger
 		Ctrl     Ctrl
 		Store    cfgStorer
 		SubChan  string
@@ -106,7 +106,7 @@ func (s *CfgService) listenTermination() {
 
 func (s *CfgService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
-	s.log.Sync() // nolint
+	s.log.Flush()
 	s.ctrl.Terminate()
 }
 

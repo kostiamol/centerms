@@ -3,7 +3,7 @@ package svc
 import (
 	"encoding/json"
 
-	"go.uber.org/zap"
+	"github.com/kostiamol/centerms/log"
 
 	"github.com/kostiamol/centerms/cfg"
 
@@ -13,7 +13,7 @@ import (
 type (
 	// DataService is used to deal with device data.
 	DataService struct {
-		log     *zap.SugaredLogger
+		log     log.Logger
 		ctrl    Ctrl
 		store   dataStorer
 		pubChan string
@@ -21,7 +21,7 @@ type (
 
 	// DataServiceCfg is used to initialize an instance of DataService.
 	DataServiceCfg struct {
-		Log     *zap.SugaredLogger
+		Log     log.Logger
 		Ctrl    Ctrl
 		Store   dataStorer
 		PubChan string
@@ -81,7 +81,7 @@ func (s *DataService) listenTermination() {
 
 func (s *DataService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("svc is down")
-	s.log.Sync() // nolint
+	s.log.Flush() // nolint
 	s.ctrl.Terminate()
 }
 

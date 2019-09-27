@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"go.uber.org/zap"
+	"github.com/kostiamol/centerms/log"
 
 	"github.com/kostiamol/centerms/cfg"
 
@@ -23,7 +23,7 @@ import (
 type (
 	// StreamService is used to deal with streaming of data from the device to web client (dashboard).
 	StreamService struct {
-		log        *zap.SugaredLogger
+		log        log.Logger
 		ctrl       Ctrl
 		subscriber subscriber
 		sub        subscription
@@ -34,7 +34,7 @@ type (
 
 	// StreamServiceCfg is used to initialize an instance of StreamService.
 	StreamServiceCfg struct {
-		Log        *zap.SugaredLogger
+		Log        log.Logger
 		Ctrl       Ctrl
 		Subscriber subscriber
 		PubChan    string
@@ -106,7 +106,7 @@ func (s *StreamService) listenTermination() {
 
 func (s *StreamService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
-	s.log.Sync() // nolint
+	s.log.Flush() // nolint
 	s.ctrl.Terminate()
 }
 

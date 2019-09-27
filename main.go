@@ -6,7 +6,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/cfg"
-	"github.com/kostiamol/centerms/cfg/log"
+	"github.com/kostiamol/centerms/log"
 	"github.com/kostiamol/centerms/store"
 	"github.com/kostiamol/centerms/svc"
 )
@@ -29,8 +29,8 @@ func main() {
 		initCfgErr = fmt.Errorf("InitConfig(): %s", initCfgErr)
 	}
 
-	logger := log.NewLog(config.Service.AppID, config.Service.LogLevel)
-	defer logger.Sync() // nolint
+	logger := log.New(config.Service.AppID, config.Service.LogLevel)
+	defer logger.Flush() // nolint
 
 	if loadCfgErr != nil || initCfgErr != nil {
 		logger.Fatal(initCfgErr)
