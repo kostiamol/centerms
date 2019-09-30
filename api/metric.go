@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kostiamol/centerms/log"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -56,7 +58,7 @@ func (m *metric) timing(start time.Time, label string) {
 		Observe(time.Since(start).Seconds())
 }
 
-func (m *metric) timeTracker(next http.HandlerFunc, label string) http.HandlerFunc {
+func (m *metric) timeTracker(next http.HandlerFunc, label string, l log.Logger) http.HandlerFunc {
 	return func(response http.ResponseWriter, request *http.Request) {
 		start := time.Now()
 		next(response, request)

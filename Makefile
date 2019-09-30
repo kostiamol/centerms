@@ -1,4 +1,4 @@
-gen:
+proto_gen:
 	@echo "generating protobufs..."
 	@protoc \
     	--proto_path=${GOPATH}/src \

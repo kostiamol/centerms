@@ -3,19 +3,21 @@ package api
 import (
 	"net/http"
 	"time"
+
+	"github.com/kostiamol/centerms/log"
 )
 
-func (a *API) registerRoute(method, path string, handler http.HandlerFunc, middlewares ...func(next http.HandlerFunc, name string) http.HandlerFunc) {
+func (a *api) registerRoute(method, path string, handler http.HandlerFunc, middlewares ...func(next http.HandlerFunc, name string, l log.Logger) http.HandlerFunc) {
 	for _, mw := range middlewares {
-		handler = mw(handler, path)
+		handler = mw(handler, path, a.log)
 	}
 	a.router.Handle(path, handler).Methods(method)
 }
 
-func (a *API) requestLogger(next http.HandlerFunc, name string) http.HandlerFunc {
+func requestLogger(next http.HandlerFunc, name string, l log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next(w, r)
-		a.log.With("method", r.Method, "uri", r.RequestURI, "name", name, "duration", time.Since(start)).Info()
+		l.With("method", r.Method, "uri", r.RequestURI, "name", name, "duration", time.Since(start)).Info()
 	}
 }

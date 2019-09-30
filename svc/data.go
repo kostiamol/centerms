@@ -11,23 +11,8 @@ import (
 )
 
 type (
-	// DataService is used to deal with device data.
-	DataService struct {
-		log     log.Logger
-		ctrl    Ctrl
-		store   dataStorer
-		pubChan string
-	}
-
-	// DataServiceCfg is used to initialize an instance of DataService.
-	DataServiceCfg struct {
-		Log     log.Logger
-		Ctrl    Ctrl
-		Store   dataStorer
-		PubChan string
-	}
-
-	dataStorer interface {
+	// DataStorer is a contract for the data storer.
+	DataStorer interface {
 		GetDevsData() ([]DevData, error)
 		GetDevData(id string) (*DevData, error)
 		SaveDevData(*DevData) error
@@ -47,11 +32,27 @@ type (
 		Meta DevMeta         `json:"meta"`
 		Data json.RawMessage `json:"data"`
 	}
+
+	// DataServiceCfg is used to initialize an instance of dataService.
+	DataServiceCfg struct {
+		Log     log.Logger
+		Ctrl    Ctrl
+		Store   DataStorer
+		PubChan string
+	}
+
+	// dataService is used to deal with device data.
+	dataService struct {
+		log     log.Logger
+		ctrl    Ctrl
+		store   DataStorer
+		pubChan string
+	}
 )
 
-// NewDataService creates and initializes a new instance of DataService.
-func NewDataService(c *DataServiceCfg) *DataService {
-	return &DataService{
+// NewDataService creates and initializes a new instance of dataService.
+func NewDataService(c *DataServiceCfg) *dataService { //nolint
+	return &dataService{
 		log:     c.Log.With("component", "data"),
 		ctrl:    c.Ctrl,
 		store:   c.Store,
@@ -60,7 +61,7 @@ func NewDataService(c *DataServiceCfg) *DataService {
 }
 
 // Run launches the service by running goroutine that listens for the service termination.
-func (s *DataService) Run() {
+func (s *dataService) Run() {
 	s.log.With("event", cfg.EventComponentStarted).Info("is running")
 
 	_, cancel := context.WithCancel(context.Background())
@@ -74,19 +75,19 @@ func (s *DataService) Run() {
 	go s.listenTermination()
 }
 
-func (s *DataService) listenTermination() {
+func (s *dataService) listenTermination() {
 	<-s.ctrl.StopChan
 	s.terminate()
 }
 
-func (s *DataService) terminate() {
+func (s *dataService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("svc is down")
 	s.log.Flush() // nolint
 	s.ctrl.Terminate()
 }
 
 // SaveDevData is used to save device data to the store.
-func (s *DataService) SaveDevData(data *DevData) error {
+func (s *dataService) SaveDevData(data *DevData) error {
 	if err := s.store.SaveDevData(data); err != nil {
 		s.log.Errorf("SaveDevData(): %s", err)
 		return err
@@ -95,7 +96,7 @@ func (s *DataService) SaveDevData(data *DevData) error {
 	return nil
 }
 
-func (s *DataService) pubDevData(data *DevData) error {
+func (s *dataService) pubDevData(data *DevData) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", cfg.EventPanic).Errorf("pubDevData(): %s", r)
@@ -115,7 +116,7 @@ func (s *DataService) pubDevData(data *DevData) error {
 }
 
 // GetDevData is used to get device data from the store.
-func (s *DataService) GetDevData(id string) (*DevData, error) {
+func (s *dataService) GetDevData(id string) (*DevData, error) {
 	d, err := s.store.GetDevData(id)
 	if err != nil {
 		s.log.Errorf("GetDevData(): %s", err)
@@ -125,7 +126,7 @@ func (s *DataService) GetDevData(id string) (*DevData, error) {
 }
 
 // GetDevsData is used to get all the devices data from the store.
-func (s *DataService) GetDevsData() ([]DevData, error) {
+func (s *dataService) GetDevsData() ([]DevData, error) {
 	ds, err := s.store.GetDevsData()
 	if err != nil {
 		s.log.Errorf("GetDevsData(): %s", err)

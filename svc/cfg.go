@@ -2,6 +2,7 @@
 package svc
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/kostiamol/centerms/log"
@@ -21,32 +22,14 @@ import (
 )
 
 const (
-	aggregate = "cfg_svc"
-	event     = "cfg_patched"
+	cfgPatchSubject = "cfg_patch"
+	aggregate       = "cfg_svc"
+	event           = "cfg_patched"
 )
 
 type (
-	// CfgService is used to deal with device configurations.
-	CfgService struct {
-		log      log.Logger
-		ctrl     Ctrl
-		store    cfgStorer
-		sub      subscription
-		retry    time.Duration
-		natsAddr cfg.Addr
-	}
-
-	// CfgServiceCfg is used to initialize an instance of CfgService.
-	CfgServiceCfg struct {
-		Log      log.Logger
-		Ctrl     Ctrl
-		Store    cfgStorer
-		SubChan  string
-		Retry    time.Duration
-		NATSAddr cfg.Addr
-	}
-
-	cfgStorer interface {
+	// CfgStorer is a contract for the configuration storer.
+	CfgStorer interface {
 		SetDevCfg(id string, c *DevCfg) error
 		GetDevCfg(id string) (*DevCfg, error)
 		GetDevDefaultCfg(*DevMeta) (*DevCfg, error)
@@ -62,15 +45,35 @@ type (
 		Data json.RawMessage `json:"data"`
 	}
 
+	// CfgServiceCfg is used to initialize an instance of cfgService.
+	CfgServiceCfg struct {
+		Log      log.Logger
+		Ctrl     Ctrl
+		Store    CfgStorer
+		SubChan  string
+		Retry    time.Duration
+		NATSAddr cfg.Addr
+	}
+
+	// cfgService is used to deal with device configurations.
+	cfgService struct {
+		log      log.Logger
+		ctrl     Ctrl
+		store    CfgStorer
+		sub      subscription
+		retry    time.Duration
+		natsAddr cfg.Addr
+	}
+
 	subscription struct {
 		ChanName string
 		Chan     chan []byte
 	}
 )
 
-// NewCfgService creates and initializes a new instance of CfgService.
-func NewCfgService(c *CfgServiceCfg) *CfgService {
-	return &CfgService{
+// NewCfgService creates and initializes a new instance of cfgService.
+func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
+	return &cfgService{
 		log:   c.Log.With("component", "cfg"),
 		ctrl:  c.Ctrl,
 		store: c.Store,
@@ -84,7 +87,7 @@ func NewCfgService(c *CfgServiceCfg) *CfgService {
 }
 
 // Run launches the service by running goroutines for listening the service termination and config patches.
-func (s *CfgService) Run() {
+func (s *cfgService) Run() {
 	s.log.With("event", cfg.EventComponentStarted).Infof("is running")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -99,18 +102,18 @@ func (s *CfgService) Run() {
 	go s.listenCfgPatches(ctx)
 }
 
-func (s *CfgService) listenTermination() {
+func (s *cfgService) listenTermination() {
 	<-s.ctrl.StopChan
 	s.terminate()
 }
 
-func (s *CfgService) terminate() {
+func (s *cfgService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
 	s.log.Flush()
 	s.ctrl.Terminate()
 }
 
-func (s *CfgService) listenCfgPatches(ctx context.Context) {
+func (s *cfgService) listenCfgPatches(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", cfg.EventPanic).Errorf("listenCfgPatches(): %s", r)
@@ -135,7 +138,7 @@ func (s *CfgService) listenCfgPatches(ctx context.Context) {
 	}
 }
 
-func (s *CfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
+func (s *cfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", cfg.EventPanic).Errorf("pubNewCfgPatchEvent(): %s", r)
@@ -162,7 +165,7 @@ func (s *CfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
 		EventType:     event,
 		EventData:     string(devCfg.Data),
 	}
-	subj := "CfgService.Patch." + devCfg.MAC
+	subj := fmt.Sprintf("%s.%s", cfgPatchSubject, devCfg.MAC)
 	b, err := gproto.Marshal(&e)
 	if err != nil {
 		s.log.Errorf("pubNewCfgPatchEvent(): marshal failed: %s", err)
@@ -178,7 +181,7 @@ func (s *CfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
 
 // SetDevInitCfg check's whether device is already registered in the system. If it's already registered,
 // the func returns actual configuration. Otherwise it returns default config for that type of device.
-func (s *CfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
+func (s *cfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 	if err := s.store.SetDevMeta(meta); err != nil {
 		s.log.Errorf("SetDevInitCfg(): %s", err)
 		return nil, err
@@ -221,7 +224,7 @@ func (s *CfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 }
 
 // GetDevCfg returns configuration for the given device.
-func (s *CfgService) GetDevCfg(id string) (*DevCfg, error) {
+func (s *cfgService) GetDevCfg(id string) (*DevCfg, error) {
 	c, err := s.store.GetDevCfg(id)
 	if err != nil {
 		s.log.Errorf("GetDevCfg(): %s", err)
@@ -231,7 +234,7 @@ func (s *CfgService) GetDevCfg(id string) (*DevCfg, error) {
 }
 
 // SetDevCfg sets configuration for the given device.
-func (s *CfgService) SetDevCfg(id string, c *DevCfg) error {
+func (s *cfgService) SetDevCfg(id string, c *DevCfg) error {
 	if err := s.store.SetDevCfg(id, c); err != nil {
 		s.log.Errorf("SetDevCfg(): %s", err)
 		return err
@@ -240,7 +243,7 @@ func (s *CfgService) SetDevCfg(id string, c *DevCfg) error {
 }
 
 // PublishCfgPatch posts a message on the given channel.
-func (s *CfgService) PublishCfgPatch(c *DevCfg, channel string) (int64, error) {
+func (s *cfgService) PublishCfgPatch(c *DevCfg, channel string) (int64, error) {
 	numberOfClients, err := s.store.Publish(c, channel)
 	if err != nil {
 		return 0, err

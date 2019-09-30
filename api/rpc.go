@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func (a *API) runRPCServer() {
+func (a *api) runRPCServer() {
 	defer func() {
 		if r := recover(); r != nil {
 			a.log.With("event", cfg.EventPanic).Errorf("runRPCServer(): %s", r)
@@ -41,9 +41,9 @@ func (a *API) runRPCServer() {
 	}
 }
 
-// SetDevInitCfg sets device's initial configuration when it connects to the center for the first time using CfgService
-// and returns that configuration to the device.
-func (a *API) SetDevInitCfg(ctx context.Context, r *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse, error) {
+// SetDevInitCfg sets device's initial configuration when it connects to the center for the first
+// time using CfgProvider and returns that configuration to the device.
+func (a *api) SetDevInitCfg(ctx context.Context, r *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse, error) {
 	m := svc.DevMeta{
 		Type: r.Meta.Type,
 		Name: r.Meta.Name,
@@ -58,8 +58,8 @@ func (a *API) SetDevInitCfg(ctx context.Context, r *proto.SetDevInitCfgRequest) 
 	return &proto.SetDevInitCfgResponse{Cfg: c.Data}, nil
 }
 
-// SaveDevData saves data from device using DataService.
-func (a *API) SaveDevData(ctx context.Context, r *proto.SaveDevDataRequest) (*proto.SaveDevDataResponse, error) {
+// SaveDevData saves data from device using DataProvider.
+func (a *api) SaveDevData(ctx context.Context, r *proto.SaveDevDataRequest) (*proto.SaveDevDataResponse, error) {
 	d := svc.DevData{
 		Time: r.Time,
 		Meta: svc.DevMeta{

@@ -21,41 +21,42 @@ import (
 )
 
 type (
-	// StreamService is used to deal with streaming of data from the device to web client (dashboard).
-	StreamService struct {
-		log        log.Logger
-		ctrl       Ctrl
-		subscriber subscriber
-		sub        subscription
-		portWS     int32
-		conns      streamConns
-		upgrader   websocket.Upgrader
+	// CfgSubscriber is a contract for the configuration subscriber.
+	CfgSubscriber interface {
+		Subscribe(c chan []byte, channel ...string) error
 	}
 
-	// StreamServiceCfg is used to initialize an instance of StreamService.
+	// StreamServiceCfg is used to initialize an instance of streamService.
 	StreamServiceCfg struct {
 		Log        log.Logger
 		Ctrl       Ctrl
-		Subscriber subscriber
-		PubChan    string
-		PortWS     int32
+		Subscriber CfgSubscriber
+		SubChan    string
+		PortWS     uint64
 	}
 
-	subscriber interface {
-		Subscribe(c chan []byte, channel ...string) error
+	// streamService is used to deal with streaming of data from the device to web client (dashboard).
+	streamService struct {
+		log        log.Logger
+		ctrl       Ctrl
+		subscriber CfgSubscriber
+		sub        subscription
+		portWS     uint64
+		conns      streamConns
+		upgrader   websocket.Upgrader
 	}
 )
 
-// NewStreamService creates and initializes a new instance of StreamService service.
-func NewStreamService(c *StreamServiceCfg) *StreamService {
-	return &StreamService{
+// NewStreamService creates and initializes a new instance of streamService service.
+func NewStreamService(c *StreamServiceCfg) *streamService { // nolint
+	return &streamService{
 		portWS:     c.PortWS,
 		subscriber: c.Subscriber,
 		ctrl:       c.Ctrl,
 		log:        c.Log.With("component", "stream"),
 		conns:      *newStreamConns(),
 		sub: subscription{
-			ChanName: c.PubChan,
+			ChanName: c.SubChan,
 			Chan:     make(chan []byte),
 		},
 		upgrader: websocket.Upgrader{
@@ -70,7 +71,7 @@ func NewStreamService(c *StreamServiceCfg) *StreamService {
 
 // Run launches the service by running goroutines for listening the service termination, new device data,
 // closed web client connections and publishing new device data to web clients with open connections.
-func (s *StreamService) Run() {
+func (s *streamService) Run() {
 	s.log.With("event", cfg.EventComponentStarted).
 		Infof("is running on websocket port [%d]", s.portWS)
 
@@ -99,12 +100,12 @@ func (s *StreamService) Run() {
 	s.log.Fatal(srv.ListenAndServe())
 }
 
-func (s *StreamService) listenTermination() {
+func (s *streamService) listenTermination() {
 	<-s.ctrl.StopChan
 	s.terminate()
 }
 
-func (s *StreamService) terminate() {
+func (s *streamService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
 	s.log.Flush() // nolint
 	s.ctrl.Terminate()
@@ -112,7 +113,7 @@ func (s *StreamService) terminate() {
 
 type devID string
 
-func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
+func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", cfg.EventPanic).Errorf("addConnHandler: %s", r)
@@ -138,7 +139,7 @@ func (s *StreamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	s.log.With("event", cfg.EventWSConnAdded).Infof("addConnHandler(): addr: %v", conn.RemoteAddr())
 }
 
-func (s *StreamService) listenPubs(ctx context.Context) {
+func (s *streamService) listenPubs(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", cfg.EventPanic).Errorf("listenPubs(): %s", r)
@@ -159,7 +160,7 @@ func (s *StreamService) listenPubs(ctx context.Context) {
 	}
 }
 
-func (s *StreamService) stream(ctx context.Context, msg []byte) error {
+func (s *streamService) stream(ctx context.Context, msg []byte) error {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", cfg.EventPanic).Errorf("stream(): %s", r)
@@ -195,7 +196,7 @@ func (s *StreamService) stream(ctx context.Context, msg []byte) error {
 	return nil
 }
 
-func (s *StreamService) listenClosedConns(ctx context.Context) {
+func (s *streamService) listenClosedConns(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", cfg.EventPanic).Errorf("listenClosedConns(): %s", r)

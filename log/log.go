@@ -28,7 +28,7 @@ type (
 )
 
 // InitLog initializes and returns a new instance of a logger.
-func New(appID, logLevel string) *zapLogger {
+func New(appID, logLevel string) *zapLogger { //nolint
 	atom := zap.NewAtomicLevel()
 
 	encoderCfg := zap.NewProductionEncoderConfig()

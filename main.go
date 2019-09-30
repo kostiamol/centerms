@@ -59,8 +59,8 @@ func main() {
 			Log:        logger,
 			Ctrl:       ctrl,
 			Subscriber: storer,
-			PubChan:    cfg.DevDataChan,
-			PortWS:     int32(config.Service.PortWebSocket),
+			SubChan:    cfg.DevDataChan,
+			PortWS:     config.Service.PortWebSocket,
 		})
 	go stream.Run()
 

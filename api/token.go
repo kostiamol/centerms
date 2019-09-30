@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/kostiamol/centerms/log"
+
 	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/net/context"
 )
@@ -30,22 +32,22 @@ func newTokenValidator(publicKey string) (*tokenValidator, error) {
 	return &tokenValidator{publicKey: pk}, nil
 }
 
-func (t *tokenValidator) validator(next http.HandlerFunc, name string) http.HandlerFunc {
+func (t *tokenValidator) validator(next http.HandlerFunc, name string, l log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := t.getTokenClaims(w, r)
 		if err != nil {
-			respError(w, newBadJWTError(err.Error()))
+			respError(w, newBadJWTError(err.Error()), l)
 			return
 		}
 
 		owner, ok := claims[ownerIDKey]
 		if !ok {
-			respError(w, newBadJWTError("empty ownerID"))
+			respError(w, newBadJWTError("empty ownerID"), l)
 			return
 		}
 		ownerIDStr, ok := owner.(string)
 		if !ok {
-			respError(w, newBadJWTError("invalid ownerID"))
+			respError(w, newBadJWTError("invalid ownerID"), l)
 			return
 		}
 

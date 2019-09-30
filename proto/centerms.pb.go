@@ -38,7 +38,7 @@ func (m *Event) Reset()         { *m = Event{} }
 func (m *Event) String() string { return proto.CompactTextString(m) }
 func (*Event) ProtoMessage()    {}
 func (*Event) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_9b560189adaa16df, []int{0}
+	return fileDescriptor_centerms_5dadc88c7755695f, []int{0}
 }
 func (m *Event) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -112,7 +112,7 @@ func (m *DevMeta) Reset()         { *m = DevMeta{} }
 func (m *DevMeta) String() string { return proto.CompactTextString(m) }
 func (*DevMeta) ProtoMessage()    {}
 func (*DevMeta) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_9b560189adaa16df, []int{1}
+	return fileDescriptor_centerms_5dadc88c7755695f, []int{1}
 }
 func (m *DevMeta) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -171,7 +171,7 @@ func (m *SetDevInitCfgRequest) Reset()         { *m = SetDevInitCfgRequest{} }
 func (m *SetDevInitCfgRequest) String() string { return proto.CompactTextString(m) }
 func (*SetDevInitCfgRequest) ProtoMessage()    {}
 func (*SetDevInitCfgRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_9b560189adaa16df, []int{2}
+	return fileDescriptor_centerms_5dadc88c7755695f, []int{2}
 }
 func (m *SetDevInitCfgRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -222,7 +222,7 @@ func (m *SetDevInitCfgResponse) Reset()         { *m = SetDevInitCfgResponse{} }
 func (m *SetDevInitCfgResponse) String() string { return proto.CompactTextString(m) }
 func (*SetDevInitCfgResponse) ProtoMessage()    {}
 func (*SetDevInitCfgResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_9b560189adaa16df, []int{3}
+	return fileDescriptor_centerms_5dadc88c7755695f, []int{3}
 }
 func (m *SetDevInitCfgResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -268,7 +268,7 @@ func (m *SaveDevDataRequest) Reset()         { *m = SaveDevDataRequest{} }
 func (m *SaveDevDataRequest) String() string { return proto.CompactTextString(m) }
 func (*SaveDevDataRequest) ProtoMessage()    {}
 func (*SaveDevDataRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_9b560189adaa16df, []int{4}
+	return fileDescriptor_centerms_5dadc88c7755695f, []int{4}
 }
 func (m *SaveDevDataRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -326,7 +326,7 @@ func (m *SaveDevDataResponse) Reset()         { *m = SaveDevDataResponse{} }
 func (m *SaveDevDataResponse) String() string { return proto.CompactTextString(m) }
 func (*SaveDevDataResponse) ProtoMessage()    {}
 func (*SaveDevDataResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_9b560189adaa16df, []int{5}
+	return fileDescriptor_centerms_5dadc88c7755695f, []int{5}
 }
 func (m *SaveDevDataResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1646,9 +1646,9 @@ var (
 	ErrIntOverflowCenterms   = fmt.Errorf("proto: integer overflow")
 )
 
-func init() { proto.RegisterFile("centerms.proto", fileDescriptor_centerms_9b560189adaa16df) }
+func init() { proto.RegisterFile("centerms.proto", fileDescriptor_centerms_5dadc88c7755695f) }
 
-var fileDescriptor_centerms_9b560189adaa16df = []byte{
+var fileDescriptor_centerms_5dadc88c7755695f = []byte{
 	// 386 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x52, 0xbb, 0x4e, 0xe3, 0x50,
 	0x10, 0xb5, 0xd7, 0x79, 0x6c, 0x26, 0x0f, 0xad, 0xee, 0xee, 0x22, 0x27, 0x80, 0x05, 0x57, 0x42,

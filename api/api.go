@@ -16,28 +16,44 @@ import (
 )
 
 type (
-	cfgProvider interface {
+	// CfgProvider is a contract for the configuration provider.
+	CfgProvider interface {
 		GetDevCfg(id string) (*svc.DevCfg, error)
 		SetDevInitCfg(*svc.DevMeta) (*svc.DevCfg, error)
 		SetDevCfg(id string, c *svc.DevCfg) error
 		PublishCfgPatch(c *svc.DevCfg, channel string) (int64, error)
 	}
 
-	dataProvider interface {
+	// DataProvider is a contract for the data provider.
+	DataProvider interface {
 		GetDevsData() ([]svc.DevData, error)
 		GetDevData(id string) (*svc.DevData, error)
 		SaveDevData(*svc.DevData) error
 	}
 
-	// API is used to deal with user's queries from the web client (dashboard).
-	API struct {
+	// Cfg is used to initialize an instance of api.
+	Cfg struct {
+		AppID        string
+		Log          log.Logger
+		PubChan      string
+		PortRPC      int32
+		PortREST     int32
+		CfgProvider  CfgProvider
+		DataProvider DataProvider
+		Retry        time.Duration
+		PublicKey    string
+		PrivateKey   string
+	}
+
+	// api includes both rest and grpc.
+	api struct {
 		appID        string
 		log          log.Logger
 		pubChan      string
 		portRPC      int32
 		portREST     int32
-		cfgProvider  cfgProvider
-		dataProvider dataProvider
+		cfgProvider  CfgProvider
+		dataProvider DataProvider
 		retry        time.Duration
 		router       *mux.Router
 		token        *tokenValidator
@@ -45,25 +61,11 @@ type (
 		publicKey    string
 		privateKey   string
 	}
-
-	// Cfg is used to initialize an instance of API.
-	Cfg struct {
-		AppID        string
-		Log          log.Logger
-		PubChan      string
-		PortRPC      int32
-		PortREST     int32
-		CfgProvider  cfgProvider
-		DataProvider dataProvider
-		Retry        time.Duration
-		PublicKey    string
-		PrivateKey   string
-	}
 )
 
-// New creates and initializes a new instance of API.
-func New(c *Cfg) *API {
-	return &API{
+// New creates and initializes a new instance of api.
+func New(c *Cfg) *api { // nolint
+	return &api{
 		log:          c.Log.With("component", "api"),
 		pubChan:      c.PubChan,
 		portRPC:      c.PortRPC,
@@ -78,7 +80,7 @@ func New(c *Cfg) *API {
 
 // Run launches the service by running goroutines for listening the service termination and queries
 // from the web client.
-func (a *API) Run() {
+func (a *api) Run() {
 	a.log.With("event", cfg.EventComponentStarted).
 		Infof("is running on rpc port [%d] rest port [%d]", a.portRPC, a.portREST)
 
@@ -96,9 +98,9 @@ func (a *API) Run() {
 	a.serve()
 }
 
-func (a *API) registerRoutes() {
-	middleware := []func(next http.HandlerFunc, name string) http.HandlerFunc{
-		a.requestLogger,
+func (a *api) registerRoutes() {
+	middleware := []func(next http.HandlerFunc, name string, l log.Logger) http.HandlerFunc{
+		requestLogger,
 		a.token.validator,
 		a.metric.timeTracker,
 	}
@@ -114,7 +116,7 @@ func (a *API) registerRoutes() {
 	a.registerRoute(http.MethodPatch, "/v1/device/{id}/config", a.patchDevCfgHandler, middleware...)
 }
 
-func (a *API) serve() {
+func (a *api) serve() {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowCredentials: true,

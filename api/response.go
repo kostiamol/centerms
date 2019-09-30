@@ -4,25 +4,29 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/kostiamol/centerms/log"
+
 	"github.com/kostiamol/centerms/store"
 )
 
-func respMeta(w http.ResponseWriter, meta interface{}) { // nolint
+func respMeta(w http.ResponseWriter, meta interface{}) error { // nolint
 	resp := map[string]interface{}{"meta": meta}
 	b, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 
 	if _, err = w.Write(b); err != nil {
-		// logrus.Error(err)
+		return err
 	}
+
+	return nil
 }
 
-func resp(w http.ResponseWriter, data interface{}, md ...store.Meta) { // nolint
+func resp(w http.ResponseWriter, data interface{}, md ...store.Meta) error { // nolint
 	resp := map[string]interface{}{"data": data}
 
 	meta := map[string]interface{}{}
@@ -39,17 +43,19 @@ func resp(w http.ResponseWriter, data interface{}, md ...store.Meta) { // nolint
 	b, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 
 	if _, err = w.Write(b); err != nil {
-		// logrus.Error(err)
+		return err
 	}
+
+	return nil
 }
 
-func respError(w http.ResponseWriter, err error) {
+func respError(w http.ResponseWriter, err error, l log.Logger) {
 	w.Header().Set("Content-Type", "application/json")
 
 	code := http.StatusInternalServerError
@@ -81,17 +87,17 @@ func respError(w http.ResponseWriter, err error) {
 		resp["message"] = apiErr.Message
 		resp["validation_errors"] = map[string]interface{}{"_error": globalErr, "errors": apiErr.Errors}
 	default:
-		// logrus.WithField("API", "jsonError").Error(err)
+		l.With("API", "jsonError").Error(err)
 	}
 
 	b, err := json.Marshal(resp)
 	if err != nil {
-		// logrus.Error(err)
+		l.Error(err)
 	}
 
 	w.WriteHeader(code)
 
 	if _, err = w.Write(b); err != nil {
-		// logrus.Error(err)
+		l.Error(err)
 	}
 }
