@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/kostiamol/centerms/log"
 
@@ -92,10 +91,8 @@ func (s *streamService) Run() {
 	r.HandleFunc("/devices/{id}", s.addConnHandler)
 
 	srv := &http.Server{
-		Handler:      r,
-		Addr:         ":" + fmt.Sprint(s.portWS),
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+		Handler: r,
+		Addr:    fmt.Sprintf(":%d", s.portWS),
 	}
 	s.log.Fatal(srv.ListenAndServe())
 }

@@ -16,7 +16,6 @@ import (
 // todo: add Prometheus
 // todo: update README.md
 // todo: swagger
-// todo: stream 15sec hardcoded
 
 func main() {
 	var loadCfgErr, initCfgErr error
@@ -37,10 +36,14 @@ func main() {
 	}
 
 	storer, err := store.New(
-		cfg.Addr{Host: config.Store.Addr.Host, Port: config.Store.Addr.Port},
-		config.Store.Password)
+		&store.Cfg{
+			Addr:             cfg.Addr{Host: config.Store.Addr.Host, Port: config.Store.Addr.Port},
+			Password:         config.Store.Password,
+			MaxIdlePoolConns: config.Store.MaxIdlePoolConns,
+			IdleTimeout:      config.Store.IdleTimeout,
+		})
 	if err != nil {
-		logger.Fatalf("New(): %s", err)
+		logger.Fatalf("store.New(): %s", err)
 	}
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
@@ -89,7 +92,7 @@ func main() {
 		})
 	go a.Run()
 
-	ctrl.Wait()
+	ctrl.Wait(config.Service.RoutineTerminationTimeout)
 
-	logger.Infof("%s is down", config.Service.AppID)
+	logger.Info("is down")
 }

@@ -125,10 +125,8 @@ func (a *api) serve() {
 	})
 
 	s := &http.Server{
-		Handler:      c.Handler(a.router),
-		Addr:         ":" + fmt.Sprint(a.portREST),
-		WriteTimeout: 10 * time.Second,
-		ReadTimeout:  10 * time.Second,
+		Handler: c.Handler(a.router),
+		Addr:    fmt.Sprintf(":%d", a.portREST),
 	}
 
 	if err := s.ListenAndServe(); err != nil {

@@ -58,21 +58,25 @@ func InitConfig() (*Config, error) {
 
 	c := &Config{
 		Service: Service{
-			AppID:         os.Getenv("APP_ID"),
-			LogLevel:      os.Getenv("LOG_LEVEL"),
-			RetryNumber:   uintEnv("RETRY_NUMBER"),
-			RetryTimeout:  time.Duration(uintEnv("RETRY_TIMEOUT")),
-			PortRPC:       uintEnv("PORT_RPC"),
-			PortREST:      uintEnv("PORT_REST"),
-			PortWebSocket: uintEnv("PORT_WEBSOCKET")},
+			AppID:                     os.Getenv("APP_ID"),
+			LogLevel:                  os.Getenv("LOG_LEVEL"),
+			RetryNumber:               uintEnv("RETRY_NUMBER"),
+			RetryTimeout:              time.Millisecond * time.Duration(uintEnv("RETRY_TIMEOUT_MS")),
+			PortRPC:                   uintEnv("PORT_RPC"),
+			PortREST:                  uintEnv("PORT_REST"),
+			PortWebSocket:             uintEnv("PORT_WEBSOCKET"),
+			RoutineTerminationTimeout: time.Second * time.Duration(uintEnv("ROUTINE_TERMINATION_TIMEOUT_S"))},
 		NATS: NATS{
 			Addr: Addr{
 				Host: os.Getenv("NATS_HOST"),
 				Port: uintEnv("NATS_PORT")}},
 		Store: Store{
-			Addr: Addr{Host: os.Getenv("STORE_HOST"),
+			Addr: Addr{
+				Host: os.Getenv("STORE_HOST"),
 				Port: uintEnv("STORE_PORT")},
-			Password: os.Getenv("STORE_PASSWORD")},
+			Password:         os.Getenv("STORE_PASSWORD"),
+			IdleTimeout:      time.Second * time.Duration(uintEnv("STORE_IDLE_TIMEOUT_S")),
+			MaxIdlePoolConns: uintEnv("STORE_MAX_IDLE_POOL_CONNS")},
 		Token: Token{
 			PublicKey:  publicKey,
 			PrivateKey: privateKey}}

@@ -9,13 +9,11 @@ type Ctrl struct {
 	StopChan chan struct{}
 }
 
-const timeForRoutineTermination = time.Second * 3
-
 // Wait waits until StopChan will be closed and then makes a pause for the amount seconds defined in variable
 // timeForRoutineTermination in order to give time for all the services to shutdown gracefully.
-func (c *Ctrl) Wait() {
+func (c *Ctrl) Wait(t time.Duration) {
 	<-c.StopChan
-	<-time.NewTimer(timeForRoutineTermination).C
+	<-time.NewTimer(t).C
 }
 
 // Terminate closes StopChan to signal all the services to shutdown.

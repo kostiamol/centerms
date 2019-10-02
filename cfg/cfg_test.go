@@ -15,13 +15,14 @@ func TestNewConfig(t *testing.T) {
 func TestConfig(t *testing.T) {
 	c := &Config{
 		Service: Service{
-			AppID:         "centerms",
-			LogLevel:      "debug",
-			RetryNumber:   5,
-			RetryTimeout:  time.Duration(100),
-			PortRPC:       1111,
-			PortREST:      2222,
-			PortWebSocket: 3333,
+			AppID:                     "centerms",
+			LogLevel:                  "debug",
+			RetryNumber:               5,
+			RetryTimeout:              time.Duration(100),
+			PortRPC:                   1111,
+			PortREST:                  2222,
+			PortWebSocket:             3333,
+			RoutineTerminationTimeout: 100,
 		},
 		NATS: NATS{
 			Addr: Addr{
@@ -31,7 +32,9 @@ func TestConfig(t *testing.T) {
 			Addr: Addr{
 				Host: "localhost",
 				Port: 6379},
-			Password: "password",
+			Password:         "password",
+			IdleTimeout:      240,
+			MaxIdlePoolConns: 5,
 		},
 		Token: Token{
 			PublicKey:  "pubkey",
@@ -48,13 +51,14 @@ func TestConfig(t *testing.T) {
 
 func TestServiceConfig(t *testing.T) {
 	svc := Service{
-		AppID:         "centerms",
-		LogLevel:      "debug",
-		RetryNumber:   5,
-		RetryTimeout:  time.Duration(100),
-		PortRPC:       1111,
-		PortREST:      2222,
-		PortWebSocket: 3333,
+		AppID:                     "centerms",
+		LogLevel:                  "debug",
+		RetryNumber:               5,
+		RetryTimeout:              time.Duration(100),
+		PortRPC:                   1111,
+		PortREST:                  2222,
+		PortWebSocket:             3333,
+		RoutineTerminationTimeout: 3,
 	}
 	err := svc.validate()
 	assert.Nil(t, err)
@@ -83,15 +87,17 @@ func TestServiceConfig(t *testing.T) {
 	err = svc.validate()
 	assert.NotNil(t, err)
 
-	svc = Service{AppID: "centerms", LogLevel: "debug", RetryNumber: 5, RetryTimeout: time.Duration(100), PortRPC: 1111, PortREST: 2222}
+	svc = Service{AppID: "centerms", LogLevel: "debug", RetryNumber: 5, RetryTimeout: time.Duration(100), PortRPC: 1111, PortREST: 2222, PortWebSocket: 3333}
 	err = svc.validate()
 	assert.NotNil(t, err)
 }
 
 func TestStoreConfig(t *testing.T) {
 	s := Store{
-		Addr:     Addr{Host: "localhost", Port: 1111},
-		Password: "password",
+		Addr:             Addr{Host: "localhost", Port: 1111},
+		Password:         "password",
+		IdleTimeout:      240,
+		MaxIdlePoolConns: 5,
 	}
 	err := s.validate()
 	assert.Nil(t, err)

@@ -2,12 +2,15 @@ package cfg
 
 import (
 	"fmt"
+	"time"
 )
 
 // Store holds store configuration.
 type Store struct {
-	Addr     Addr
-	Password string
+	Addr             Addr
+	Password         string
+	IdleTimeout      time.Duration
+	MaxIdlePoolConns uint64
 }
 
 func (s Store) validate() error {
@@ -18,7 +21,13 @@ func (s Store) validate() error {
 		return fmt.Errorf("storePort is missing")
 	}
 	if s.Password == "" {
-		return fmt.Errorf("logLevel is missing")
+		return fmt.Errorf("storePassword is missing")
+	}
+	if s.IdleTimeout == 0 {
+		return fmt.Errorf("storeIdleTimeout is missing")
+	}
+	if s.MaxIdlePoolConns == 0 {
+		return fmt.Errorf("storeMaxIdlePoolConns is missing")
 	}
 	return nil
 }

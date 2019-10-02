@@ -23,17 +23,25 @@ type (
 		addr cfg.Addr
 		pool *redis.Pool
 	}
+
+	// Cfg is used to initialize an instance of Redis.
+	Cfg struct {
+		Addr             cfg.Addr
+		Password         string
+		MaxIdlePoolConns uint64
+		IdleTimeout      time.Duration
+	}
 )
 
 // New creates a new instance of Redis store.
-func New(a cfg.Addr, password string) (*Redis, error) {
+func New(c *Cfg) (*Redis, error) {
 	r := &Redis{
-		addr: a,
+		addr: c.Addr,
 		pool: &redis.Pool{
-			MaxIdle:     3,
-			IdleTimeout: 240 * time.Second,
+			MaxIdle:     int(c.MaxIdlePoolConns),
+			IdleTimeout: c.IdleTimeout,
 			Dial: func() (redis.Conn, error) {
-				c, err := redis.Dial("tcp", a.Host+":"+fmt.Sprint(a.Port))
+				c, err := redis.Dial("tcp", c.Addr.Host+":"+fmt.Sprint(c.Addr.Port))
 				if err != nil {
 					return nil, fmt.Errorf("Dial(): %s", err)
 				}

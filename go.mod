@@ -10,6 +10,7 @@ require (
 	github.com/garyburd/redigo v1.6.0
 	github.com/gogo/protobuf v1.1.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/golang/mock v1.1.1
 	github.com/golang/protobuf v1.2.0
 	github.com/golangci/golangci-lint v1.16.0
 	github.com/gorilla/context v1.1.1 // indirect
