@@ -3,14 +3,12 @@ module github.com/kostiamol/centerms
 go 1.12
 
 require (
-	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
-	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/garyburd/redigo v1.6.0
 	github.com/gogo/protobuf v1.1.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
-	github.com/golang/mock v1.1.1
+	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.2.0
 	github.com/golangci/golangci-lint v1.16.0
 	github.com/gorilla/context v1.1.1 // indirect
@@ -37,9 +35,7 @@ require (
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/net v0.0.0-20190313220215-9f648a60d977
-	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
 	golang.org/x/sys v0.0.0-20190405154228-4b34438f7a67 // indirect
 	google.golang.org/genproto v0.0.0-20180831171423-11092d34479b // indirect
 	google.golang.org/grpc v1.14.0
-	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
 )
