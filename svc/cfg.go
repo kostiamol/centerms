@@ -47,22 +47,24 @@ type (
 
 	// CfgServiceCfg is used to initialize an instance of cfgService.
 	CfgServiceCfg struct {
-		Log      log.Logger
-		Ctrl     Ctrl
-		Store    CfgStorer
-		SubChan  string
-		Retry    time.Duration
-		NATSAddr cfg.Addr
+		Log           log.Logger
+		Ctrl          Ctrl
+		Store         CfgStorer
+		SubChan       string
+		NATSAddr      cfg.Addr
+		RetryTimeout  time.Duration
+		RetryAttempts uint64
 	}
 
 	// cfgService is used to deal with device configurations.
 	cfgService struct {
-		log      log.Logger
-		ctrl     Ctrl
-		store    CfgStorer
-		sub      subscription
-		retry    time.Duration
-		natsAddr cfg.Addr
+		log           log.Logger
+		ctrl          Ctrl
+		store         CfgStorer
+		sub           subscription
+		natsAddr      cfg.Addr
+		retryTimeout  time.Duration
+		retryAttempts uint64
 	}
 
 	subscription struct {
@@ -81,8 +83,9 @@ func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 			ChanName: c.SubChan,
 			Chan:     make(chan []byte),
 		},
-		retry:    c.Retry,
-		natsAddr: c.NATSAddr,
+		natsAddr:      c.NATSAddr,
+		retryTimeout:  c.RetryTimeout,
+		retryAttempts: c.RetryAttempts,
 	}
 }
 
@@ -109,7 +112,7 @@ func (s *cfgService) listenTermination() {
 
 func (s *cfgService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
-	s.log.Flush()
+	s.log.Flush() // nolint
 	s.ctrl.Terminate()
 }
 
@@ -139,22 +142,22 @@ func (s *cfgService) listenCfgPatches(ctx context.Context) {
 }
 
 func (s *cfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("pubNewCfgPatchEvent(): %s", r)
-			s.terminate()
-		}
-	}()
+	var (
+		err          error
+		conn         *nats.Conn
+		retryAttempt uint64
+	)
 
-	conn, err := nats.Connect(s.natsAddr.Host + strconv.FormatUint(s.natsAddr.Port, 10))
-	for err != nil {
-		s.log.Error("pubNewCfgPatchEvent(): nats connectivity status is DISCONNECTED")
-		duration := time.Duration(rand.Intn(int(s.retry.Seconds())))
-		time.Sleep(time.Second*duration + 1)
-		conn, err = nats.Connect(nats.DefaultURL)
-		if err != nil {
-			s.log.Errorf("Connect(): %s", err)
+	for {
+		conn, err = nats.Connect(s.natsAddr.Host + strconv.FormatUint(s.natsAddr.Port, 10))
+		if err != nil && retryAttempt < s.retryAttempts {
+			s.log.Error("pubNewCfgPatchEvent(): nats connectivity status is DISCONNECTED")
+			retryAttempt++
+			duration := time.Duration(rand.Intn(int(s.retryTimeout.Seconds())))
+			time.Sleep(time.Second*duration + 1)
+			continue
 		}
+		break
 	}
 	defer conn.Close()
 
@@ -165,7 +168,9 @@ func (s *cfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
 		EventType:     event,
 		EventData:     string(devCfg.Data),
 	}
+
 	subj := fmt.Sprintf("%s.%s", cfgPatchSubject, devCfg.MAC)
+
 	b, err := gproto.Marshal(&e)
 	if err != nil {
 		s.log.Errorf("pubNewCfgPatchEvent(): marshal failed: %s", err)

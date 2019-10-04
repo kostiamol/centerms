@@ -9,7 +9,7 @@ import (
 type Service struct {
 	AppID                     string
 	LogLevel                  string
-	RetryNumber               uint64
+	RetryAttempts             uint64
 	RetryTimeout              time.Duration
 	PortRPC                   uint64
 	PortREST                  uint64
@@ -24,8 +24,8 @@ func (s Service) validate() error {
 	if s.LogLevel == "" {
 		return fmt.Errorf("LogLevel is missing")
 	}
-	if s.RetryNumber == 0 {
-		return fmt.Errorf("RetryNumber is missing")
+	if s.RetryAttempts == 0 {
+		return fmt.Errorf("RetryAttempts is missing")
 	}
 	if s.RetryTimeout == 0 {
 		return fmt.Errorf("RetryTimeout is missing")

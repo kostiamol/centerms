@@ -11,27 +11,27 @@ import (
 	"github.com/pkg/errors"
 )
 
-// fridgeData is used to store temperature with timestamps for each compartment of the fridge.
-type fridgeData struct {
-	TopCompart map[int64]float32 `json:"topCompart"`
-	BotCompart map[int64]float32 `json:"botCompart"`
-}
+type (
+	// fridgeData is used to store temperature with timestamps for each compartment of the fridge.
+	fridgeData struct {
+		TopCompart map[int64]float32 `json:"topCompart"`
+		BotCompart map[int64]float32 `json:"botCompart"`
+	}
 
-// fridgeCfg is used to store fridge configuration.
-type fridgeCfg struct {
-	TurnedOn    bool  `json:"turnedOn"`
-	CollectFreq int64 `json:"collectFreq"`
-	SendFreq    int64 `json:"sendFreq"`
-}
-
-var (
-	// defaultFridgeCfg is used to store default fridge configuration.
-	defaultFridgeCfg = fridgeCfg{
-		TurnedOn:    true,
-		CollectFreq: 1000,
-		SendFreq:    2000,
+	// fridgeCfg is used to store fridge configuration.
+	fridgeCfg struct {
+		TurnedOn    bool  `json:"turnedOn"`
+		CollectFreq int64 `json:"collectFreq"`
+		SendFreq    int64 `json:"sendFreq"`
 	}
 )
+
+// defaultFridgeCfg is used to store default fridge configuration.
+var defaultFridgeCfg = fridgeCfg{
+	TurnedOn:    true,
+	CollectFreq: 1000,
+	SendFreq:    2000,
+}
 
 func (r *Redis) getFridgeData(m *svc.DevMeta) (*svc.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC

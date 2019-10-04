@@ -36,30 +36,32 @@ var (
 	}
 )
 
-// washerData is used to store amount of turnovers and water temperature.
-type washerData struct {
-	Turnovers map[int64]int64   `json:"turnovers"`
-	WaterTemp map[int64]float32 `json:"waterTemp"`
-}
+type (
+	// washerData is used to store amount of turnovers and water temperature.
+	washerData struct {
+		Turnovers map[int64]int64   `json:"turnovers"`
+		WaterTemp map[int64]float32 `json:"waterTemp"`
+	}
 
-// washerCfg is used to store washer configuration.
-type washerCfg struct {
-	Name           string  `json:"name"`
-	MAC            string  `json:"mac"`
-	Temperature    float32 `json:"temp"`
-	WashTime       int64   `json:"washTime"`
-	WashTurnovers  int64   `json:"washTurnovers"`
-	RinseTime      int64   `json:"rinseTime"`
-	RinseTurnovers int64   `json:"rinseTurnovers"`
-	SpinTime       int64   `json:"spinTime"`
-	SpinTurnovers  int64   `json:"spinTurnovers"`
-}
+	// washerCfg is used to store washer configuration.
+	washerCfg struct {
+		Name           string  `json:"name"`
+		MAC            string  `json:"mac"`
+		Temperature    float32 `json:"temp"`
+		WashTime       int64   `json:"washTime"`
+		WashTurnovers  int64   `json:"washTurnovers"`
+		RinseTime      int64   `json:"rinseTime"`
+		RinseTurnovers int64   `json:"rinseTurnovers"`
+		SpinTime       int64   `json:"spinTime"`
+		SpinTurnovers  int64   `json:"spinTurnovers"`
+	}
 
-// timerMode is used to store timer settings.
-type timerMode struct {
-	Name      string `json:"name"`
-	StartTime int64  `json:"time"`
-}
+	// timerMode is used to store timer settings.
+	timerMode struct {
+		Name      string `json:"name"`
+		StartTime int64  `json:"time"`
+	}
+)
 
 func (r *Redis) getWasherData(m *svc.DevMeta) (*svc.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC

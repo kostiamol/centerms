@@ -32,10 +32,11 @@ func (a *api) runRPCServer() {
 
 	l, err := net.Listen("tcp", ":"+fmt.Sprint(a.portRPC))
 	if err != nil {
-		a.log.Fatalf("Listen() failed: %s", err)
+		a.log.Fatalf("Listen(): %s", err)
 	}
 
 	proto.RegisterCenterServiceServer(s, a)
+
 	if err := s.Serve(l); err != nil {
 		a.log.Fatalf("Serve(): %s", err)
 	}

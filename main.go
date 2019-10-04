@@ -11,8 +11,11 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: look through the handlers
 // todo: retry
+// todo: remove panic defers
+// todo: put interface into the place it's used
+// todo: handle all errors
+// todo: look through the handlers
 // todo: add Prometheus
 // todo: update README.md
 // todo: swagger
@@ -69,12 +72,13 @@ func main() {
 
 	conf := svc.NewCfgService(
 		&svc.CfgServiceCfg{
-			Log:      logger,
-			Ctrl:     ctrl,
-			Store:    storer,
-			SubChan:  cfg.DevCfgChan,
-			Retry:    config.Service.RetryTimeout,
-			NATSAddr: cfg.Addr{Host: config.NATS.Addr.Host, Port: config.NATS.Addr.Port},
+			Log:           logger,
+			Ctrl:          ctrl,
+			Store:         storer,
+			SubChan:       cfg.DevCfgChan,
+			RetryTimeout:  config.Service.RetryTimeout,
+			RetryAttempts: config.Service.RetryAttempts,
+			NATSAddr:      cfg.Addr{Host: config.NATS.Addr.Host, Port: config.NATS.Addr.Port},
 		})
 	go conf.Run()
 

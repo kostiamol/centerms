@@ -17,7 +17,7 @@ func TestConfig(t *testing.T) {
 		Service: Service{
 			AppID:                     "centerms",
 			LogLevel:                  "debug",
-			RetryNumber:               5,
+			RetryAttempts:             5,
 			RetryTimeout:              time.Duration(100),
 			PortRPC:                   1111,
 			PortREST:                  2222,
@@ -53,7 +53,7 @@ func TestServiceConfig(t *testing.T) {
 	svc := Service{
 		AppID:                     "centerms",
 		LogLevel:                  "debug",
-		RetryNumber:               5,
+		RetryAttempts:             5,
 		RetryTimeout:              time.Duration(100),
 		PortRPC:                   1111,
 		PortREST:                  2222,
@@ -75,19 +75,19 @@ func TestServiceConfig(t *testing.T) {
 	err = svc.validate()
 	assert.NotNil(t, err)
 
-	svc = Service{AppID: "centerms", LogLevel: "debug", RetryNumber: 5}
+	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5}
 	err = svc.validate()
 	assert.NotNil(t, err)
 
-	svc = Service{AppID: "centerms", LogLevel: "debug", RetryNumber: 5, RetryTimeout: time.Duration(100)}
+	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5, RetryTimeout: time.Duration(100)}
 	err = svc.validate()
 	assert.NotNil(t, err)
 
-	svc = Service{AppID: "centerms", LogLevel: "debug", RetryNumber: 5, RetryTimeout: time.Duration(100), PortRPC: 1111}
+	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5, RetryTimeout: time.Duration(100), PortRPC: 1111}
 	err = svc.validate()
 	assert.NotNil(t, err)
 
-	svc = Service{AppID: "centerms", LogLevel: "debug", RetryNumber: 5, RetryTimeout: time.Duration(100), PortRPC: 1111, PortREST: 2222, PortWebSocket: 3333}
+	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5, RetryTimeout: time.Duration(100), PortRPC: 1111, PortREST: 2222, PortWebSocket: 3333}
 	err = svc.validate()
 	assert.NotNil(t, err)
 }

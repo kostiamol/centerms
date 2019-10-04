@@ -60,7 +60,7 @@ func InitConfig() (*Config, error) {
 		Service: Service{
 			AppID:                     os.Getenv("APP_ID"),
 			LogLevel:                  os.Getenv("LOG_LEVEL"),
-			RetryNumber:               uintEnv("RETRY_NUMBER"),
+			RetryAttempts:             uintEnv("RETRY_ATTEMPTS"),
 			RetryTimeout:              time.Millisecond * time.Duration(uintEnv("RETRY_TIMEOUT_MS")),
 			PortRPC:                   uintEnv("PORT_RPC"),
 			PortREST:                  uintEnv("PORT_REST"),
