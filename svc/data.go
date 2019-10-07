@@ -82,36 +82,28 @@ func (s *dataService) listenTermination() {
 
 func (s *dataService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("svc is down")
-	s.log.Flush() // nolint
+	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
 
 // SaveDevData is used to save device data to the store.
-func (s *dataService) SaveDevData(data *DevData) error {
-	if err := s.store.SaveDevData(data); err != nil {
+func (s *dataService) SaveDevData(d *DevData) error {
+	if err := s.store.SaveDevData(d); err != nil {
 		s.log.Errorf("SaveDevData(): %s", err)
 		return err
 	}
-	go s.pubDevData(data) // nolint
-	return nil
-}
 
-func (s *dataService) pubDevData(data *DevData) error {
-	defer func() {
-		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("pubDevData(): %s", r)
-			s.terminate()
-		}
-	}()
-	b, err := json.Marshal(data)
+	b, err := json.Marshal(d)
 	if err != nil {
-		s.log.Errorf("pubDevData(): %s", err)
+		s.log.Errorf("Marshal(): %s", err)
 		return err
 	}
+
 	if _, err = s.store.Publish(b, s.pubChan); err != nil {
-		s.log.Errorf("pubDevData(): %s", err)
+		s.log.Errorf("Publish(): %s", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -127,10 +119,10 @@ func (s *dataService) GetDevData(id string) (*DevData, error) {
 
 // GetDevsData is used to get all the devices data from the store.
 func (s *dataService) GetDevsData() ([]DevData, error) {
-	ds, err := s.store.GetDevsData()
+	d, err := s.store.GetDevsData()
 	if err != nil {
 		s.log.Errorf("GetDevsData(): %s", err)
 		return nil, err
 	}
-	return ds, nil
+	return d, nil
 }

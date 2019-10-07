@@ -11,9 +11,7 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: retry
-// todo: remove panic defers
-// todo: put interface into the place it's used
+// todo: put interface into the place it's used and segregate pub/sub from storer + runer for services + return
 // todo: handle all errors
 // todo: look through the handlers
 // todo: add Prometheus
@@ -32,7 +30,7 @@ func main() {
 	}
 
 	logger := log.New(config.Service.AppID, config.Service.LogLevel)
-	defer logger.Flush() // nolint
+	_ = logger.Flush()
 
 	if loadCfgErr != nil || initCfgErr != nil {
 		logger.Fatal(initCfgErr)
@@ -98,5 +96,5 @@ func main() {
 
 	ctrl.Wait(config.Service.RoutineTerminationTimeout)
 
-	logger.Info("is down")
+	logger.Info("service is down")
 }

@@ -10,32 +10,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	// lightMode stores configuration for light washing mode.
-	lightMode = washerCfg{
-		Name:           "lightMode",
-		Temperature:    60,
-		WashTime:       90,
-		WashTurnovers:  240,
-		RinseTime:      30,
-		RinseTurnovers: 120,
-		SpinTime:       30,
-		SpinTurnovers:  60,
-	}
-
-	// standardMode stores configuration for standard washing mode.
-	standardMode = washerCfg{
-		Name:           "standardMode",
-		Temperature:    240,
-		WashTime:       120,
-		WashTurnovers:  240,
-		RinseTime:      60,
-		RinseTurnovers: 180,
-		SpinTime:       60,
-		SpinTurnovers:  60,
-	}
-)
-
 type (
 	// washerData is used to store amount of turnovers and water temperature.
 	washerData struct {
@@ -63,18 +37,44 @@ type (
 	}
 )
 
-func (r *Redis) getWasherData(m *svc.DevMeta) (*svc.DevData, error) {
+var (
+	// lightMode stores configuration for light washing mode.
+	lightMode = washerCfg{
+		Name:           "lightMode",
+		Temperature:    60,
+		WashTime:       90,
+		WashTurnovers:  240,
+		RinseTime:      30,
+		RinseTurnovers: 120,
+		SpinTime:       30,
+		SpinTurnovers:  60,
+	}
+
+	// standardMode stores configuration for standard washing mode.
+	standardMode = washerCfg{
+		Name:           "standardMode",
+		Temperature:    240,
+		WashTime:       120,
+		WashTurnovers:  240,
+		RinseTime:      60,
+		RinseTurnovers: 180,
+		SpinTime:       60,
+		SpinTurnovers:  60,
+	}
+)
+
+func (s *store) getWasherData(m *svc.DevMeta) (*svc.DevData, error) {
 	devKey := partialDevKey + m.Type + ":" + m.Name + ":" + m.MAC
 	devParamsKey := devKey + partialDevParamsKey
 
 	data := make(map[string][]string)
-	params, err := r.smembers(devParamsKey)
+	params, err := s.smembers(devParamsKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "store: getWasherData(): SMEMBERS() failed: ")
 	}
 
 	for _, p := range params {
-		data[p], err = r.zrangebyscore(devParamsKey+":"+p, "-inf", "inf")
+		data[p], err = s.zrangebyscore(devParamsKey+":"+p, "-inf", "inf")
 		if err != nil {
 			return nil, errors.Wrap(err, "store: getWasherData(): ZRANGEBYSCORE() failed: ")
 		}
@@ -91,7 +91,7 @@ func (r *Redis) getWasherData(m *svc.DevMeta) (*svc.DevData, error) {
 	}, err
 }
 
-func (r *Redis) saveWasherData(d *svc.DevData) error {
+func (s *store) saveWasherData(d *svc.DevData) error {
 	var washer washerData
 	if err := json.NewDecoder(bytes.NewBuffer(d.Data)).Decode(&washer); err != nil {
 		return errors.Wrap(err, "store: saveWasherData(): Decode() failed: ")
@@ -100,28 +100,28 @@ func (r *Redis) saveWasherData(d *svc.DevData) error {
 	devKey := partialDevKey + d.Meta.Type + ":" + d.Meta.Name + ":" + d.Meta.MAC
 	paramsKey := devKey + partialDevParamsKey
 
-	if _, err := r.multi(); err != nil {
-		_, err = r.discard()
+	if _, err := s.multi(); err != nil {
+		_, err = s.discard()
 		return errors.Wrap(err, "store: saveWasherData(): MULTI() failed: ")
 	}
-	if err := r.setTurnoversData(washer.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
-		_, err = r.discard()
+	if err := s.setTurnoversData(washer.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
+		_, err = s.discard()
 		return errors.Wrap(err, "store: saveWasherData(): setTurnoversData() failed: ")
 	}
-	if err := r.setWaterTempData(washer.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
-		_, err = r.discard()
+	if err := s.setWaterTempData(washer.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
+		_, err = s.discard()
 		return errors.Wrap(err, "store: saveWasherData(): setWaterTempData() failed: ")
 	}
-	if _, err := r.exec(); err != nil {
-		_, err = r.discard()
+	if _, err := s.exec(); err != nil {
+		_, err = s.discard()
 		return errors.Wrap(err, "store: saveWasherData(): EXEC() failed: ")
 	}
 	return nil
 }
 
-func (r *Redis) setTurnoversData(tempCam map[int64]int64, key string) error {
+func (s *store) setTurnoversData(tempCam map[int64]int64, key string) error {
 	for t, v := range tempCam {
-		_, err := r.zadd(key, strconv.FormatInt(t, 10),
+		_, err := s.zadd(key, strconv.FormatInt(t, 10),
 			strconv.FormatInt(t, 10)+":"+strconv.FormatInt(v, 10))
 		if err != nil {
 			return errors.Wrap(err, "ZADD() failed: ")
@@ -130,9 +130,9 @@ func (r *Redis) setTurnoversData(tempCam map[int64]int64, key string) error {
 	return nil
 }
 
-func (r *Redis) setWaterTempData(tempCam map[int64]float32, key string) error {
+func (s *store) setWaterTempData(tempCam map[int64]float32, key string) error {
 	for t, v := range tempCam {
-		_, err := r.zadd(key, strconv.FormatInt(t, 10),
+		_, err := s.zadd(key, strconv.FormatInt(t, 10),
 			strconv.FormatInt(t, 10)+":"+
 				strconv.FormatFloat(float64(v), 'f', -1, 32))
 		if err != nil {
@@ -142,8 +142,8 @@ func (r *Redis) setWaterTempData(tempCam map[int64]float32, key string) error {
 	return nil
 }
 
-func (r *Redis) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
-	cfg, err := r.getWasherDefaultCfg(m)
+func (s *store) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
+	cfg, err := s.getWasherDefaultCfg(m)
 	if err != nil {
 		return nil, errors.Wrap(err, "store: getWasherCfg(): getWasherDefaultCfg(): ")
 	}
@@ -151,7 +151,7 @@ func (r *Redis) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	cfg.MAC = m.MAC
 	cfgKey := m.MAC + partialDevCfgKey
 	unixTime := int64(100)
-	mode, err := r.zrangebyscore(cfgKey, unixTime-100, unixTime+100)
+	mode, err := s.zrangebyscore(cfgKey, unixTime-100, unixTime+100)
 	if err != nil {
 		return nil, errors.Wrap(err, "store: getWasherCfg(): ZRANGEBYSCORE() failed: ")
 	}
@@ -167,20 +167,20 @@ func (r *Redis) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	return cfg, nil
 }
 
-func (r *Redis) setWasherCfg(c *svc.DevCfg) error {
+func (s *store) setWasherCfg(c *svc.DevCfg) error {
 	var m *timerMode
 	if err := json.NewDecoder(bytes.NewBuffer(c.Data)).Decode(&m); err != nil {
 		return errors.Wrap(err, "store: setWasherCfg(): Decode() failed: ")
 	}
 
 	cfgKey := c.MAC + partialDevCfgKey
-	if _, err := r.zadd(cfgKey, m.StartTime, m.Name); err != nil {
+	if _, err := s.zadd(cfgKey, m.StartTime, m.Name); err != nil {
 		return errors.Wrap(err, "store: setWasherCfg(): ZADD() failed: ")
 	}
 	return nil
 }
 
-func (r *Redis) getWasherDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
+func (s *store) getWasherDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	b, err := json.Marshal(standardMode)
 	if err != nil {
 		return nil, errors.Wrap(err, "Marshal() failed: ")

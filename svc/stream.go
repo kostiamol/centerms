@@ -44,6 +44,8 @@ type (
 		conns      streamConns
 		upgrader   websocket.Upgrader
 	}
+
+	devID string
 )
 
 // NewStreamService creates and initializes a new instance of streamService service.
@@ -104,21 +106,17 @@ func (s *streamService) listenTermination() {
 
 func (s *streamService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
-	s.log.Flush() // nolint
+	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
 
-type devID string
-
 func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("addConnHandler: %s", r)
-			s.terminate()
-		}
-	}()
-
 	uri := strings.Split(r.URL.String(), "/")
+	if len(uri) < 3 {
+		s.log.Errorf("url isn't complete")
+		return
+	}
+
 	id := devID(uri[2])
 
 	s.conns.Lock()
@@ -137,27 +135,19 @@ func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *streamService) listenPubs(ctx context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("listenPubs(): %s", r)
-			s.terminate()
-		}
-	}()
-
 	go s.subscriber.Subscribe(s.sub.Chan, s.sub.ChanName) // nolint
 
 	for {
 		select {
 		case msg := <-s.sub.Chan:
-			go s.stream(ctx, msg) // nolint
-
+			go s.stream(ctx, msg)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (s *streamService) stream(ctx context.Context, msg []byte) error {
+func (s *streamService) stream(ctx context.Context, msg []byte) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", cfg.EventPanic).Errorf("stream(): %s", r)
@@ -165,42 +155,35 @@ func (s *streamService) stream(ctx context.Context, msg []byte) error {
 		}
 	}()
 
-	var dev DevData
-	if err := json.Unmarshal(msg, &dev); err != nil {
+	var d DevData
+	if err := json.Unmarshal(msg, &d); err != nil {
 		s.log.Errorf("stream(): Unmarshal() failed: %s", err)
-		return err
+		return
 	}
 
-	if _, ok := s.conns.idConns[devID(dev.Meta.MAC)]; ok {
-		for _, conn := range s.conns.idConns[devID(dev.Meta.MAC)].Conns {
+	if _, ok := s.conns.idConns[devID(d.Meta.MAC)]; ok {
+		for _, conn := range s.conns.idConns[devID(d.Meta.MAC)].Conns {
 			select {
 			case <-ctx.Done():
-				return nil
+				return
 			default:
-				s.conns.idConns[devID(dev.Meta.MAC)].Lock()
+				s.conns.idConns[devID(d.Meta.MAC)].Lock()
 				err := conn.WriteMessage(1, msg)
-				s.conns.idConns[devID(dev.Meta.MAC)].Unlock()
+				s.conns.idConns[devID(d.Meta.MAC)].Unlock()
 				if err != nil {
 					s.log.With("event", cfg.EventWSConnRemoved).
 						Infof("stream(): addr: %v", conn.RemoteAddr())
 					s.conns.closedConns <- conn
-					return err
+					return
 				}
 			}
 		}
-		return nil
+		return
 	}
-	return nil
+	return
 }
 
 func (s *streamService) listenClosedConns(ctx context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("listenClosedConns(): %s", r)
-			s.terminate()
-		}
-	}()
-
 	for {
 		select {
 		case conn := <-s.conns.closedConns:

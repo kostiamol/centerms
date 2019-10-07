@@ -101,6 +101,7 @@ func (s *cfgService) Run() {
 			s.terminate()
 		}
 	}()
+
 	go s.listenTermination()
 	go s.listenCfgPatches(ctx)
 }
@@ -112,7 +113,7 @@ func (s *cfgService) listenTermination() {
 
 func (s *cfgService) terminate() {
 	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
-	s.log.Flush() // nolint
+	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
 

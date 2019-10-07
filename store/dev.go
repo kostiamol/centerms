@@ -14,8 +14,8 @@ const (
 )
 
 // GetDevsData returns the data concerning all the devices.
-func (r *Redis) GetDevsData() ([]svc.DevData, error) {
-	devParamsKeys, err := r.smembers("devParamsKeys")
+func (s *store) GetDevsData() ([]svc.DevData, error) {
+	devParamsKeys, err := s.smembers("devParamsKeys")
 	if err != nil {
 		return nil, errors.Wrap(err, "store: GetDevsData(): SMEMBERS() for devParamsKeys failed: ")
 	}
@@ -37,13 +37,13 @@ func (r *Redis) GetDevsData() ([]svc.DevData, error) {
 			MAC:  key[3],
 		}
 		data := make(map[string][]string)
-		params, err := r.smembers(devParamsKeys[index])
+		params, err := s.smembers(devParamsKeys[index])
 		if err != nil {
 			return nil, errors.Wrapf(err, "store: GetDevsData(): SMEMBERS() for %s failed: ", devParamsKeys[index])
 		}
 
 		for i, p := range params {
-			data[p], err = r.zrangebyscore(devParamsKeys[index]+":"+p, "-inf", "inf")
+			data[p], err = s.zrangebyscore(devParamsKeys[index]+":"+p, "-inf", "inf")
 			if err != nil {
 				return nil, errors.Wrapf(err, "store: GetDevsData(): ZRANGEBYSCORE() for %s failed: ", devParamsKeys[i])
 			}
@@ -54,16 +54,16 @@ func (r *Redis) GetDevsData() ([]svc.DevData, error) {
 }
 
 // GetDevMeta returns metadata for the given device.
-func (r *Redis) GetDevMeta(id string) (*svc.DevMeta, error) {
-	t, err := r.hget("id:"+id, "type")
+func (s *store) GetDevMeta(id string) (*svc.DevMeta, error) {
+	t, err := s.hget("id:"+id, "type")
 	if err != nil {
 		return nil, errors.Wrap(err, "store: GetDevMeta(): HGET() for type failed: ")
 	}
-	n, err := r.hget("id:"+id, "name")
+	n, err := s.hget("id:"+id, "name")
 	if err != nil {
 		return nil, errors.Wrap(err, "store: GetDevMeta():  HGET() for name failed: ")
 	}
-	m, err := r.hget("id:"+id, "mac")
+	m, err := s.hget("id:"+id, "mac")
 	if err != nil {
 		return nil, errors.Wrap(err, "store: GetDevMeta():  HGET() for mac failed: ")
 	}
@@ -76,23 +76,23 @@ func (r *Redis) GetDevMeta(id string) (*svc.DevMeta, error) {
 }
 
 // SetDevMeta sets metadata for the given device.
-func (r *Redis) SetDevMeta(m *svc.DevMeta) error {
-	if _, err := r.hmset("id:"+m.MAC, "type", m.Type); err != nil {
+func (s *store) SetDevMeta(m *svc.DevMeta) error {
+	if _, err := s.hmset("id:"+m.MAC, "type", m.Type); err != nil {
 		return errors.Wrap(err, "store: setFridgeCfg(): HMSET() for type failed: ")
 	}
-	if _, err := r.hmset("id:"+m.MAC, "name", m.Name); err != nil {
+	if _, err := s.hmset("id:"+m.MAC, "name", m.Name); err != nil {
 		return errors.Wrap(err, "store: setFridgeCfg(): HMSET() for name failed: ")
 	}
-	if _, err := r.hmset("id:"+m.MAC, "mac", m.MAC); err != nil {
+	if _, err := s.hmset("id:"+m.MAC, "mac", m.MAC); err != nil {
 		return errors.Wrap(err, "store: setFridgeCfg(): HMSET() for mac failed: ")
 	}
 	return nil
 }
 
 // DevIsRegistered returns 'true' if the given device is registered, otherwise - 'false'.
-func (r *Redis) DevIsRegistered(m *svc.DevMeta) (bool, error) {
+func (s *store) DevIsRegistered(m *svc.DevMeta) (bool, error) {
 	cfgKey := m.MAC + partialDevCfgKey
-	if ok, err := r.exists(cfgKey); ok {
+	if ok, err := s.exists(cfgKey); ok {
 		if err != nil {
 			return false, errors.Wrap(err, "store: DevIsRegistered(): EXISTS() failed: ")
 		}
@@ -102,83 +102,83 @@ func (r *Redis) DevIsRegistered(m *svc.DevMeta) (bool, error) {
 }
 
 // GetDevData returns data concerning given device.
-func (r *Redis) GetDevData(id string) (*svc.DevData, error) {
-	m, err := r.GetDevMeta(id)
+func (s *store) GetDevData(id string) (*svc.DevData, error) {
+	m, err := s.GetDevMeta(id)
 	if err != nil {
 		return nil, err
 	}
 
 	switch m.Type {
 	case fridge:
-		return r.getFridgeData(m)
+		return s.getFridgeData(m)
 	case washer:
-		return r.getWasherData(m)
+		return s.getWasherData(m)
 	default:
 		return nil, errors.New("store: GetDevData(): dev type is unknown")
 	}
 }
 
 // SaveDevData saves data concerning given device.
-func (r *Redis) SaveDevData(d *svc.DevData) error {
+func (s *store) SaveDevData(d *svc.DevData) error {
 	switch d.Meta.Type {
 	case fridge:
-		return r.saveFridgeData(d)
+		return s.saveFridgeData(d)
 	case washer:
-		return r.saveWasherData(d)
+		return s.saveWasherData(d)
 	default:
 		return errors.New("store: SaveDevData(): dev type is unknown")
 	}
 }
 
 // GetDevCfg returns configuration for the given device.
-func (r *Redis) GetDevCfg(id string) (*svc.DevCfg, error) {
-	m, err := r.GetDevMeta(id)
+func (s *store) GetDevCfg(id string) (*svc.DevCfg, error) {
+	m, err := s.GetDevMeta(id)
 	if err != nil {
 		return nil, err
 	}
 
 	switch m.Type {
 	case fridge:
-		return r.getFridgeCfg(m)
+		return s.getFridgeCfg(m)
 	case washer:
-		return r.getWasherCfg(m)
+		return s.getWasherCfg(m)
 	default:
 		return nil, errors.New("store: GetDevCfg(): dev type is unknown")
 	}
 }
 
 // SetDevCfg sets configuration for the given device.
-func (r *Redis) SetDevCfg(id string, c *svc.DevCfg) error {
-	m, err := r.GetDevMeta(id)
+func (s *store) SetDevCfg(id string, c *svc.DevCfg) error {
+	m, err := s.GetDevMeta(id)
 	if err != nil {
 		return err
 	}
 
 	switch m.Type {
 	case fridge:
-		return r.setFridgeCfg(c, m)
+		return s.setFridgeCfg(c, m)
 	case washer:
-		return r.setWasherCfg(c)
+		return s.setWasherCfg(c)
 	default:
 		return errors.New("store: SetDevCfg(): dev type is unknown")
 	}
 }
 
 // GetDevDefaultCfg returns default configuration for the given device.
-func (r *Redis) GetDevDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
+func (s *store) GetDevDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	switch m.Type {
 	case fridge:
-		return r.getFridgeDefaultCfg(m)
+		return s.getFridgeDefaultCfg(m)
 	case washer:
-		return r.getWasherDefaultCfg(m)
+		return s.getWasherDefaultCfg(m)
 	default:
 		return nil, errors.New("store: GetDevDefaultCfg(): dev type is unknown")
 	}
 }
 
 // Publish posts a message on the given channel.
-func (r *Redis) Publish(msg interface{}, channel string) (int64, error) {
-	numberOfClients, err := redis.Int64(r.publish(msg, channel))
+func (s *store) Publish(msg interface{}, channel string) (int64, error) {
+	numberOfClients, err := redis.Int64(s.publish(msg, channel))
 	if err != nil {
 		return 0, errors.Wrap(err, "store: PUBLISH() failed: ")
 	}
@@ -186,8 +186,8 @@ func (r *Redis) Publish(msg interface{}, channel string) (int64, error) {
 }
 
 // Subscribe subscribes the client to the specified channels.
-func (r *Redis) Subscribe(c chan []byte, channel ...string) error {
-	conn := redis.PubSubConn{Conn: r.pool.Get()}
+func (s *store) Subscribe(c chan []byte, channel ...string) error {
+	conn := redis.PubSubConn{Conn: s.pool.Get()}
 	for _, cn := range channel {
 		if err := conn.Subscribe(cn); err != nil {
 			return errors.Wrap(err, "store: SUBSCRIBE() failed: ")

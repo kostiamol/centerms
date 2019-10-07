@@ -20,6 +20,9 @@ mock_gen:
 build:
 	@go build -o centerms
 
+test:
+	@go test ./...
+
 lint:
 	@echo "running linters..."
 	@golangci-lint run --no-config --issues-exit-code=0 --deadline=30m \
