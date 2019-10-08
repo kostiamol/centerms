@@ -16,6 +16,9 @@ type (
 		GetDevsData() ([]DevData, error)
 		GetDevData(id string) (*DevData, error)
 		SaveDevData(*DevData) error
+	}
+
+	DataPublisher interface {
 		Publish(msg interface{}, channel string) (int64, error)
 	}
 
@@ -43,10 +46,11 @@ type (
 
 	// dataService is used to deal with device data.
 	dataService struct {
-		log     log.Logger
-		ctrl    Ctrl
-		store   DataStorer
-		pubChan string
+		log       log.Logger
+		ctrl      Ctrl
+		storer    DataStorer
+		publisher DataPublisher
+		pubChan   string
 	}
 )
 
@@ -55,7 +59,7 @@ func NewDataService(c *DataServiceCfg) *dataService { //nolint
 	return &dataService{
 		log:     c.Log.With("component", "data"),
 		ctrl:    c.Ctrl,
-		store:   c.Store,
+		storer:  c.Store,
 		pubChan: c.PubChan,
 	}
 }
@@ -88,7 +92,7 @@ func (s *dataService) terminate() {
 
 // SaveDevData is used to save device data to the store.
 func (s *dataService) SaveDevData(d *DevData) error {
-	if err := s.store.SaveDevData(d); err != nil {
+	if err := s.storer.SaveDevData(d); err != nil {
 		s.log.Errorf("SaveDevData(): %s", err)
 		return err
 	}
@@ -99,7 +103,7 @@ func (s *dataService) SaveDevData(d *DevData) error {
 		return err
 	}
 
-	if _, err = s.store.Publish(b, s.pubChan); err != nil {
+	if _, err = s.publisher.Publish(b, s.pubChan); err != nil {
 		s.log.Errorf("Publish(): %s", err)
 		return err
 	}
@@ -109,7 +113,7 @@ func (s *dataService) SaveDevData(d *DevData) error {
 
 // GetDevData is used to get device data from the store.
 func (s *dataService) GetDevData(id string) (*DevData, error) {
-	d, err := s.store.GetDevData(id)
+	d, err := s.storer.GetDevData(id)
 	if err != nil {
 		s.log.Errorf("GetDevData(): %s", err)
 		return nil, err
@@ -119,7 +123,7 @@ func (s *dataService) GetDevData(id string) (*DevData, error) {
 
 // GetDevsData is used to get all the devices data from the store.
 func (s *dataService) GetDevsData() ([]DevData, error) {
-	d, err := s.store.GetDevsData()
+	d, err := s.storer.GetDevsData()
 	if err != nil {
 		s.log.Errorf("GetDevsData(): %s", err)
 		return nil, err

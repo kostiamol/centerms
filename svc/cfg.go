@@ -35,8 +35,16 @@ type (
 		GetDevDefaultCfg(*DevMeta) (*DevCfg, error)
 		SetDevMeta(*DevMeta) error
 		DevIsRegistered(*DevMeta) (bool, error)
-		Publish(msg interface{}, channel string) (int64, error)
+	}
+
+	// CfgSubscriber is a contract for the configuration subscriber.
+	CfgSubscriber interface {
 		Subscribe(c chan []byte, channel ...string) error
+	}
+
+	// CfgSubscriber is a contract for the configuration publisher.
+	CfgPublisher interface {
+		Publish(msg interface{}, channel string) (int64, error)
 	}
 
 	// DevCfg holds device's MAC address and config.
@@ -50,6 +58,8 @@ type (
 		Log           log.Logger
 		Ctrl          Ctrl
 		Store         CfgStorer
+		Subscriber    CfgSubscriber
+		Publisher     CfgPublisher
 		SubChan       string
 		NATSAddr      cfg.Addr
 		RetryTimeout  time.Duration
@@ -60,8 +70,10 @@ type (
 	cfgService struct {
 		log           log.Logger
 		ctrl          Ctrl
-		store         CfgStorer
-		sub           subscription
+		storer        CfgStorer
+		subscriber    CfgSubscriber
+		subscription  subscription
+		publisher     CfgPublisher
 		natsAddr      cfg.Addr
 		retryTimeout  time.Duration
 		retryAttempts uint64
@@ -76,13 +88,15 @@ type (
 // NewCfgService creates and initializes a new instance of cfgService.
 func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 	return &cfgService{
-		log:   c.Log.With("component", "cfg"),
-		ctrl:  c.Ctrl,
-		store: c.Store,
-		sub: subscription{
+		log:        c.Log.With("component", "cfg"),
+		ctrl:       c.Ctrl,
+		storer:     c.Store,
+		subscriber: c.Subscriber,
+		subscription: subscription{
 			ChanName: c.SubChan,
 			Chan:     make(chan []byte),
 		},
+		publisher:     c.Publisher,
 		natsAddr:      c.NATSAddr,
 		retryTimeout:  c.RetryTimeout,
 		retryAttempts: c.RetryAttempts,
@@ -125,12 +139,12 @@ func (s *cfgService) listenCfgPatches(ctx context.Context) {
 		}
 	}()
 
-	go s.store.Subscribe(s.sub.Chan, s.sub.ChanName) // nolint
+	go s.subscriber.Subscribe(s.subscription.Chan, s.subscription.ChanName) // nolint
 
 	var c DevCfg
 	for {
 		select {
-		case msg := <-s.sub.Chan:
+		case msg := <-s.subscription.Chan:
 			if err := json.Unmarshal(msg, &c); err != nil {
 				s.log.Errorf("listenCfgPatches(): %s", err)
 			} else {
@@ -188,7 +202,7 @@ func (s *cfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
 // SetDevInitCfg check's whether device is already registered in the system. If it's already registered,
 // the func returns actual configuration. Otherwise it returns default config for that type of device.
 func (s *cfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
-	if err := s.store.SetDevMeta(meta); err != nil {
+	if err := s.storer.SetDevMeta(meta); err != nil {
 		s.log.Errorf("SetDevInitCfg(): %s", err)
 		return nil, err
 	}
@@ -196,13 +210,13 @@ func (s *cfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 	var devCfg *DevCfg
 	id := meta.MAC
 
-	if ok, err := s.store.DevIsRegistered(meta); ok {
+	if ok, err := s.storer.DevIsRegistered(meta); ok {
 		if err != nil {
 			s.log.Errorf("SetDevInitCfg(): %s", err)
 			return nil, err
 		}
 
-		devCfg, err = s.store.GetDevCfg(id)
+		devCfg, err = s.storer.GetDevCfg(id)
 		if err != nil {
 			s.log.Errorf("SetDevInitCfg(): %s", err)
 			return nil, err
@@ -213,13 +227,13 @@ func (s *cfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 			return nil, err
 		}
 
-		devCfg, err = s.store.GetDevDefaultCfg(meta)
+		devCfg, err = s.storer.GetDevDefaultCfg(meta)
 		if err != nil {
 			s.log.Errorf("SetDevInitCfg(): %s", err)
 			return nil, err
 		}
 
-		if err = s.store.SetDevCfg(id, devCfg); err != nil {
+		if err = s.storer.SetDevCfg(id, devCfg); err != nil {
 			s.log.Errorf("SetDevInitCfg(): %s", err)
 			return nil, err
 		}
@@ -231,7 +245,7 @@ func (s *cfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 
 // GetDevCfg returns configuration for the given device.
 func (s *cfgService) GetDevCfg(id string) (*DevCfg, error) {
-	c, err := s.store.GetDevCfg(id)
+	c, err := s.storer.GetDevCfg(id)
 	if err != nil {
 		s.log.Errorf("GetDevCfg(): %s", err)
 		return nil, err
@@ -241,7 +255,7 @@ func (s *cfgService) GetDevCfg(id string) (*DevCfg, error) {
 
 // SetDevCfg sets configuration for the given device.
 func (s *cfgService) SetDevCfg(id string, c *DevCfg) error {
-	if err := s.store.SetDevCfg(id, c); err != nil {
+	if err := s.storer.SetDevCfg(id, c); err != nil {
 		s.log.Errorf("SetDevCfg(): %s", err)
 		return err
 	}
@@ -250,7 +264,7 @@ func (s *cfgService) SetDevCfg(id string, c *DevCfg) error {
 
 // PublishCfgPatch posts a message on the given channel.
 func (s *cfgService) PublishCfgPatch(c *DevCfg, channel string) (int64, error) {
-	numberOfClients, err := s.store.Publish(c, channel)
+	numberOfClients, err := s.publisher.Publish(c, channel)
 	if err != nil {
 		return 0, err
 	}

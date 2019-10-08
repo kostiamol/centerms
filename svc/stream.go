@@ -20,11 +20,6 @@ import (
 )
 
 type (
-	// CfgSubscriber is a contract for the configuration subscriber.
-	CfgSubscriber interface {
-		Subscribe(c chan []byte, channel ...string) error
-	}
-
 	// StreamServiceCfg is used to initialize an instance of streamService.
 	StreamServiceCfg struct {
 		Log        log.Logger
@@ -36,13 +31,13 @@ type (
 
 	// streamService is used to deal with streaming of data from the device to web client (dashboard).
 	streamService struct {
-		log        log.Logger
-		ctrl       Ctrl
-		subscriber CfgSubscriber
-		sub        subscription
-		portWS     uint64
-		conns      streamConns
-		upgrader   websocket.Upgrader
+		log          log.Logger
+		ctrl         Ctrl
+		subscriber   CfgSubscriber
+		subscription subscription
+		portWS       uint64
+		conns        streamConns
+		upgrader     websocket.Upgrader
 	}
 
 	devID string
@@ -56,7 +51,7 @@ func NewStreamService(c *StreamServiceCfg) *streamService { // nolint
 		ctrl:       c.Ctrl,
 		log:        c.Log.With("component", "stream"),
 		conns:      *newStreamConns(),
-		sub: subscription{
+		subscription: subscription{
 			ChanName: c.SubChan,
 			Chan:     make(chan []byte),
 		},
@@ -135,11 +130,11 @@ func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *streamService) listenPubs(ctx context.Context) {
-	go s.subscriber.Subscribe(s.sub.Chan, s.sub.ChanName) // nolint
+	go s.subscriber.Subscribe(s.subscription.Chan, s.subscription.ChanName) // nolint
 
 	for {
 		select {
-		case msg := <-s.sub.Chan:
+		case msg := <-s.subscription.Chan:
 			go s.stream(ctx, msg)
 		case <-ctx.Done():
 			return

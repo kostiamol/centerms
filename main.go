@@ -4,19 +4,26 @@ import (
 	"fmt"
 
 	"github.com/joho/godotenv"
-	"github.com/kostiamol/centerms/api"
+	api_ "github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/cfg"
 	"github.com/kostiamol/centerms/log"
 	"github.com/kostiamol/centerms/store"
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: put interface into the place it's used and segregate pub/sub from storer + runer for services + return
+// todo: stream and other svc: subscribe error: separate into another routine
+// todo: init cfg with pub chan
 // todo: handle all errors
+// todo: store/meta.go interface usage
 // todo: look through the handlers
 // todo: add Prometheus
 // todo: update README.md
 // todo: swagger
+
+// runner is a contract for all the components (api + services).
+type runner interface {
+	Run()
+}
 
 func main() {
 	var loadCfgErr, initCfgErr error
@@ -30,7 +37,7 @@ func main() {
 	}
 
 	logger := log.New(config.Service.AppID, config.Service.LogLevel)
-	_ = logger.Flush()
+	defer logger.Flush() // nolint
 
 	if loadCfgErr != nil || initCfgErr != nil {
 		logger.Fatal(initCfgErr)
@@ -56,8 +63,18 @@ func main() {
 			Store:   storer,
 			PubChan: cfg.DevDataChan,
 		})
-	go data.Run()
-
+	conf := svc.NewCfgService(
+		&svc.CfgServiceCfg{
+			Log:           logger,
+			Ctrl:          ctrl,
+			Store:         storer,
+			Subscriber:    storer,
+			SubChan:       cfg.DevCfgChan,
+			Publisher:     storer,
+			RetryTimeout:  config.Service.RetryTimeout,
+			RetryAttempts: config.Service.RetryAttempts,
+			NATSAddr:      cfg.Addr{Host: config.NATS.Addr.Host, Port: config.NATS.Addr.Port},
+		})
 	stream := svc.NewStreamService(
 		&svc.StreamServiceCfg{
 			Log:        logger,
@@ -66,22 +83,8 @@ func main() {
 			SubChan:    cfg.DevDataChan,
 			PortWS:     config.Service.PortWebSocket,
 		})
-	go stream.Run()
-
-	conf := svc.NewCfgService(
-		&svc.CfgServiceCfg{
-			Log:           logger,
-			Ctrl:          ctrl,
-			Store:         storer,
-			SubChan:       cfg.DevCfgChan,
-			RetryTimeout:  config.Service.RetryTimeout,
-			RetryAttempts: config.Service.RetryAttempts,
-			NATSAddr:      cfg.Addr{Host: config.NATS.Addr.Host, Port: config.NATS.Addr.Port},
-		})
-	go conf.Run()
-
-	a := api.New(
-		&api.Cfg{
+	api := api_.New(
+		&api_.Cfg{
 			Log:          logger,
 			PubChan:      cfg.DevCfgChan,
 			PortRPC:      int32(config.Service.PortRPC),
@@ -92,7 +95,11 @@ func main() {
 			PublicKey:    config.Token.PublicKey,
 			PrivateKey:   config.Token.PrivateKey,
 		})
-	go a.Run()
+
+	components := []runner{data, conf, stream, api}
+	for _, c := range components {
+		go c.Run()
+	}
 
 	ctrl.Wait(config.Service.RoutineTerminationTimeout)
 
