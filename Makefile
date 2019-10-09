@@ -21,6 +21,7 @@ build:
 	@go build -o centerms
 
 test:
+	@echo "running tests..."
 	@go test ./...
 
 lint:

@@ -65,7 +65,7 @@ func NewStreamService(c *StreamServiceCfg) *streamService { // nolint
 	}
 }
 
-// Run launches the service by running goroutines for listening the service termination, new device data,
+// Run launches the service by running goroutines for listening to the service termination, new device data,
 // closed web client connections and publishing new device data to web clients with open connections.
 func (s *streamService) Run() {
 	s.log.With("event", cfg.EventComponentStarted).
@@ -80,9 +80,10 @@ func (s *streamService) Run() {
 		}
 	}()
 
-	go s.listenTermination()
-	go s.listenPubs(ctx)
-	go s.listenClosedConns(ctx)
+	go s.listenToTermination()
+	go s.subscribeToDataChanges()
+	go s.listenToDataChanges(ctx)
+	go s.listenToClosedConns(ctx)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/devices/{id}", s.addConnHandler)
@@ -94,7 +95,7 @@ func (s *streamService) Run() {
 	s.log.Fatal(srv.ListenAndServe())
 }
 
-func (s *streamService) listenTermination() {
+func (s *streamService) listenToTermination() {
 	<-s.ctrl.StopChan
 	s.terminate()
 }
@@ -129,9 +130,13 @@ func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	s.log.With("event", cfg.EventWSConnAdded).Infof("addConnHandler(): addr: %v", conn.RemoteAddr())
 }
 
-func (s *streamService) listenPubs(ctx context.Context) {
-	go s.subscriber.Subscribe(s.subscription.Chan, s.subscription.ChanName) // nolint
+func (s *streamService) subscribeToDataChanges() {
+	if err := s.subscriber.Subscribe(s.subscription.Chan, s.subscription.ChanName); err != nil {
+		s.log.Errorf("Subscribe(): %s", err)
+	}
+}
 
+func (s *streamService) listenToDataChanges(ctx context.Context) {
 	for {
 		select {
 		case msg := <-s.subscription.Chan:
@@ -175,10 +180,9 @@ func (s *streamService) stream(ctx context.Context, msg []byte) {
 		}
 		return
 	}
-	return
 }
 
-func (s *streamService) listenClosedConns(ctx context.Context) {
+func (s *streamService) listenToClosedConns(ctx context.Context) {
 	for {
 		select {
 		case conn := <-s.conns.closedConns:

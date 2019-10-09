@@ -78,7 +78,7 @@ func New(c *Cfg) *api { // nolint
 	}
 }
 
-// Run launches the service by running goroutines for listening the service termination and queries
+// Run launches the service by running goroutines for listening to the service termination and queries
 // from the web client.
 func (a *api) Run() {
 	a.log.With("event", cfg.EventComponentStarted).

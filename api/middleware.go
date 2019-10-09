@@ -7,7 +7,9 @@ import (
 	"github.com/kostiamol/centerms/log"
 )
 
-func (a *api) registerRoute(method, path string, handler http.HandlerFunc, middlewares ...func(next http.HandlerFunc, name string, l log.Logger) http.HandlerFunc) {
+func (a *api) registerRoute(method, path string, handler http.HandlerFunc,
+	middlewares ...func(next http.HandlerFunc, name string, l log.Logger) http.HandlerFunc) {
+
 	for _, mw := range middlewares {
 		handler = mw(handler, path, a.log)
 	}

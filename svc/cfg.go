@@ -103,7 +103,7 @@ func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 	}
 }
 
-// Run launches the service by running goroutines for listening the service termination and config patches.
+// Run launches the service by running goroutines for listening to the service termination and config patches.
 func (s *cfgService) Run() {
 	s.log.With("event", cfg.EventComponentStarted).Infof("is running")
 
@@ -116,11 +116,12 @@ func (s *cfgService) Run() {
 		}
 	}()
 
-	go s.listenTermination()
-	go s.listenCfgPatches(ctx)
+	go s.listenToTermination()
+	go s.subscribeToCfgPatches()
+	go s.listenToCfgPatches(ctx)
 }
 
-func (s *cfgService) listenTermination() {
+func (s *cfgService) listenToTermination() {
 	<-s.ctrl.StopChan
 	s.terminate()
 }
@@ -131,22 +132,26 @@ func (s *cfgService) terminate() {
 	s.ctrl.Terminate()
 }
 
-func (s *cfgService) listenCfgPatches(ctx context.Context) {
+func (s *cfgService) subscribeToCfgPatches() {
+	if err := s.subscriber.Subscribe(s.subscription.Chan, s.subscription.ChanName); err != nil {
+		s.log.Errorf("Subscribe(): %s", err)
+	}
+}
+
+func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("listenCfgPatches(): %s", r)
+			s.log.With("event", cfg.EventPanic).Errorf("listenToCfgPatches(): %s", r)
 			s.terminate()
 		}
 	}()
-
-	go s.subscriber.Subscribe(s.subscription.Chan, s.subscription.ChanName) // nolint
 
 	var c DevCfg
 	for {
 		select {
 		case msg := <-s.subscription.Chan:
 			if err := json.Unmarshal(msg, &c); err != nil {
-				s.log.Errorf("listenCfgPatches(): %s", err)
+				s.log.Errorf("listenToCfgPatches(): %s", err)
 			} else {
 				go s.pubNewCfgPatchEvent(&c)
 			}
