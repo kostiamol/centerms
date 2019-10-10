@@ -21,7 +21,6 @@ type (
 		GetDevCfg(id string) (*svc.DevCfg, error)
 		SetDevInitCfg(*svc.DevMeta) (*svc.DevCfg, error)
 		SetDevCfg(id string, c *svc.DevCfg) error
-		PublishCfgPatch(c *svc.DevCfg, channel string) (int64, error)
 	}
 
 	// DataProvider is a contract for the data provider.
@@ -31,6 +30,11 @@ type (
 		SaveDevData(*svc.DevData) error
 	}
 
+	// Publisher .
+	Publisher interface {
+		Publish(msg interface{}, channel string) (int64, error)
+	}
+
 	// Cfg is used to initialize an instance of api.
 	Cfg struct {
 		AppID        string
@@ -38,6 +42,7 @@ type (
 		PubChan      string
 		PortRPC      int32
 		PortREST     int32
+		Publisher    Publisher
 		CfgProvider  CfgProvider
 		DataProvider DataProvider
 		Retry        time.Duration
@@ -52,6 +57,7 @@ type (
 		pubChan      string
 		portRPC      int32
 		portREST     int32
+		publisher    Publisher
 		cfgProvider  CfgProvider
 		dataProvider DataProvider
 		retry        time.Duration
@@ -70,6 +76,7 @@ func New(c *Cfg) *api { // nolint
 		pubChan:      c.PubChan,
 		portRPC:      c.PortRPC,
 		portREST:     c.PortREST,
+		publisher:    c.Publisher,
 		cfgProvider:  c.CfgProvider,
 		dataProvider: c.DataProvider,
 		retry:        c.Retry,

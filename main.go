@@ -4,15 +4,14 @@ import (
 	"fmt"
 
 	"github.com/joho/godotenv"
-	api_ "github.com/kostiamol/centerms/api"
+	"github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/cfg"
 	"github.com/kostiamol/centerms/log"
 	"github.com/kostiamol/centerms/store"
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: stream and other svc: subscribe error: separate into another routine
-// todo: init cfg with pub chan
+// todo: update helm range env read
 // todo: handle all errors
 // todo: store/meta.go interface usage
 // todo: look through the handlers
@@ -26,21 +25,21 @@ type runner interface {
 }
 
 func main() {
-	var loadCfgErr, initCfgErr error
+	var loadCfgErr, newCfgErr error
 	if loadCfgErr = godotenv.Load(".env"); loadCfgErr != nil {
-		loadCfgErr = fmt.Errorf("Load(): %s", loadCfgErr)
+		loadCfgErr = fmt.Errorf("godotenv.Load(): %s", loadCfgErr)
 	}
 
-	config, initCfgErr := cfg.InitConfig()
-	if initCfgErr != nil {
-		initCfgErr = fmt.Errorf("InitConfig(): %s", initCfgErr)
+	config, newCfgErr := cfg.New()
+	if newCfgErr != nil {
+		newCfgErr = fmt.Errorf("cfg.New(): %s", newCfgErr)
 	}
 
 	logger := log.New(config.Service.AppID, config.Service.LogLevel)
 	defer logger.Flush() // nolint
 
-	if loadCfgErr != nil || initCfgErr != nil {
-		logger.Fatal(initCfgErr)
+	if loadCfgErr != nil || newCfgErr != nil {
+		logger.Fatal(newCfgErr)
 	}
 
 	storer, err := store.New(
@@ -58,10 +57,11 @@ func main() {
 
 	data := svc.NewDataService(
 		&svc.DataServiceCfg{
-			Log:     logger,
-			Ctrl:    ctrl,
-			Store:   storer,
-			PubChan: cfg.DevDataChan,
+			Log:       logger,
+			Ctrl:      ctrl,
+			Store:     storer,
+			Publisher: storer,
+			PubChan:   cfg.DevDataChan,
 		})
 	conf := svc.NewCfgService(
 		&svc.CfgServiceCfg{
@@ -70,7 +70,6 @@ func main() {
 			Store:         storer,
 			Subscriber:    storer,
 			SubChan:       cfg.DevCfgChan,
-			Publisher:     storer,
 			RetryTimeout:  config.Service.RetryTimeout,
 			RetryAttempts: config.Service.RetryAttempts,
 			NATSAddr:      cfg.Addr{Host: config.NATS.Addr.Host, Port: config.NATS.Addr.Port},
@@ -83,12 +82,13 @@ func main() {
 			SubChan:    cfg.DevDataChan,
 			PortWS:     config.Service.PortWebSocket,
 		})
-	api := api_.New(
-		&api_.Cfg{
+	a := api.New(
+		&api.Cfg{
 			Log:          logger,
 			PubChan:      cfg.DevCfgChan,
 			PortRPC:      int32(config.Service.PortRPC),
 			PortREST:     int32(config.Service.PortREST),
+			Publisher:    storer,
 			CfgProvider:  conf,
 			DataProvider: data,
 			Retry:        config.Service.RetryTimeout,
@@ -96,7 +96,7 @@ func main() {
 			PrivateKey:   config.Token.PrivateKey,
 		})
 
-	components := []runner{data, conf, stream, api}
+	components := []runner{data, conf, stream, a}
 	for _, c := range components {
 		go c.Run()
 	}

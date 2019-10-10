@@ -70,7 +70,8 @@ func (a *api) patchDevCfgHandler(w http.ResponseWriter, r *http.Request) {
 		a.log.Errorf("patchDevCfgHandler(): SetDevCfg(): %s", err)
 		return
 	}
-	if _, err := a.cfgProvider.PublishCfgPatch(&c, a.pubChan); err != nil {
+
+	if _, err := a.publisher.Publish(&c, a.pubChan); err != nil {
 		a.log.Errorf("patchDevCfgHandler(): PublishCfgPatch(): %s", err)
 		return
 	}

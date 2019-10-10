@@ -18,7 +18,8 @@ type (
 		SaveDevData(*DevData) error
 	}
 
-	DataPublisher interface {
+	// Publisher .
+	Publisher interface {
 		Publish(msg interface{}, channel string) (int64, error)
 	}
 
@@ -38,10 +39,11 @@ type (
 
 	// DataServiceCfg is used to initialize an instance of dataService.
 	DataServiceCfg struct {
-		Log     log.Logger
-		Ctrl    Ctrl
-		Store   DataStorer
-		PubChan string
+		Log       log.Logger
+		Ctrl      Ctrl
+		Store     DataStorer
+		Publisher Publisher
+		PubChan   string
 	}
 
 	// dataService is used to deal with device data.
@@ -49,7 +51,7 @@ type (
 		log       log.Logger
 		ctrl      Ctrl
 		storer    DataStorer
-		publisher DataPublisher
+		publisher Publisher
 		pubChan   string
 	}
 )
@@ -57,10 +59,11 @@ type (
 // NewDataService creates and initializes a new instance of dataService.
 func NewDataService(c *DataServiceCfg) *dataService { //nolint
 	return &dataService{
-		log:     c.Log.With("component", "data"),
-		ctrl:    c.Ctrl,
-		storer:  c.Store,
-		pubChan: c.PubChan,
+		log:       c.Log.With("component", "data"),
+		ctrl:      c.Ctrl,
+		storer:    c.Store,
+		publisher: c.Publisher,
+		pubChan:   c.PubChan,
 	}
 }
 

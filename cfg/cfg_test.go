@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewConfig(t *testing.T) {
-	_, err := InitConfig()
+	_, err := New()
 	assert.NotNil(t, err)
 }
 

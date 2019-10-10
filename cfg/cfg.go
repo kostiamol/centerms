@@ -45,8 +45,8 @@ type (
 	}
 )
 
-// InitConfig initializes and returns configuration structure with environment variables.
-func InitConfig() (*Config, error) {
+// New initializes configuration structure with environment variables and returns it.
+func New() (*Config, error) {
 	publicKey, err := decodeEnv("PUBLIC_KEY")
 	if err != nil {
 		return nil, err

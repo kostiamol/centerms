@@ -37,14 +37,9 @@ type (
 		DevIsRegistered(*DevMeta) (bool, error)
 	}
 
-	// CfgSubscriber is a contract for the configuration subscriber.
-	CfgSubscriber interface {
+	// Subscriber .
+	Subscriber interface {
 		Subscribe(c chan []byte, channel ...string) error
-	}
-
-	// CfgSubscriber is a contract for the configuration publisher.
-	CfgPublisher interface {
-		Publish(msg interface{}, channel string) (int64, error)
 	}
 
 	// DevCfg holds device's MAC address and config.
@@ -58,8 +53,7 @@ type (
 		Log           log.Logger
 		Ctrl          Ctrl
 		Store         CfgStorer
-		Subscriber    CfgSubscriber
-		Publisher     CfgPublisher
+		Subscriber    Subscriber
 		SubChan       string
 		NATSAddr      cfg.Addr
 		RetryTimeout  time.Duration
@@ -71,9 +65,8 @@ type (
 		log           log.Logger
 		ctrl          Ctrl
 		storer        CfgStorer
-		subscriber    CfgSubscriber
+		subscriber    Subscriber
 		subscription  subscription
-		publisher     CfgPublisher
 		natsAddr      cfg.Addr
 		retryTimeout  time.Duration
 		retryAttempts uint64
@@ -96,7 +89,6 @@ func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 			ChanName: c.SubChan,
 			Chan:     make(chan []byte),
 		},
-		publisher:     c.Publisher,
 		natsAddr:      c.NATSAddr,
 		retryTimeout:  c.RetryTimeout,
 		retryAttempts: c.RetryAttempts,
@@ -265,13 +257,4 @@ func (s *cfgService) SetDevCfg(id string, c *DevCfg) error {
 		return err
 	}
 	return nil
-}
-
-// PublishCfgPatch posts a message on the given channel.
-func (s *cfgService) PublishCfgPatch(c *DevCfg, channel string) (int64, error) {
-	numberOfClients, err := s.publisher.Publish(c, channel)
-	if err != nil {
-		return 0, err
-	}
-	return numberOfClients, nil
 }

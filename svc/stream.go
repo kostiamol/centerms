@@ -24,7 +24,7 @@ type (
 	StreamServiceCfg struct {
 		Log        log.Logger
 		Ctrl       Ctrl
-		Subscriber CfgSubscriber
+		Subscriber Subscriber
 		SubChan    string
 		PortWS     uint64
 	}
@@ -33,7 +33,7 @@ type (
 	streamService struct {
 		log          log.Logger
 		ctrl         Ctrl
-		subscriber   CfgSubscriber
+		subscriber   Subscriber
 		subscription subscription
 		portWS       uint64
 		conns        streamConns
