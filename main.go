@@ -15,6 +15,8 @@ import (
 // todo: handle all errors
 // todo: store/meta.go interface usage
 // todo: look through the handlers
+// todo: extract pub/sub into event package
+// todo: deploy to minikube using helm chart
 // todo: add Prometheus
 // todo: update README.md
 // todo: swagger
