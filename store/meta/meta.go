@@ -1,4 +1,4 @@
-package store
+package meta
 
 // Meta is an interface for interaction with response's metadata.
 type Meta interface {

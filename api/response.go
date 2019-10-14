@@ -6,7 +6,7 @@ import (
 
 	"github.com/kostiamol/centerms/log"
 
-	"github.com/kostiamol/centerms/store"
+	"github.com/kostiamol/centerms/store/meta"
 )
 
 func respMeta(w http.ResponseWriter, meta interface{}) error { // nolint
@@ -26,7 +26,7 @@ func respMeta(w http.ResponseWriter, meta interface{}) error { // nolint
 	return nil
 }
 
-func resp(w http.ResponseWriter, data interface{}, md ...store.Meta) error { // nolint
+func resp(w http.ResponseWriter, data interface{}, md ...meta.Meta) error { // nolint
 	resp := map[string]interface{}{"data": data}
 
 	meta := map[string]interface{}{}

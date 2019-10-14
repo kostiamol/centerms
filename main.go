@@ -11,11 +11,8 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: update helm range env read
-// todo: handle all errors
-// todo: store/meta.go interface usage
 // todo: look through the handlers
-// todo: extract pub/sub into event package
+// todo: extract pub/sub from store into event package
 // todo: deploy to minikube using helm chart
 // todo: add Prometheus
 // todo: update README.md
@@ -38,7 +35,6 @@ func main() {
 	}
 
 	logger := log.New(config.Service.AppID, config.Service.LogLevel)
-	defer logger.Flush() // nolint
 
 	if loadCfgErr != nil || newCfgErr != nil {
 		logger.Fatal(newCfgErr)
@@ -106,4 +102,5 @@ func main() {
 	ctrl.Wait(config.Service.RoutineTerminationTimeout)
 
 	logger.Info("service is down")
+	_ = logger.Flush()
 }
