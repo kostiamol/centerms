@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 
+	"github.com/kostiamol/centerms/event/pub"
+
 	"github.com/joho/godotenv"
 	"github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/cfg"
@@ -12,7 +14,8 @@ import (
 )
 
 // todo: look through the handlers
-// todo: extract pub/sub from store into event package
+// todo: extract pub/sub from store into event package, remove redis
+// todo: run/stop svc
 // todo: deploy to minikube using helm chart
 // todo: add Prometheus
 // todo: update README.md
@@ -51,6 +54,13 @@ func main() {
 		logger.Fatalf("store.New(): %s", err)
 	}
 
+	publisher := pub.New(
+		&pub.Cfg{
+			Addr:          cfg.Addr{Host: config.NATS.Addr.Host, Port: config.NATS.Addr.Port},
+			RetryTimeout:  config.Service.RetryTimeout,
+			RetryAttempts: config.Service.RetryAttempts,
+		})
+
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
 
 	data := svc.NewDataService(
@@ -63,14 +73,12 @@ func main() {
 		})
 	conf := svc.NewCfgService(
 		&svc.CfgServiceCfg{
-			Log:           logger,
-			Ctrl:          ctrl,
-			Store:         storer,
-			Subscriber:    storer,
-			SubChan:       cfg.DevCfgChan,
-			RetryTimeout:  config.Service.RetryTimeout,
-			RetryAttempts: config.Service.RetryAttempts,
-			NATSAddr:      cfg.Addr{Host: config.NATS.Addr.Host, Port: config.NATS.Addr.Port},
+			Log:        logger,
+			Ctrl:       ctrl,
+			Store:      storer,
+			Subscriber: storer,
+			SubChan:    cfg.DevCfgChan,
+			Publisher:  publisher,
 		})
 	stream := svc.NewStreamService(
 		&svc.StreamServiceCfg{

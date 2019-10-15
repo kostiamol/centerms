@@ -19,7 +19,7 @@ type (
 	}
 
 	// Publisher .
-	Publisher interface {
+	DataPublisher interface {
 		Publish(msg interface{}, channel string) (int64, error)
 	}
 
@@ -42,7 +42,7 @@ type (
 		Log       log.Logger
 		Ctrl      Ctrl
 		Store     DataStorer
-		Publisher Publisher
+		Publisher DataPublisher
 		PubChan   string
 	}
 
@@ -51,7 +51,7 @@ type (
 		log       log.Logger
 		ctrl      Ctrl
 		storer    DataStorer
-		publisher Publisher
+		publisher DataPublisher
 		pubChan   string
 	}
 )

@@ -2,29 +2,11 @@
 package svc
 
 import (
-	"fmt"
-	"strconv"
-
-	"github.com/kostiamol/centerms/log"
-
 	"github.com/kostiamol/centerms/cfg"
-	"github.com/kostiamol/centerms/proto"
+	"github.com/kostiamol/centerms/log"
 	"golang.org/x/net/context"
 
-	"math/rand"
-	"time"
-
 	"encoding/json"
-
-	gproto "github.com/golang/protobuf/proto"
-	"github.com/nats-io/go-nats"
-	"github.com/satori/go.uuid"
-)
-
-const (
-	cfgPatchSubject = "cfg_patch"
-	aggregate       = "cfg_svc"
-	event           = "cfg_patched"
 )
 
 type (
@@ -42,6 +24,11 @@ type (
 		Subscribe(c chan []byte, channel ...string) error
 	}
 
+	// Publisher .
+	Publisher interface {
+		Publish(mac, data string) error
+	}
+
 	// DevCfg holds device's MAC address and config.
 	DevCfg struct {
 		MAC  string          `json:"mac"`
@@ -50,26 +37,22 @@ type (
 
 	// CfgServiceCfg is used to initialize an instance of cfgService.
 	CfgServiceCfg struct {
-		Log           log.Logger
-		Ctrl          Ctrl
-		Store         CfgStorer
-		Subscriber    Subscriber
-		SubChan       string
-		NATSAddr      cfg.Addr
-		RetryTimeout  time.Duration
-		RetryAttempts uint64
+		Log        log.Logger
+		Ctrl       Ctrl
+		Store      CfgStorer
+		Subscriber Subscriber
+		Publisher  Publisher
+		SubChan    string
 	}
 
 	// cfgService is used to deal with device configurations.
 	cfgService struct {
-		log           log.Logger
-		ctrl          Ctrl
-		storer        CfgStorer
-		subscriber    Subscriber
-		subscription  subscription
-		natsAddr      cfg.Addr
-		retryTimeout  time.Duration
-		retryAttempts uint64
+		log          log.Logger
+		ctrl         Ctrl
+		storer       CfgStorer
+		subscriber   Subscriber
+		subscription subscription
+		publisher    Publisher
 	}
 
 	subscription struct {
@@ -89,9 +72,7 @@ func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 			ChanName: c.SubChan,
 			Chan:     make(chan []byte),
 		},
-		natsAddr:      c.NATSAddr,
-		retryTimeout:  c.RetryTimeout,
-		retryAttempts: c.RetryAttempts,
+		publisher: c.Publisher,
 	}
 }
 
@@ -145,55 +126,14 @@ func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 			if err := json.Unmarshal(msg, &c); err != nil {
 				s.log.Errorf("listenToCfgPatches(): %s", err)
 			} else {
-				go s.pubNewCfgPatchEvent(&c)
+				if err := s.publisher.Publish(c.MAC, string(c.Data)); err != nil {
+					s.log.Errorf("Publish: %s", err)
+				}
 			}
 		case <-ctx.Done():
 			return
 		}
 	}
-}
-
-func (s *cfgService) pubNewCfgPatchEvent(devCfg *DevCfg) {
-	var (
-		err          error
-		conn         *nats.Conn
-		retryAttempt uint64
-	)
-
-	for {
-		conn, err = nats.Connect(s.natsAddr.Host + strconv.FormatUint(s.natsAddr.Port, 10))
-		if err != nil && retryAttempt < s.retryAttempts {
-			s.log.Error("pubNewCfgPatchEvent(): nats connectivity status is DISCONNECTED")
-			retryAttempt++
-			duration := time.Duration(rand.Intn(int(s.retryTimeout.Seconds())))
-			time.Sleep(time.Second*duration + 1)
-			continue
-		}
-		break
-	}
-	defer conn.Close()
-
-	e := proto.Event{
-		AggregateId:   devCfg.MAC,
-		AggregateType: aggregate,
-		EventId:       uuid.NewV4().String(),
-		EventType:     event,
-		EventData:     string(devCfg.Data),
-	}
-
-	subj := fmt.Sprintf("%s.%s", cfgPatchSubject, devCfg.MAC)
-
-	b, err := gproto.Marshal(&e)
-	if err != nil {
-		s.log.Errorf("pubNewCfgPatchEvent(): marshal failed: %s", err)
-	}
-
-	if err := conn.Publish(subj, b); err != nil {
-		s.log.Errorf("pubNewCfgPatchEvent(): publish failed: %s", err)
-	}
-
-	s.log.With("func", "pubNewCfgPatchEvent", "event", cfg.EventCfgPatchCreated).
-		Infof("cfg patch [%s] for device with ID [%s]", devCfg.Data, devCfg.MAC)
 }
 
 // SetDevInitCfg check's whether device is already registered in the system. If it's already registered,
