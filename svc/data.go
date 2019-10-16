@@ -89,7 +89,7 @@ func (s *dataService) listenToTermination() {
 }
 
 func (s *dataService) terminate() {
-	s.log.With("event", cfg.EventComponentShutdown).Info("svc is down")
+	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
 	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
