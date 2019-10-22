@@ -71,8 +71,5 @@ func (a *api) patchDevCfgHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := a.publisher.Publish(&c, a.pubChan); err != nil {
-		a.log.Errorf("patchDevCfgHandler(): PublishCfgPatch(): %s", err)
-		return
-	}
+	a.pubChan <- &c
 }

@@ -14,8 +14,7 @@ import (
 )
 
 // todo: look through the handlers
-// todo: extract pub/sub from store into event package, remove redis
-// todo: run/stop svc
+// todo: int ports -> uint32
 // todo: deploy to minikube using helm chart
 // todo: add Prometheus
 // todo: update README.md
@@ -62,39 +61,37 @@ func main() {
 		})
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
+	dataChan := make(chan *svc.DevData)
+	confChan := make(chan *svc.DevCfg)
 
 	data := svc.NewDataService(
 		&svc.DataServiceCfg{
-			Log:       logger,
-			Ctrl:      ctrl,
-			Store:     storer,
-			Publisher: storer,
-			PubChan:   cfg.DevDataChan,
+			Log:     logger,
+			Ctrl:    ctrl,
+			Store:   storer,
+			PubChan: dataChan,
 		})
 	conf := svc.NewCfgService(
 		&svc.CfgServiceCfg{
-			Log:        logger,
-			Ctrl:       ctrl,
-			Store:      storer,
-			Subscriber: storer,
-			SubChan:    cfg.DevCfgChan,
-			Publisher:  publisher,
+			Log:       logger,
+			Ctrl:      ctrl,
+			Store:     storer,
+			SubChan:   confChan,
+			Publisher: publisher,
 		})
 	stream := svc.NewStreamService(
 		&svc.StreamServiceCfg{
-			Log:        logger,
-			Ctrl:       ctrl,
-			Subscriber: storer,
-			SubChan:    cfg.DevDataChan,
-			PortWS:     config.Service.PortWebSocket,
+			Log:     logger,
+			Ctrl:    ctrl,
+			SubChan: dataChan,
+			PortWS:  config.Service.PortWebSocket,
 		})
 	a := api.New(
 		&api.Cfg{
 			Log:          logger,
-			PubChan:      cfg.DevCfgChan,
+			PubChan:      confChan,
 			PortRPC:      int32(config.Service.PortRPC),
 			PortREST:     int32(config.Service.PortREST),
-			Publisher:    storer,
 			CfgProvider:  conf,
 			DataProvider: data,
 			Retry:        config.Service.RetryTimeout,

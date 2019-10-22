@@ -13,9 +13,9 @@ proto_gen:
 # go get github.com/golang/mock/mockgen
 mock_gen:
 	@echo "generating mocks..."
-	@mockgen github.com/kostiamol/centerms/api CfgProvider,DataProvider,Publisher > ./api/mock/api.go
+	@mockgen github.com/kostiamol/centerms/api CfgProvider,DataProvider > ./api/mock/api.go
 	@mockgen github.com/kostiamol/centerms/log Logger > ./log/mock/logger.go
-	@mockgen github.com/kostiamol/centerms/svc CfgStorer,DataStorer,Subscriber,Publisher > ./svc/mock/svc.go
+	@mockgen github.com/kostiamol/centerms/svc CfgStorer,DataStorer,Publisher > ./svc/mock/svc.go
 
 build:
 	@go build -o centerms

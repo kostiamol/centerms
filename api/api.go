@@ -39,10 +39,9 @@ type (
 	Cfg struct {
 		AppID        string
 		Log          log.Logger
-		PubChan      string
+		PubChan      chan<- *svc.DevCfg
 		PortRPC      int32
 		PortREST     int32
-		Publisher    Publisher
 		CfgProvider  CfgProvider
 		DataProvider DataProvider
 		Retry        time.Duration
@@ -54,10 +53,9 @@ type (
 	api struct {
 		appID        string
 		log          log.Logger
-		pubChan      string
+		pubChan      chan<- *svc.DevCfg
 		portRPC      int32
 		portREST     int32
-		publisher    Publisher
 		cfgProvider  CfgProvider
 		dataProvider DataProvider
 		retry        time.Duration
@@ -76,7 +74,6 @@ func New(c *Cfg) *api { // nolint
 		pubChan:      c.PubChan,
 		portRPC:      c.PortRPC,
 		portREST:     c.PortREST,
-		publisher:    c.Publisher,
 		cfgProvider:  c.CfgProvider,
 		dataProvider: c.DataProvider,
 		retry:        c.Retry,

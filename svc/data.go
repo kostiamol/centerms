@@ -39,31 +39,28 @@ type (
 
 	// DataServiceCfg is used to initialize an instance of dataService.
 	DataServiceCfg struct {
-		Log       log.Logger
-		Ctrl      Ctrl
-		Store     DataStorer
-		Publisher DataPublisher
-		PubChan   string
+		Log     log.Logger
+		Ctrl    Ctrl
+		Store   DataStorer
+		PubChan chan<- *DevData
 	}
 
 	// dataService is used to deal with device data.
 	dataService struct {
-		log       log.Logger
-		ctrl      Ctrl
-		storer    DataStorer
-		publisher DataPublisher
-		pubChan   string
+		log     log.Logger
+		ctrl    Ctrl
+		storer  DataStorer
+		pubChan chan<- *DevData
 	}
 )
 
 // NewDataService creates and initializes a new instance of dataService.
 func NewDataService(c *DataServiceCfg) *dataService { //nolint
 	return &dataService{
-		log:       c.Log.With("component", "data"),
-		ctrl:      c.Ctrl,
-		storer:    c.Store,
-		publisher: c.Publisher,
-		pubChan:   c.PubChan,
+		log:     c.Log.With("component", "data"),
+		ctrl:    c.Ctrl,
+		storer:  c.Store,
+		pubChan: c.PubChan,
 	}
 }
 
@@ -101,16 +98,7 @@ func (s *dataService) SaveDevData(d *DevData) error {
 		return err
 	}
 
-	b, err := json.Marshal(d)
-	if err != nil {
-		s.log.Errorf("Marshal(): %s", err)
-		return err
-	}
-
-	if _, err = s.publisher.Publish(b, s.pubChan); err != nil {
-		s.log.Errorf("Publish(): %s", err)
-		return err
-	}
+	s.pubChan <- d
 
 	return nil
 }

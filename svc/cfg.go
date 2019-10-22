@@ -19,11 +19,6 @@ type (
 		DevIsRegistered(*DevMeta) (bool, error)
 	}
 
-	// Subscriber .
-	Subscriber interface {
-		Subscribe(c chan []byte, channel ...string) error
-	}
-
 	// Publisher .
 	Publisher interface {
 		Publish(mac, data string) error
@@ -37,42 +32,31 @@ type (
 
 	// CfgServiceCfg is used to initialize an instance of cfgService.
 	CfgServiceCfg struct {
-		Log        log.Logger
-		Ctrl       Ctrl
-		Store      CfgStorer
-		Subscriber Subscriber
-		Publisher  Publisher
-		SubChan    string
+		Log       log.Logger
+		Ctrl      Ctrl
+		Store     CfgStorer
+		Publisher Publisher
+		SubChan   <-chan *DevCfg
 	}
 
 	// cfgService is used to deal with device configurations.
 	cfgService struct {
-		log          log.Logger
-		ctrl         Ctrl
-		storer       CfgStorer
-		subscriber   Subscriber
-		subscription subscription
-		publisher    Publisher
-	}
-
-	subscription struct {
-		ChanName string
-		Chan     chan []byte
+		log       log.Logger
+		ctrl      Ctrl
+		storer    CfgStorer
+		publisher Publisher
+		subChan   <-chan *DevCfg
 	}
 )
 
 // NewCfgService creates and initializes a new instance of cfgService.
 func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 	return &cfgService{
-		log:        c.Log.With("component", "cfg"),
-		ctrl:       c.Ctrl,
-		storer:     c.Store,
-		subscriber: c.Subscriber,
-		subscription: subscription{
-			ChanName: c.SubChan,
-			Chan:     make(chan []byte),
-		},
+		log:       c.Log.With("component", "cfg"),
+		ctrl:      c.Ctrl,
+		storer:    c.Store,
 		publisher: c.Publisher,
+		subChan:   c.SubChan,
 	}
 }
 
@@ -90,7 +74,6 @@ func (s *cfgService) Run() {
 	}()
 
 	go s.listenToTermination()
-	go s.subscribeToCfgPatches()
 	go s.listenToCfgPatches(ctx)
 }
 
@@ -105,12 +88,6 @@ func (s *cfgService) terminate() {
 	s.ctrl.Terminate()
 }
 
-func (s *cfgService) subscribeToCfgPatches() {
-	if err := s.subscriber.Subscribe(s.subscription.Chan, s.subscription.ChanName); err != nil {
-		s.log.Errorf("Subscribe(): %s", err)
-	}
-}
-
 func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -119,17 +96,13 @@ func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 		}
 	}()
 
-	var c DevCfg
 	for {
 		select {
-		case msg := <-s.subscription.Chan:
-			if err := json.Unmarshal(msg, &c); err != nil {
-				s.log.Errorf("listenToCfgPatches(): %s", err)
-			} else {
-				if err := s.publisher.Publish(c.MAC, string(c.Data)); err != nil {
-					s.log.Errorf("Publish: %s", err)
-				}
+		case msg := <-s.subChan:
+			if err := s.publisher.Publish(msg.MAC, string(msg.Data)); err != nil {
+				s.log.Errorf("Publish: %s", err)
 			}
+
 		case <-ctx.Done():
 			return
 		}

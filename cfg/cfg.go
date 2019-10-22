@@ -11,9 +11,6 @@ import (
 
 // Inner log events.
 const (
-	DevCfgChan  = "dev_cfg"
-	DevDataChan = "dev_data"
-
 	EventCfgPatchCreated   = "cfg_patch_created"
 	EventDevRegistered     = "dev_registered"
 	EventMSTerminated      = "ms_terminated"

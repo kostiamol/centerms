@@ -22,22 +22,20 @@ import (
 type (
 	// StreamServiceCfg is used to initialize an instance of streamService.
 	StreamServiceCfg struct {
-		Log        log.Logger
-		Ctrl       Ctrl
-		Subscriber Subscriber
-		SubChan    string
-		PortWS     uint64
+		Log     log.Logger
+		Ctrl    Ctrl
+		SubChan <-chan *DevData
+		PortWS  uint64
 	}
 
 	// streamService is used to deal with streaming of data from the device to web client (dashboard).
 	streamService struct {
-		log          log.Logger
-		ctrl         Ctrl
-		subscriber   Subscriber
-		subscription subscription
-		portWS       uint64
-		conns        streamConns
-		upgrader     websocket.Upgrader
+		log      log.Logger
+		ctrl     Ctrl
+		subChan  <-chan *DevData
+		portWS   uint64
+		conns    streamConns
+		upgrader websocket.Upgrader
 	}
 
 	devID string
@@ -46,15 +44,11 @@ type (
 // NewStreamService creates and initializes a new instance of streamService service.
 func NewStreamService(c *StreamServiceCfg) *streamService { // nolint
 	return &streamService{
-		portWS:     c.PortWS,
-		subscriber: c.Subscriber,
-		ctrl:       c.Ctrl,
-		log:        c.Log.With("component", "stream"),
-		conns:      *newStreamConns(),
-		subscription: subscription{
-			ChanName: c.SubChan,
-			Chan:     make(chan []byte),
-		},
+		portWS:  c.PortWS,
+		ctrl:    c.Ctrl,
+		log:     c.Log.With("component", "stream"),
+		conns:   *newStreamConns(),
+		subChan: c.SubChan,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -81,7 +75,6 @@ func (s *streamService) Run() {
 	}()
 
 	go s.listenToTermination()
-	go s.subscribeToDataChanges()
 	go s.listenToDataChanges(ctx)
 	go s.listenToClosedConns(ctx)
 
@@ -130,16 +123,10 @@ func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 	s.log.With("event", cfg.EventWSConnAdded).Infof("addConnHandler(): addr: %v", conn.RemoteAddr())
 }
 
-func (s *streamService) subscribeToDataChanges() {
-	if err := s.subscriber.Subscribe(s.subscription.Chan, s.subscription.ChanName); err != nil {
-		s.log.Errorf("Subscribe(): %s", err)
-	}
-}
-
 func (s *streamService) listenToDataChanges(ctx context.Context) {
 	for {
 		select {
-		case msg := <-s.subscription.Chan:
+		case msg := <-s.subChan:
 			go s.stream(ctx, msg)
 		case <-ctx.Done():
 			return
@@ -147,7 +134,7 @@ func (s *streamService) listenToDataChanges(ctx context.Context) {
 	}
 }
 
-func (s *streamService) stream(ctx context.Context, msg []byte) {
+func (s *streamService) stream(ctx context.Context, d *DevData) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", cfg.EventPanic).Errorf("stream(): %s", r)
@@ -155,10 +142,9 @@ func (s *streamService) stream(ctx context.Context, msg []byte) {
 		}
 	}()
 
-	var d DevData
-	if err := json.Unmarshal(msg, &d); err != nil {
-		s.log.Errorf("stream(): Unmarshal() failed: %s", err)
-		return
+	b, err := json.Marshal(d)
+	if err != nil {
+		s.log.Errorf("Marshal(): %s", err)
 	}
 
 	if _, ok := s.conns.idConns[devID(d.Meta.MAC)]; ok {
@@ -168,7 +154,7 @@ func (s *streamService) stream(ctx context.Context, msg []byte) {
 				return
 			default:
 				s.conns.idConns[devID(d.Meta.MAC)].Lock()
-				err := conn.WriteMessage(1, msg)
+				err := conn.WriteMessage(1, b)
 				s.conns.idConns[devID(d.Meta.MAC)].Unlock()
 				if err != nil {
 					s.log.With("event", cfg.EventWSConnRemoved).
