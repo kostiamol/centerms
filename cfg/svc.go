@@ -9,11 +9,11 @@ import (
 type Service struct {
 	AppID                     string
 	LogLevel                  string
-	RetryAttempts             uint64
 	RetryTimeout              time.Duration
-	PortRPC                   uint64
-	PortREST                  uint64
-	PortWebSocket             uint64
+	RetryAttempts             uint32
+	PortRPC                   uint32
+	PortREST                  uint32
+	PortWebSocket             uint32
 	RoutineTerminationTimeout time.Duration
 }
 

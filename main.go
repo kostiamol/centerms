@@ -14,7 +14,6 @@ import (
 )
 
 // todo: look through the handlers
-// todo: int ports -> uint32
 // todo: deploy to minikube using helm chart
 // todo: add Prometheus
 // todo: update README.md
@@ -90,8 +89,8 @@ func main() {
 		&api.Cfg{
 			Log:          logger,
 			PubChan:      confChan,
-			PortRPC:      int32(config.Service.PortRPC),
-			PortREST:     int32(config.Service.PortREST),
+			PortRPC:      config.Service.PortRPC,
+			PortREST:     config.Service.PortREST,
 			CfgProvider:  conf,
 			DataProvider: data,
 			Retry:        config.Service.RetryTimeout,

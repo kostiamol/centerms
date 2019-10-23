@@ -10,7 +10,7 @@ type Store struct {
 	Addr             Addr
 	Password         string
 	IdleTimeout      time.Duration
-	MaxIdlePoolConns uint64
+	MaxIdlePoolConns uint32
 }
 
 func (s Store) validate() error {

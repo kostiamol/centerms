@@ -28,7 +28,7 @@ type (
 	Cfg struct {
 		Addr             cfg.Addr
 		Password         string
-		MaxIdlePoolConns uint64
+		MaxIdlePoolConns uint32
 		IdleTimeout      time.Duration
 	}
 )

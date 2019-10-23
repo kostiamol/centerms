@@ -25,7 +25,7 @@ type (
 		Log     log.Logger
 		Ctrl    Ctrl
 		SubChan <-chan *DevData
-		PortWS  uint64
+		PortWS  uint32
 	}
 
 	// streamService is used to deal with streaming of data from the device to web client (dashboard).
@@ -33,7 +33,7 @@ type (
 		log      log.Logger
 		ctrl     Ctrl
 		subChan  <-chan *DevData
-		portWS   uint64
+		portWS   uint32
 		conns    streamConns
 		upgrader websocket.Upgrader
 	}

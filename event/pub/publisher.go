@@ -21,7 +21,7 @@ type (
 		CfgPatchTopic string
 		Log           log.Logger
 		RetryTimeout  time.Duration
-		RetryAttempts uint64
+		RetryAttempts uint32
 	}
 
 	publisher struct {
@@ -29,7 +29,7 @@ type (
 		cfgPatchTopic string
 		log           log.Logger
 		retryTimeout  time.Duration
-		retryAttempts uint64
+		retryAttempts uint32
 	}
 )
 
@@ -47,7 +47,7 @@ func (p *publisher) Publish(mac, data string) error {
 	var (
 		err          error
 		conn         *nats.Conn
-		retryAttempt uint64
+		retryAttempt uint32
 	)
 
 	for {

@@ -40,8 +40,8 @@ type (
 		AppID        string
 		Log          log.Logger
 		PubChan      chan<- *svc.DevCfg
-		PortRPC      int32
-		PortREST     int32
+		PortRPC      uint32
+		PortREST     uint32
 		CfgProvider  CfgProvider
 		DataProvider DataProvider
 		Retry        time.Duration
@@ -54,8 +54,8 @@ type (
 		appID        string
 		log          log.Logger
 		pubChan      chan<- *svc.DevCfg
-		portRPC      int32
-		portREST     int32
+		portRPC      uint32
+		portREST     uint32
 		cfgProvider  CfgProvider
 		dataProvider DataProvider
 		retry        time.Duration

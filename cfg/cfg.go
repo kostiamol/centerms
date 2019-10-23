@@ -34,7 +34,7 @@ type (
 	// Addr holds remote server's host and port.
 	Addr struct {
 		Host string
-		Port uint64
+		Port uint32
 	}
 
 	сonfiger interface {
@@ -96,7 +96,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-func uintEnv(env string) uint64 {
+func uintEnv(env string) uint32 {
 	v := os.Getenv(env)
 	if v == "" {
 		return 0
@@ -106,7 +106,7 @@ func uintEnv(env string) uint64 {
 	if err != nil {
 		return 0
 	}
-	return u
+	return uint32(u)
 }
 
 func decodeEnv(env string) (string, error) {
