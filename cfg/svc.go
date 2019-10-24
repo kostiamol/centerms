@@ -19,28 +19,28 @@ type Service struct {
 
 func (s Service) validate() error {
 	if s.AppID == "" {
-		return fmt.Errorf("AppID is missing")
+		return fmt.Errorf("app id env var is missing")
 	}
 	if s.LogLevel == "" {
-		return fmt.Errorf("LogLevel is missing")
+		return fmt.Errorf("log level env var is missing")
 	}
 	if s.RetryAttempts == 0 {
-		return fmt.Errorf("RetryAttempts is missing")
+		return fmt.Errorf("retry attempts env var is missing")
 	}
 	if s.RetryTimeout == 0 {
-		return fmt.Errorf("RetryTimeout is missing")
+		return fmt.Errorf("retry timeout env var is missing")
 	}
 	if s.PortRPC == 0 {
-		return fmt.Errorf("PortRPC is missing")
+		return fmt.Errorf("rpc port env var is missing")
 	}
 	if s.PortREST == 0 {
-		return fmt.Errorf("PortREST is missing")
+		return fmt.Errorf("rest port env var is missing")
 	}
 	if s.PortWebSocket == 0 {
-		return fmt.Errorf("PortWebSocket is missing")
+		return fmt.Errorf("websocket port env var is missing")
 	}
 	if s.RoutineTerminationTimeout == 0 {
-		return fmt.Errorf("RoutineTerminationTimeout is missing")
+		return fmt.Errorf("routine termination timeout env var is missing")
 	}
 	return nil
 }

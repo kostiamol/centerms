@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/kostiamol/centerms/event/pub"
 
 	"github.com/joho/godotenv"
@@ -25,20 +23,14 @@ type runner interface {
 }
 
 func main() {
-	var loadCfgErr, newCfgErr error
-	if loadCfgErr = godotenv.Load(".env"); loadCfgErr != nil {
-		loadCfgErr = fmt.Errorf("godotenv.Load(): %s", loadCfgErr)
-	}
-
+	loadCfgErr := godotenv.Load(".env")
 	config, newCfgErr := cfg.New()
-	if newCfgErr != nil {
-		newCfgErr = fmt.Errorf("cfg.New(): %s", newCfgErr)
-	}
-
 	logger := log.New(config.Service.AppID, config.Service.LogLevel)
-
-	if loadCfgErr != nil || newCfgErr != nil {
-		logger.Fatal(newCfgErr)
+	if loadCfgErr != nil {
+		logger.Infof("godotenv.Load(): %s", loadCfgErr)
+	}
+	if newCfgErr != nil {
+		logger.Fatalf("cfg.New(): %s", newCfgErr)
 	}
 
 	storer, err := store.New(

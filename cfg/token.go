@@ -12,10 +12,10 @@ type Token struct {
 
 func (t Token) Validate() error {
 	if t.PublicKey == "" {
-		return fmt.Errorf("PublicKey is missing")
+		return fmt.Errorf("public key env var is missing")
 	}
 	if t.PrivateKey == "" {
-		return fmt.Errorf("PrivateKey is missing")
+		return fmt.Errorf("private key env var is missing")
 	}
 	return nil
 }

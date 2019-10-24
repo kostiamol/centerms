@@ -24,10 +24,11 @@ func TestConfig(t *testing.T) {
 			PortWebSocket:             3333,
 			RoutineTerminationTimeout: 100,
 		},
-		NATS: NATS{
+		NATS: Pubisher{
 			Addr: Addr{
 				Host: "localhost",
-				Port: 4222}},
+				Port: 4222},
+			CfgPatchTopic: "topic"},
 		Store: Store{
 			Addr: Addr{
 				Host: "localhost",
@@ -130,15 +131,15 @@ func TestTokenConfig(t *testing.T) {
 }
 
 func TestNATSConfig(t *testing.T) {
-	n := NATS{Addr: Addr{Host: "localhost", Port: 1111}}
+	n := Pubisher{Addr: Addr{Host: "localhost", Port: 1111}}
 	err := n.validate()
 	assert.Nil(t, err)
 
-	n = NATS{}
+	n = Pubisher{}
 	err = n.validate()
 	assert.NotNil(t, err)
 
-	n = NATS{Addr: Addr{Host: "localhost"}}
+	n = Pubisher{Addr: Addr{Host: "localhost"}}
 	err = n.validate()
 	assert.NotNil(t, err)
 }

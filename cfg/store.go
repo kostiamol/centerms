@@ -15,19 +15,19 @@ type Store struct {
 
 func (s Store) validate() error {
 	if s.Addr.Host == "" {
-		return fmt.Errorf("storeHost is missing")
+		return fmt.Errorf("store host env var is missing")
 	}
 	if s.Addr.Port == 0 {
-		return fmt.Errorf("storePort is missing")
+		return fmt.Errorf("store port env var is missing")
 	}
 	if s.Password == "" {
-		return fmt.Errorf("storePassword is missing")
+		return fmt.Errorf("store password env var is missing")
 	}
 	if s.IdleTimeout == 0 {
-		return fmt.Errorf("storeIdleTimeout is missing")
+		return fmt.Errorf("store idle timeout env var is missing")
 	}
 	if s.MaxIdlePoolConns == 0 {
-		return fmt.Errorf("storeMaxIdlePoolConns is missing")
+		return fmt.Errorf("store max idle pool conns env var is missing")
 	}
 	return nil
 }

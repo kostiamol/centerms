@@ -26,7 +26,7 @@ type (
 	// Config holds the app config.
 	Config struct {
 		Service Service
-		NATS    NATS
+		NATS    Pubisher
 		Store   Store
 		Token   Token
 	}
@@ -62,17 +62,18 @@ func New() (*Config, error) {
 			PortRPC:                   uintEnv("PORT_RPC"),
 			PortREST:                  uintEnv("PORT_REST"),
 			PortWebSocket:             uintEnv("PORT_WEBSOCKET"),
-			RoutineTerminationTimeout: time.Second * time.Duration(uintEnv("ROUTINE_TERMINATION_TIMEOUT_S"))},
-		NATS: NATS{
+			RoutineTerminationTimeout: time.Millisecond * time.Duration(uintEnv("ROUTINE_TERMINATION_TIMEOUT_MS"))},
+		NATS: Pubisher{
 			Addr: Addr{
-				Host: os.Getenv("NATS_HOST"),
-				Port: uintEnv("NATS_PORT")}},
+				Host: os.Getenv("PUB_HOST"),
+				Port: uintEnv("PUB_PORT")},
+			CfgPatchTopic: os.Getenv("PUB_CFG_PATCH_TOPIC")},
 		Store: Store{
 			Addr: Addr{
 				Host: os.Getenv("STORE_HOST"),
 				Port: uintEnv("STORE_PORT")},
 			Password:         os.Getenv("STORE_PASSWORD"),
-			IdleTimeout:      time.Second * time.Duration(uintEnv("STORE_IDLE_TIMEOUT_S")),
+			IdleTimeout:      time.Millisecond * time.Duration(uintEnv("STORE_IDLE_TIMEOUT_MS")),
 			MaxIdlePoolConns: uintEnv("STORE_MAX_IDLE_POOL_CONNS")},
 		Token: Token{
 			PublicKey:  publicKey,

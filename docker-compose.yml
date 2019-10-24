@@ -19,6 +19,9 @@ services:
     image: centerms
     env_file:
       - .env
+    environment:
+      - STORE_HOST=redis
+      - PUB_HOST=nats
     ports:
       - "8070:8070"
       - "8080:8080"
