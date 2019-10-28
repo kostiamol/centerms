@@ -1,6 +1,6 @@
 FROM golang:alpine as builder
-RUN apk update && apk add git && apk add binutils && apk add ca-certificates
-RUN adduser -D -g '' user
+RUN apk update && apk add git && apk add binutils && apk add ca-certificates \
+    && adduser -D -g '' user
 COPY . /src
 WORKDIR /src
 RUN GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo \
