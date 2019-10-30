@@ -17,10 +17,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-func (a *api) runRPCServer() {
+func (a *api) serveRPC() {
 	defer func() {
 		if r := recover(); r != nil {
-			a.log.With("event", cfg.EventPanic).Errorf("runRPCServer(): %s", r)
+			a.log.With("event", cfg.EventPanic).Errorf("serveRPC(): %s", r)
 		}
 	}()
 

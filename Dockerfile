@@ -7,8 +7,9 @@ RUN GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuf
     -ldflags="-w -s" -o centerms . \
     && strip --strip-unneeded centerms
 
-FROM scratch
+FROM alpine:latest
 EXPOSE 8090 8080 8070
+RUN apk --no-cache add curl
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /src/centerms /bin/centerms

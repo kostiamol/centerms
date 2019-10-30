@@ -37,14 +37,17 @@ run:
 clean:
 	@rm centerms
 
-dbuild:
-	@docker build -t centerms .
-
-dlint:
+docker_lint:
 	@hadolint Dockerfile
 
-up:
+docker_build:
+	@docker build -t kostiamol/centerms:latest .
+
+docker_push:
+	@docker push kostiamol/centerms:latest
+
+docker_up:
 	@docker-compose up
 
-down:
+docker_down:
 	@docker-compose down

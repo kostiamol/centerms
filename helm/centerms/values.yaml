@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: kostiamol/centerms
-  tag: last
+  tag: latest
   pullPolicy: Always
 
 nameOverride: ""
@@ -10,7 +10,8 @@ fullnameOverride: ""
 
 service:
   type: ClusterIP
-  port: 80
+  externalPort: 80
+  name: http
 
 ingress:
   enabled: false
@@ -43,4 +44,24 @@ tolerations: []
 
 affinity: {}
 
-env: {}
+secrets:
+  STORE_PASSWORD: STORE_PASSWORD
+  PRIVATE_KEY: PRIVATE_KEY
+  PUBLIC_KEY: PUBLIC_KEY
+
+env:
+  APP_ID: "centerms"
+  LOG_LEVEL: "DEBUG"
+  RETRY_ATTEMPTS: "3"
+  RETRY_TIMEOUT_MS: "100"
+  ROUTINE_TERMINATION_TIMEOUT_MS: "100"
+  PORT_RPC: "8090"
+  PORT_REST: "8080"
+  PORT_WEBSOCKET: "8070"
+  PUB_HOST: "localhost"
+  PUB_PORT: "4222"
+  PUB_CFG_PATCH_TOPIC: "cfg-patch"
+  STORE_HOST: "redis-master"
+  STORE_PORT: "6379"
+  STORE_IDLE_TIMEOUT_MS: "2400"
+  STORE_MAX_IDLE_POOL_CONNS: "3"

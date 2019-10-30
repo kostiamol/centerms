@@ -1,8 +1,6 @@
 package cfg
 
 import (
-	"encoding/base64"
-	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -25,10 +23,10 @@ const (
 type (
 	// Config holds the app config.
 	Config struct {
-		Service Service
-		NATS    Pubisher
-		Store   Store
-		Token   Token
+		Service   Service
+		Publisher Publisher
+		Store     Store
+		Token     Token
 	}
 
 	// Addr holds remote server's host and port.
@@ -44,15 +42,6 @@ type (
 
 // New initializes configuration structure with environment variables and returns it.
 func New() (*Config, error) {
-	publicKey, err := decodeEnv("PUBLIC_KEY")
-	if err != nil {
-		return nil, err
-	}
-	privateKey, err := decodeEnv("PRIVATE_KEY")
-	if err != nil {
-		return nil, err
-	}
-
 	c := &Config{
 		Service: Service{
 			AppID:                     os.Getenv("APP_ID"),
@@ -63,7 +52,7 @@ func New() (*Config, error) {
 			PortREST:                  uintEnv("PORT_REST"),
 			PortWebSocket:             uintEnv("PORT_WEBSOCKET"),
 			RoutineTerminationTimeout: time.Millisecond * time.Duration(uintEnv("ROUTINE_TERMINATION_TIMEOUT_MS"))},
-		NATS: Pubisher{
+		Publisher: Publisher{
 			Addr: Addr{
 				Host: os.Getenv("PUB_HOST"),
 				Port: uintEnv("PUB_PORT")},
@@ -76,10 +65,11 @@ func New() (*Config, error) {
 			IdleTimeout:      time.Millisecond * time.Duration(uintEnv("STORE_IDLE_TIMEOUT_MS")),
 			MaxIdlePoolConns: uintEnv("STORE_MAX_IDLE_POOL_CONNS")},
 		Token: Token{
-			PublicKey:  publicKey,
-			PrivateKey: privateKey}}
+			PublicKey:  os.Getenv("PUBLIC_KEY"),
+			PrivateKey: os.Getenv("PRIVATE_KEY")}}
 
-	err = c.validate()
+	err := c.validate()
+
 	return c, err
 }
 
@@ -108,17 +98,4 @@ func uintEnv(env string) uint32 {
 		return 0
 	}
 	return uint32(u)
-}
-
-func decodeEnv(env string) (string, error) {
-	v := os.Getenv(env)
-	if v == "" {
-		return "", nil
-	}
-
-	dec, err := base64.StdEncoding.DecodeString(v)
-	if err != nil {
-		return "", fmt.Errorf("DecodeString(): %s", err)
-	}
-	return string(dec), nil
 }

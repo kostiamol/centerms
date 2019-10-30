@@ -11,10 +11,10 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
+// todo: ingress
 // todo: look through the handlers
-// todo: deploy to minikube using helm chart
-// todo: add Prometheus
-// todo: update README.md
+// todo: add Prometheus metrics (move from api to a stand-alone package)
+// todo: update README.md: helm (redis, nats), schema (arrows, k8s)
 // todo: swagger
 
 // runner is a contract for all the components (api + services).
@@ -46,7 +46,7 @@ func main() {
 
 	publisher := pub.New(
 		&pub.Cfg{
-			Addr:          cfg.Addr{Host: config.NATS.Addr.Host, Port: config.NATS.Addr.Port},
+			Addr:          cfg.Addr{Host: config.Publisher.Addr.Host, Port: config.Publisher.Addr.Port},
 			RetryTimeout:  config.Service.RetryTimeout,
 			RetryAttempts: config.Service.RetryAttempts,
 		})

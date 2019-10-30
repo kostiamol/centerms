@@ -24,7 +24,7 @@ func TestConfig(t *testing.T) {
 			PortWebSocket:             3333,
 			RoutineTerminationTimeout: 100,
 		},
-		NATS: Pubisher{
+		Publisher: Publisher{
 			Addr: Addr{
 				Host: "localhost",
 				Port: 4222},
@@ -38,8 +38,8 @@ func TestConfig(t *testing.T) {
 			MaxIdlePoolConns: 5,
 		},
 		Token: Token{
-			PublicKey:  "pubkey",
-			PrivateKey: "privkey",
+			PublicKey:  "public_key",
+			PrivateKey: "private_key",
 		},
 	}
 	err := c.validate()
@@ -93,7 +93,7 @@ func TestServiceConfig(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestStoreConfig(t *testing.T) {
+func TestStoreCfg(t *testing.T) {
 	s := Store{
 		Addr:             Addr{Host: "localhost", Port: 1111},
 		Password:         "password",
@@ -116,8 +116,8 @@ func TestStoreConfig(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestTokenConfig(t *testing.T) {
-	tkn := Token{PublicKey: "pubkey", PrivateKey: "privkey"}
+func TestTokenCfg(t *testing.T) {
+	tkn := Token{PublicKey: "public_key", PrivateKey: "private_key"}
 	err := tkn.Validate()
 	assert.Nil(t, err)
 
@@ -125,21 +125,21 @@ func TestTokenConfig(t *testing.T) {
 	err = tkn.Validate()
 	assert.NotNil(t, err)
 
-	tkn = Token{PublicKey: "pubkey"}
+	tkn = Token{PublicKey: "public_key"}
 	err = tkn.Validate()
 	assert.NotNil(t, err)
 }
 
-func TestNATSConfig(t *testing.T) {
-	n := Pubisher{Addr: Addr{Host: "localhost", Port: 1111}}
+func TestPublisherCfg(t *testing.T) {
+	n := Publisher{Addr: Addr{Host: "localhost", Port: 1111}, CfgPatchTopic: "topic"}
 	err := n.validate()
 	assert.Nil(t, err)
 
-	n = Pubisher{}
+	n = Publisher{}
 	err = n.validate()
 	assert.NotNil(t, err)
 
-	n = Pubisher{Addr: Addr{Host: "localhost"}}
+	n = Publisher{Addr: Addr{Host: "localhost"}}
 	err = n.validate()
 	assert.NotNil(t, err)
 }

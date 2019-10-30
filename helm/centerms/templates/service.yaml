@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "centerms.fullname" . }}
+  name: {{ .Chart.Name }}
   labels:
-    app.kubernetes.io/name: {{ include "centerms.name" . }}
-    helm.sh/chart: {{ include "centerms.chart" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app: {{.Chart.Name}}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
+    - port: {{ .Values.service.externalPort }}
+      targetPort: {{ .Values.env.PORT_REST }}
       protocol: TCP
-      name: http
+      name: {{ .Values.service.name }}
   selector:
-    app.kubernetes.io/name: {{ include "centerms.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    app: {{ .Chart.Name }}
+    release: {{ .Release.Name }}

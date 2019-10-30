@@ -95,11 +95,11 @@ func (a *api) Run() {
 
 	a.metric = newMetric(a.appID)
 
-	a.runRPCServer()
+	go a.serveRPC()
 
 	a.router = mux.NewRouter()
 	a.registerRoutes()
-	a.serve()
+	a.serveHTTP()
 }
 
 func (a *api) registerRoutes() {
@@ -120,7 +120,7 @@ func (a *api) registerRoutes() {
 	a.registerRoute(http.MethodPatch, "/v1/device/{id}/config", a.patchDevCfgHandler, middleware...)
 }
 
-func (a *api) serve() {
+func (a *api) serveHTTP() {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowCredentials: true,

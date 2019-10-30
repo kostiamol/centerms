@@ -4,13 +4,13 @@ import (
 	"fmt"
 )
 
-// Pubisher holds publisher's configuration.
-type Pubisher struct {
+// Publisher holds publisher's configuration.
+type Publisher struct {
 	Addr          Addr
 	CfgPatchTopic string
 }
 
-func (p Pubisher) validate() error {
+func (p Publisher) validate() error {
 	if p.Addr.Host == "" {
 		return fmt.Errorf("publisher host env var is missing")
 	}
