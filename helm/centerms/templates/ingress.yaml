@@ -1,7 +1,4 @@
 {{- if .Values.ingress.enabled -}}
-        {{- $serviceName := .Chart.Name -}}
-        {{- $servicePort := .Values.service.externalPort -}}
-        {{- $ingressPath := .Values.ingress.path -}}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -12,22 +9,17 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
   annotations:
-          {{- range $key, $value := .Values.ingress.annotations }}
-          {{ $key }}: {{ $value | quote }}
-        {{- end }}
+  {{- range $key, $value := .Values.ingress.annotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
 spec:
   rules:
-          {{- range $host := .Values.ingress.hosts }}
-    - host: {{ $host }}
+    - host: {{ .Values.ingress.host }}
       http:
         paths:
-          - path: {{ $ingressPath }}
-            backend:
-              serviceName: {{ $serviceName }}
-              servicePort: {{ $servicePort }}
-        {{- end -}}
-        {{- if .Values.ingress.tls }}
-  tls:
-        {{ toYaml .Values.ingress.tls | indent 4 }}
-        {{- end -}}
-        {{- end -}}
+        - path: {{ .Values.ingress.path }}
+          backend:
+            serviceName: {{ .Chart.Name }}
+            servicePort: {{ .Values.service.externalPort }}
+
+{{- end -}}

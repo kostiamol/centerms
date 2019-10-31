@@ -11,11 +11,15 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: ingress
 // todo: look through the handlers
 // todo: add Prometheus metrics (move from api to a stand-alone package)
-// todo: update README.md: helm (redis, nats), schema (arrows, k8s)
+// todo: add Jaeger
+// todo: check architecture
+// todo: overall test coverage > 80%
+// todo: check travis + badges
 // todo: swagger
+// todo: update README.md: helm (deployment, redis, nats), schema (arrows, k8s)
+// todo: start fridgems refactoring
 
 // runner is a contract for all the components (api + services).
 type runner interface {
