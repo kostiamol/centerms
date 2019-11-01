@@ -39,6 +39,7 @@ type (
 	Cfg struct {
 		AppID        string
 		Log          log.Logger
+		Ctrl         svc.Ctrl
 		PubChan      chan<- *svc.DevCfg
 		PortRPC      uint32
 		PortREST     uint32
@@ -53,6 +54,7 @@ type (
 	api struct {
 		appID        string
 		log          log.Logger
+		ctrl         svc.Ctrl
 		pubChan      chan<- *svc.DevCfg
 		portRPC      uint32
 		portREST     uint32
@@ -71,6 +73,7 @@ type (
 func New(c *Cfg) *api { // nolint
 	return &api{
 		log:          c.Log.With("component", "api"),
+		ctrl:         c.Ctrl,
 		pubChan:      c.PubChan,
 		portRPC:      c.PortRPC,
 		portREST:     c.PortREST,
@@ -90,7 +93,8 @@ func (a *api) Run() {
 
 	var err error
 	if a.token, err = newTokenValidator(a.publicKey); err != nil {
-		a.log.Fatalf("newTokenValidator(): %s", err)
+		a.log.Errorf("newTokenValidator(): %s", err)
+		a.terminate()
 	}
 
 	a.metric = newMetric(a.appID)
@@ -100,6 +104,12 @@ func (a *api) Run() {
 	a.router = mux.NewRouter()
 	a.registerRoutes()
 	a.serveHTTP()
+}
+
+func (a *api) terminate() {
+	a.log.With("event", cfg.EventComponentShutdown).Info("is down")
+	_ = a.log.Flush()
+	a.ctrl.Terminate()
 }
 
 func (a *api) registerRoutes() {
@@ -134,6 +144,7 @@ func (a *api) serveHTTP() {
 	}
 
 	if err := s.ListenAndServe(); err != nil {
-		a.log.Fatalf("ListenAndServe(): %s", err)
+		a.log.Errorf("ListenAndServe(): %s", err)
+		a.terminate()
 	}
 }

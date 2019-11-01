@@ -85,7 +85,11 @@ func (s *streamService) Run() {
 		Handler: r,
 		Addr:    fmt.Sprintf(":%d", s.portWS),
 	}
-	s.log.Fatal(srv.ListenAndServe())
+
+	if err := srv.ListenAndServe(); err != nil {
+		s.log.Errorf("ListenAndServe(): %s", err)
+		s.terminate()
+	}
 }
 
 func (s *streamService) listenToTermination() {

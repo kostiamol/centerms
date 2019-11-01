@@ -12,7 +12,7 @@ import (
 )
 
 // todo: look through the handlers
-// todo: add Prometheus metrics (move from api to a stand-alone package)
+// todo: add Prometheus metrics (move from api to a stand-alone package - appID from api remove)
 // todo: add Jaeger
 // todo: check architecture
 // todo: overall test coverage > 80%
@@ -84,6 +84,7 @@ func main() {
 	a := api.New(
 		&api.Cfg{
 			Log:          logger,
+			Ctrl:         ctrl,
 			PubChan:      confChan,
 			PortRPC:      config.Service.PortRPC,
 			PortREST:     config.Service.PortREST,

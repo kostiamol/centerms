@@ -3,6 +3,7 @@ package svc
 import (
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -15,12 +16,12 @@ type Ctrl struct {
 // timeForRoutineTermination in order to give time for all the services to shutdown gracefully.
 func (c *Ctrl) Wait(t time.Duration) {
 	inter := make(chan os.Signal, 1)
-	signal.Notify(inter, os.Interrupt)
+	signal.Notify(inter, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
-	case <-inter:
+	case <-inter: // waits for os calls
 		close(c.StopChan)
-	case <-c.StopChan:
+	case <-c.StopChan: // waits for app's internal termination signals
 	}
 
 	<-time.NewTimer(t).C
