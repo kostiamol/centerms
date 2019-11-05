@@ -3,9 +3,9 @@ package svc
 import (
 	"encoding/json"
 
-	"github.com/kostiamol/centerms/log"
+	"github.com/kostiamol/centerms/metric"
 
-	"github.com/kostiamol/centerms/cfg"
+	"github.com/kostiamol/centerms/log"
 
 	"golang.org/x/net/context"
 )
@@ -41,6 +41,7 @@ type (
 	DataServiceCfg struct {
 		Log     log.Logger
 		Ctrl    Ctrl
+		Metric  *metric.Metric
 		Store   DataStorer
 		PubChan chan<- *DevData
 	}
@@ -49,6 +50,7 @@ type (
 	dataService struct {
 		log     log.Logger
 		ctrl    Ctrl
+		metric  *metric.Metric
 		storer  DataStorer
 		pubChan chan<- *DevData
 	}
@@ -59,6 +61,7 @@ func NewDataService(c *DataServiceCfg) *dataService { //nolint
 	return &dataService{
 		log:     c.Log.With("component", "data"),
 		ctrl:    c.Ctrl,
+		metric:  c.Metric,
 		storer:  c.Store,
 		pubChan: c.PubChan,
 	}
@@ -66,12 +69,13 @@ func NewDataService(c *DataServiceCfg) *dataService { //nolint
 
 // Run launches the service by running goroutine that listens to the service termination.
 func (s *dataService) Run() {
-	s.log.With("event", cfg.EventComponentStarted).Info("is running")
+	s.log.With("event", log.EventComponentStarted).Info("is running")
 
 	_, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("func", "Run", "event", cfg.EventPanic).Errorf("%s", r)
+			s.log.With("func", "Run", "event", log.EventPanic).Errorf("%s", r)
+			s.metric.ErrorCounter(log.EventPanic)
 			cancel()
 			s.terminate()
 		}
@@ -86,7 +90,7 @@ func (s *dataService) listenToTermination() {
 }
 
 func (s *dataService) terminate() {
-	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
+	s.log.With("event", log.EventComponentShutdown).Info("is down")
 	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }

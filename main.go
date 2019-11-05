@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/kostiamol/centerms/event/pub"
+	"github.com/kostiamol/centerms/metric"
 
 	"github.com/joho/godotenv"
 	"github.com/kostiamol/centerms/api"
@@ -11,8 +12,8 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
+// todo: look through log events
 // todo: look through the handlers
-// todo: add Prometheus metrics (move from api to a stand-alone package - appID from api remove)
 // todo: add Jaeger
 // todo: check architecture
 // todo: overall test coverage > 80%
@@ -56,6 +57,7 @@ func main() {
 		})
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
+	mtrc := metric.New(config.Service.AppID)
 	dataChan := make(chan *svc.DevData)
 	confChan := make(chan *svc.DevCfg)
 
@@ -63,6 +65,7 @@ func main() {
 		&svc.DataServiceCfg{
 			Log:     logger,
 			Ctrl:    ctrl,
+			Metric:  mtrc,
 			Store:   storer,
 			PubChan: dataChan,
 		})
@@ -70,6 +73,7 @@ func main() {
 		&svc.CfgServiceCfg{
 			Log:       logger,
 			Ctrl:      ctrl,
+			Metric:    mtrc,
 			Store:     storer,
 			SubChan:   confChan,
 			Publisher: publisher,
@@ -78,6 +82,7 @@ func main() {
 		&svc.StreamServiceCfg{
 			Log:     logger,
 			Ctrl:    ctrl,
+			Metric:  mtrc,
 			SubChan: dataChan,
 			PortWS:  config.Service.PortWebSocket,
 		})
@@ -85,6 +90,7 @@ func main() {
 		&api.Cfg{
 			Log:          logger,
 			Ctrl:         ctrl,
+			Metric:       mtrc,
 			PubChan:      confChan,
 			PortRPC:      config.Service.PortRPC,
 			PortREST:     config.Service.PortREST,
@@ -102,6 +108,6 @@ func main() {
 
 	ctrl.Wait(config.Service.RoutineTerminationTimeout)
 
-	logger.Info("service is down")
+	logger.With("event", log.EventMSShutdown).Info("ms is down")
 	_ = logger.Flush()
 }

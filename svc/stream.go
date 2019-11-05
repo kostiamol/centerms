@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kostiamol/centerms/log"
+	"github.com/kostiamol/centerms/metric"
 
-	"github.com/kostiamol/centerms/cfg"
+	"github.com/kostiamol/centerms/log"
 
 	"sync"
 
@@ -24,6 +24,7 @@ type (
 	StreamServiceCfg struct {
 		Log     log.Logger
 		Ctrl    Ctrl
+		Metric  *metric.Metric
 		SubChan <-chan *DevData
 		PortWS  uint32
 	}
@@ -32,9 +33,10 @@ type (
 	streamService struct {
 		log      log.Logger
 		ctrl     Ctrl
+		metric   *metric.Metric
 		subChan  <-chan *DevData
 		portWS   uint32
-		conns    streamConns
+		conns    *streamConns
 		upgrader websocket.Upgrader
 	}
 
@@ -44,11 +46,12 @@ type (
 // NewStreamService creates and initializes a new instance of streamService service.
 func NewStreamService(c *StreamServiceCfg) *streamService { // nolint
 	return &streamService{
-		portWS:  c.PortWS,
-		ctrl:    c.Ctrl,
 		log:     c.Log.With("component", "stream"),
-		conns:   *newStreamConns(),
+		ctrl:    c.Ctrl,
+		metric:  c.Metric,
 		subChan: c.SubChan,
+		portWS:  c.PortWS,
+		conns:   newStreamConns(),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -62,13 +65,14 @@ func NewStreamService(c *StreamServiceCfg) *streamService { // nolint
 // Run launches the service by running goroutines for listening to the service termination, new device data,
 // closed web client connections and publishing new device data to web clients with open connections.
 func (s *streamService) Run() {
-	s.log.With("event", cfg.EventComponentStarted).
+	s.log.With("event", log.EventComponentStarted).
 		Infof("is running on websocket port [%d]", s.portWS)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("%s", r)
+			s.log.With("event", log.EventPanic).Errorf("%s", r)
+			s.metric.ErrorCounter(log.EventPanic)
 			cancel()
 			s.terminate()
 		}
@@ -98,7 +102,7 @@ func (s *streamService) listenToTermination() {
 }
 
 func (s *streamService) terminate() {
-	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
+	s.log.With("event", log.EventComponentShutdown).Info("is down")
 	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
@@ -124,7 +128,7 @@ func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.conns.idConns[id].addConn(conn)
-	s.log.With("event", cfg.EventWSConnAdded).Infof("addConnHandler(): addr: %v", conn.RemoteAddr())
+	s.log.With("event", log.EventWSConnAdded).Infof("addConnHandler(): addr: %v", conn.RemoteAddr())
 }
 
 func (s *streamService) listenToDataChanges(ctx context.Context) {
@@ -141,7 +145,8 @@ func (s *streamService) listenToDataChanges(ctx context.Context) {
 func (s *streamService) stream(ctx context.Context, d *DevData) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("stream(): %s", r)
+			s.log.With("event", log.EventPanic).Errorf("stream(): %s", r)
+			s.metric.ErrorCounter(log.EventPanic)
 			s.terminate()
 		}
 	}()
@@ -161,7 +166,7 @@ func (s *streamService) stream(ctx context.Context, d *DevData) {
 				err := conn.WriteMessage(1, b)
 				s.conns.idConns[devID(d.Meta.MAC)].Unlock()
 				if err != nil {
-					s.log.With("event", cfg.EventWSConnRemoved).
+					s.log.With("event", log.EventWSConnRemoved).
 						Infof("stream(): addr: %v", conn.RemoteAddr())
 					s.conns.closedConns <- conn
 					return

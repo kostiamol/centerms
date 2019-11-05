@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kostiamol/centerms/metric"
+
 	"github.com/kostiamol/centerms/log"
 
 	"github.com/kostiamol/centerms/svc"
@@ -11,7 +13,6 @@ import (
 	"fmt"
 
 	"github.com/gorilla/mux"
-	"github.com/kostiamol/centerms/cfg"
 	"github.com/rs/cors"
 )
 
@@ -37,9 +38,9 @@ type (
 
 	// Cfg is used to initialize an instance of api.
 	Cfg struct {
-		AppID        string
 		Log          log.Logger
 		Ctrl         svc.Ctrl
+		Metric       *metric.Metric
 		PubChan      chan<- *svc.DevCfg
 		PortRPC      uint32
 		PortREST     uint32
@@ -52,9 +53,9 @@ type (
 
 	// api includes both rest and grpc.
 	api struct {
-		appID        string
 		log          log.Logger
 		ctrl         svc.Ctrl
+		metric       *metric.Metric
 		pubChan      chan<- *svc.DevCfg
 		portRPC      uint32
 		portREST     uint32
@@ -63,7 +64,6 @@ type (
 		retry        time.Duration
 		router       *mux.Router
 		token        *tokenValidator
-		metric       *metric
 		publicKey    string
 		privateKey   string
 	}
@@ -74,6 +74,7 @@ func New(c *Cfg) *api { // nolint
 	return &api{
 		log:          c.Log.With("component", "api"),
 		ctrl:         c.Ctrl,
+		metric:       c.Metric,
 		pubChan:      c.PubChan,
 		portRPC:      c.PortRPC,
 		portREST:     c.PortREST,
@@ -88,7 +89,7 @@ func New(c *Cfg) *api { // nolint
 // Run launches the service by running goroutines for listening to the service termination and queries
 // from the web client.
 func (a *api) Run() {
-	a.log.With("event", cfg.EventComponentStarted).
+	a.log.With("event", log.EventComponentStarted).
 		Infof("is running on rpc port [%d] rest port [%d]", a.portRPC, a.portREST)
 
 	var err error
@@ -96,8 +97,6 @@ func (a *api) Run() {
 		a.log.Errorf("newTokenValidator(): %s", err)
 		a.terminate()
 	}
-
-	a.metric = newMetric(a.appID)
 
 	go a.serveRPC()
 
@@ -107,7 +106,7 @@ func (a *api) Run() {
 }
 
 func (a *api) terminate() {
-	a.log.With("event", cfg.EventComponentShutdown).Info("is down")
+	a.log.With("event", log.EventComponentShutdown).Info("is down")
 	_ = a.log.Flush()
 	a.ctrl.Terminate()
 }
@@ -116,11 +115,11 @@ func (a *api) registerRoutes() {
 	middleware := []func(next http.HandlerFunc, name string, l log.Logger) http.HandlerFunc{
 		requestLogger,
 		a.token.validator,
-		a.metric.timeTracker,
+		a.metric.TimeTracker,
 	}
 
 	a.registerRoute(http.MethodGet, "/health", a.health)
-	a.registerRoute(http.MethodGet, "/metrics", a.metric.httpRouterHandler())
+	a.registerRoute(http.MethodGet, "/metrics", a.metric.RouterHandlerHTTP())
 
 	a.registerRoute(http.MethodGet, "/v1/token", getTokenHandler)
 

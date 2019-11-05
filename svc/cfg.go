@@ -2,8 +2,8 @@
 package svc
 
 import (
-	"github.com/kostiamol/centerms/cfg"
 	"github.com/kostiamol/centerms/log"
+	"github.com/kostiamol/centerms/metric"
 	"golang.org/x/net/context"
 
 	"encoding/json"
@@ -34,6 +34,7 @@ type (
 	CfgServiceCfg struct {
 		Log       log.Logger
 		Ctrl      Ctrl
+		Metric    *metric.Metric
 		Store     CfgStorer
 		Publisher Publisher
 		SubChan   <-chan *DevCfg
@@ -43,6 +44,7 @@ type (
 	cfgService struct {
 		log       log.Logger
 		ctrl      Ctrl
+		metric    *metric.Metric
 		storer    CfgStorer
 		publisher Publisher
 		subChan   <-chan *DevCfg
@@ -54,6 +56,7 @@ func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 	return &cfgService{
 		log:       c.Log.With("component", "cfg"),
 		ctrl:      c.Ctrl,
+		metric:    c.Metric,
 		storer:    c.Store,
 		publisher: c.Publisher,
 		subChan:   c.SubChan,
@@ -62,12 +65,13 @@ func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 
 // Run launches the service by running goroutines for listening to the service termination and config patches.
 func (s *cfgService) Run() {
-	s.log.With("event", cfg.EventComponentStarted).Infof("is running")
+	s.log.With("event", log.EventComponentStarted).Infof("is running")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("Run() %s", r)
+			s.log.With("event", log.EventPanic).Errorf("Run() %s", r)
+			s.metric.ErrorCounter(log.EventPanic)
 			cancel()
 			s.terminate()
 		}
@@ -83,7 +87,7 @@ func (s *cfgService) listenToTermination() {
 }
 
 func (s *cfgService) terminate() {
-	s.log.With("event", cfg.EventComponentShutdown).Info("is down")
+	s.log.With("event", log.EventComponentShutdown).Info("is down")
 	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
@@ -91,7 +95,8 @@ func (s *cfgService) terminate() {
 func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("event", cfg.EventPanic).Errorf("listenToCfgPatches(): %s", r)
+			s.log.With("event", log.EventPanic).Errorf("listenToCfgPatches(): %s", r)
+			s.metric.ErrorCounter(log.EventPanic)
 			s.terminate()
 		}
 	}()
@@ -147,7 +152,7 @@ func (s *cfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 			s.log.Errorf("SetDevInitCfg(): %s", err)
 			return nil, err
 		}
-		s.log.With("func", "SetDevInitCfg", "event", cfg.EventDevRegistered).
+		s.log.With("func", "SetDevInitCfg", "event", log.EventDevRegistered).
 			Infof("devices' meta: %+v", meta)
 	}
 	return devCfg, nil

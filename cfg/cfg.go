@@ -7,19 +7,6 @@ import (
 	"time"
 )
 
-// Inner log events.
-const (
-	EventCfgPatchCreated   = "cfg_patch_created"
-	EventDevRegistered     = "dev_registered"
-	EventMSTerminated      = "ms_terminated"
-	EventPanic             = "panic"
-	EventStoreInit         = "store_init"
-	EventComponentStarted  = "component_started"
-	EventComponentShutdown = "component_shutdown"
-	EventWSConnAdded       = "ws_conn_added"
-	EventWSConnRemoved     = "ws_conn_removed"
-)
-
 type (
 	// Config holds the app config.
 	Config struct {

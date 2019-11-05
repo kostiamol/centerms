@@ -1,4 +1,4 @@
-package api
+package metric
 
 import (
 	"fmt"
@@ -12,18 +12,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type metric struct {
+type Metric struct {
 	serviceTiming *prometheus.SummaryVec
 	errorCounter  *prometheus.CounterVec
 }
 
-func newMetric(appID string) *metric {
+func New(appID string) *Metric {
 	r := strings.NewReplacer(
 		"-", "_",
 		" ", "_")
 	serviceName := r.Replace(appID)
 
-	m := &metric{
+	m := &Metric{
 		serviceTiming: prometheus.NewSummaryVec(
 			prometheus.SummaryOpts{
 				Name: "service_timing",
@@ -46,35 +46,35 @@ func newMetric(appID string) *metric {
 	return m
 }
 
-func (m *metric) ErrorCounter(label string) {
+func (m *Metric) ErrorCounter(label string) {
 	m.errorCounter.
 		WithLabelValues(label).
 		Inc()
 }
 
-func (m *metric) timing(start time.Time, label string) {
+func (m *Metric) Timing(start time.Time, label string) {
 	m.serviceTiming.
 		WithLabelValues(label).
 		Observe(time.Since(start).Seconds())
 }
 
-func (m *metric) timeTracker(next http.HandlerFunc, label string, l log.Logger) http.HandlerFunc {
+func (m *Metric) TimeTracker(next http.HandlerFunc, label string, l log.Logger) http.HandlerFunc {
 	return func(response http.ResponseWriter, request *http.Request) {
 		start := time.Now()
 		next(response, request)
-		m.timing(start, label)
+		m.Timing(start, label)
 	}
 }
 
-func (m *metric) httpHandler() http.Handler {
+func (m *Metric) RouterHandlerHTTP() http.HandlerFunc {
+	return m.stdToHTTPRouterMiddleware(m.handlerHTTP())
+}
+
+func (m *Metric) handlerHTTP() http.Handler {
 	return promhttp.Handler()
 }
 
-func (m *metric) httpRouterHandler() http.HandlerFunc {
-	return m.stdToHTTPRouterMiddleware(m.httpHandler())
-}
-
-func (m *metric) stdToHTTPRouterMiddleware(next http.Handler) http.HandlerFunc {
+func (m *Metric) stdToHTTPRouterMiddleware(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 	}

@@ -81,7 +81,7 @@ func (p *publisher) Publish(mac, data string) error {
 		return err
 	}
 
-	p.log.With("func", "pubNewCfgPatchEvent", "event", cfg.EventCfgPatchCreated).
+	p.log.With("func", "pubNewCfgPatchEvent", "event", log.EventCfgPatchCreated).
 		Infof("cfg patch [%s] for device with ID [%s]", data, mac)
 
 	return nil

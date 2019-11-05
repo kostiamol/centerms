@@ -1,11 +1,10 @@
 package api
 
 import (
+	"github.com/kostiamol/centerms/log"
 	"github.com/kostiamol/centerms/svc"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-
-	"github.com/kostiamol/centerms/cfg"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/kostiamol/centerms/proto"
@@ -20,7 +19,7 @@ import (
 func (a *api) serveRPC() {
 	defer func() {
 		if r := recover(); r != nil {
-			a.log.With("event", cfg.EventPanic).Errorf("serveRPC(): %s", r)
+			a.log.With("event", log.EventPanic).Errorf("serveRPC(): %s", r)
 		}
 	}()
 
