@@ -53,7 +53,7 @@ func (p *publisher) Publish(mac, data string) error {
 	for {
 		conn, err = nats.Connect(fmt.Sprintf("%s:%d", p.addr.Host, p.addr.Port))
 		if err != nil && retryAttempt < p.retryAttempts {
-			p.log.Error("pubNewCfgPatchEvent(): nats connectivity status is DISCONNECTED")
+			p.log.Error("func pubNewCfgPatchEvent: nats connectivity status is DISCONNECTED")
 			retryAttempt++
 			duration := time.Duration(rand.Intn(int(p.retryTimeout.Seconds())))
 			time.Sleep(time.Second*duration + 1)
@@ -73,7 +73,7 @@ func (p *publisher) Publish(mac, data string) error {
 
 	b, err := gproto.Marshal(e)
 	if err != nil {
-		return fmt.Errorf("Marshall(): %s", err)
+		return fmt.Errorf("func Marshall: %s", err)
 	}
 
 	topic := fmt.Sprintf("%s.%s", p.cfgPatchTopic, mac)
@@ -81,8 +81,7 @@ func (p *publisher) Publish(mac, data string) error {
 		return err
 	}
 
-	p.log.With("func", "pubNewCfgPatchEvent", "event", log.EventCfgPatchCreated).
-		Infof("cfg patch [%s] for device with ID [%s]", data, mac)
+	p.log.With("event", log.EventCfgPatchCreated, "patch", data, "devID", mac)
 
 	return nil
 }

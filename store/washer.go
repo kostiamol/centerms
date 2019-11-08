@@ -70,19 +70,19 @@ func (s *store) getWasherData(m *svc.DevMeta) (*svc.DevData, error) {
 	data := make(map[string][]string)
 	params, err := s.smembers(devParamsKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getWasherData(): SMEMBERS() failed: ")
+		return nil, errors.Wrap(err, "store: func getWasherData: func SMEMBERS: ")
 	}
 
 	for _, p := range params {
 		data[p], err = s.zrangebyscore(devParamsKey+":"+p, "-inf", "inf")
 		if err != nil {
-			return nil, errors.Wrap(err, "store: getWasherData(): ZRANGEBYSCORE() failed: ")
+			return nil, errors.Wrap(err, "store: func getWasherData: func ZRANGEBYSCORE: ")
 		}
 	}
 
 	b, err := json.Marshal(&data)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getWasherData(): Marshal() failed: ")
+		return nil, errors.Wrap(err, "store: func getWasherData: func Marshal: ")
 	}
 
 	return &svc.DevData{
@@ -94,7 +94,7 @@ func (s *store) getWasherData(m *svc.DevMeta) (*svc.DevData, error) {
 func (s *store) saveWasherData(d *svc.DevData) error {
 	var washer washerData
 	if err := json.NewDecoder(bytes.NewBuffer(d.Data)).Decode(&washer); err != nil {
-		return errors.Wrap(err, "store: saveWasherData(): Decode() failed: ")
+		return errors.Wrap(err, "store: func saveWasherData: func Decode: ")
 	}
 
 	devKey := partialDevKey + d.Meta.Type + ":" + d.Meta.Name + ":" + d.Meta.MAC
@@ -102,19 +102,19 @@ func (s *store) saveWasherData(d *svc.DevData) error {
 
 	if _, err := s.multi(); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: saveWasherData(): MULTI() failed: ")
+		return errors.Wrap(err, "store: func saveWasherData: func MULTI: ")
 	}
 	if err := s.setTurnoversData(washer.Turnovers, paramsKey+":"+"Turnovers"); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: saveWasherData(): setTurnoversData() failed: ")
+		return errors.Wrap(err, "store: func saveWasherData: func setTurnoversData: ")
 	}
 	if err := s.setWaterTempData(washer.WaterTemp, paramsKey+":"+"WaterTemp"); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: saveWasherData(): setWaterTempData() failed: ")
+		return errors.Wrap(err, "store: func saveWasherData: func setWaterTempData: ")
 	}
 	if _, err := s.exec(); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: saveWasherData(): EXEC() failed: ")
+		return errors.Wrap(err, "store: func saveWasherData: func EXEC: ")
 	}
 	return nil
 }
@@ -124,7 +124,7 @@ func (s *store) setTurnoversData(tempCam map[int64]int64, key string) error {
 		_, err := s.zadd(key, strconv.FormatInt(t, 10),
 			strconv.FormatInt(t, 10)+":"+strconv.FormatInt(v, 10))
 		if err != nil {
-			return errors.Wrap(err, "ZADD() failed: ")
+			return errors.Wrap(err, "func ZADD: ")
 		}
 	}
 	return nil
@@ -136,7 +136,7 @@ func (s *store) setWaterTempData(tempCam map[int64]float32, key string) error {
 			strconv.FormatInt(t, 10)+":"+
 				strconv.FormatFloat(float64(v), 'f', -1, 32))
 		if err != nil {
-			return errors.Wrap(err, "ZADD() failed: ")
+			return errors.Wrap(err, "func ZADD: ")
 		}
 	}
 	return nil
@@ -145,7 +145,7 @@ func (s *store) setWaterTempData(tempCam map[int64]float32, key string) error {
 func (s *store) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	cfg, err := s.getWasherDefaultCfg(m)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getWasherCfg(): getWasherDefaultCfg(): ")
+		return nil, errors.Wrap(err, "store: func getWasherCfg: func getWasherDefaultCfg: ")
 	}
 
 	cfg.MAC = m.MAC
@@ -153,7 +153,7 @@ func (s *store) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	unixTime := int64(100)
 	mode, err := s.zrangebyscore(cfgKey, unixTime-100, unixTime+100)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getWasherCfg(): ZRANGEBYSCORE() failed: ")
+		return nil, errors.Wrap(err, "store: func getWasherCfg: func ZRANGEBYSCORE: ")
 	}
 	if len(mode) == 0 {
 		return nil, errors.New("store: mode is empty")
@@ -162,7 +162,7 @@ func (s *store) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	l := lightMode
 	cfg.Data, err = json.Marshal(l)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: getWasherCfg(): Marshal() failed: ")
+		return nil, errors.Wrap(err, "store: func getWasherCfg: func Marshal: ")
 	}
 	return cfg, nil
 }
@@ -170,12 +170,12 @@ func (s *store) getWasherCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 func (s *store) setWasherCfg(c *svc.DevCfg) error {
 	var m *timerMode
 	if err := json.NewDecoder(bytes.NewBuffer(c.Data)).Decode(&m); err != nil {
-		return errors.Wrap(err, "store: setWasherCfg(): Decode() failed: ")
+		return errors.Wrap(err, "store: func setWasherCfg: func Decode: ")
 	}
 
 	cfgKey := c.MAC + partialDevCfgKey
 	if _, err := s.zadd(cfgKey, m.StartTime, m.Name); err != nil {
-		return errors.Wrap(err, "store: setWasherCfg(): ZADD() failed: ")
+		return errors.Wrap(err, "store: func setWasherCfg: func ZADD: ")
 	}
 	return nil
 }
@@ -183,7 +183,7 @@ func (s *store) setWasherCfg(c *svc.DevCfg) error {
 func (s *store) getWasherDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	b, err := json.Marshal(standardMode)
 	if err != nil {
-		return nil, errors.Wrap(err, "Marshal() failed: ")
+		return nil, errors.Wrap(err, "func Marshal: ")
 	}
 
 	return &svc.DevCfg{

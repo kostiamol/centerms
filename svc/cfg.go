@@ -65,12 +65,12 @@ func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 
 // Run launches the service by running goroutines for listening to the service termination and config patches.
 func (s *cfgService) Run() {
-	s.log.With("event", log.EventComponentStarted).Infof("is running")
+	s.log.With("event", log.EventComponentStarted)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("event", log.EventPanic).Errorf("Run() %s", r)
+			s.log.With("event", log.EventPanic).Errorf("func Run: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
 			cancel()
 			s.terminate()
@@ -87,7 +87,7 @@ func (s *cfgService) listenToTermination() {
 }
 
 func (s *cfgService) terminate() {
-	s.log.With("event", log.EventComponentShutdown).Info("is down")
+	s.log.With("event", log.EventComponentShutdown)
 	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
@@ -95,7 +95,7 @@ func (s *cfgService) terminate() {
 func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("event", log.EventPanic).Errorf("listenToCfgPatches(): %s", r)
+			s.log.With("event", log.EventPanic).Errorf("func listenToCfgPatches: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
 			s.terminate()
 		}
@@ -105,7 +105,7 @@ func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 		select {
 		case msg := <-s.subChan:
 			if err := s.publisher.Publish(msg.MAC, string(msg.Data)); err != nil {
-				s.log.Errorf("Publish: %s", err)
+				s.log.Errorf("func Publish: %s", err)
 			}
 
 		case <-ctx.Done():
@@ -118,7 +118,7 @@ func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 // the func returns actual configuration. Otherwise it returns default config for that type of device.
 func (s *cfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 	if err := s.storer.SetDevMeta(meta); err != nil {
-		s.log.Errorf("SetDevInitCfg(): %s", err)
+		s.log.Errorf("func SetDevInitCfg: %s", err)
 		return nil, err
 	}
 
@@ -127,33 +127,32 @@ func (s *cfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 
 	if ok, err := s.storer.DevIsRegistered(meta); ok {
 		if err != nil {
-			s.log.Errorf("SetDevInitCfg(): %s", err)
+			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 
 		devCfg, err = s.storer.GetDevCfg(id)
 		if err != nil {
-			s.log.Errorf("SetDevInitCfg(): %s", err)
+			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 	} else {
 		if err != nil {
-			s.log.Errorf("SetDevInitCfg(): %s", err)
+			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 
 		devCfg, err = s.storer.GetDevDefaultCfg(meta)
 		if err != nil {
-			s.log.Errorf("SetDevInitCfg(): %s", err)
+			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 
 		if err = s.storer.SetDevCfg(id, devCfg); err != nil {
-			s.log.Errorf("SetDevInitCfg(): %s", err)
+			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
-		s.log.With("func", "SetDevInitCfg", "event", log.EventDevRegistered).
-			Infof("devices' meta: %+v", meta)
+		s.log.With("event", log.EventDevRegistered).Infof("meta: %+v", meta)
 	}
 	return devCfg, nil
 }
@@ -162,7 +161,7 @@ func (s *cfgService) SetDevInitCfg(meta *DevMeta) (*DevCfg, error) {
 func (s *cfgService) GetDevCfg(id string) (*DevCfg, error) {
 	c, err := s.storer.GetDevCfg(id)
 	if err != nil {
-		s.log.Errorf("GetDevCfg(): %s", err)
+		s.log.Errorf("func GetDevCfg: %s", err)
 		return nil, err
 	}
 	return c, nil
@@ -171,7 +170,7 @@ func (s *cfgService) GetDevCfg(id string) (*DevCfg, error) {
 // SetDevCfg sets configuration for the given device.
 func (s *cfgService) SetDevCfg(id string, c *DevCfg) error {
 	if err := s.storer.SetDevCfg(id, c); err != nil {
-		s.log.Errorf("SetDevCfg(): %s", err)
+		s.log.Errorf("func SetDevCfg: %s", err)
 		return err
 	}
 	return nil

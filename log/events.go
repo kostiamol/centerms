@@ -1,6 +1,5 @@
 package log
 
-// Inner log events.
 const (
 	EventCfgPatchCreated   = "cfg_patch_created"
 	EventDevRegistered     = "dev_registered"

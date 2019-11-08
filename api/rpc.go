@@ -19,7 +19,7 @@ import (
 func (a *api) serveRPC() {
 	defer func() {
 		if r := recover(); r != nil {
-			a.log.With("event", log.EventPanic).Errorf("serveRPC(): %s", r)
+			a.log.With("event", log.EventPanic).Errorf("func serveRPC: %s", r)
 		}
 	}()
 
@@ -31,13 +31,13 @@ func (a *api) serveRPC() {
 
 	l, err := net.Listen("tcp", ":"+fmt.Sprint(a.portRPC))
 	if err != nil {
-		a.log.Fatalf("Listen(): %s", err)
+		a.log.Fatalf("func Listen: %s", err)
 	}
 
 	proto.RegisterCenterServiceServer(s, a)
 
 	if err := s.Serve(l); err != nil {
-		a.log.Fatalf("Serve(): %s", err)
+		a.log.Fatalf("func Serve: %s", err)
 	}
 }
 
@@ -52,7 +52,7 @@ func (a *api) SetDevInitCfg(ctx context.Context, r *proto.SetDevInitCfgRequest) 
 
 	c, err := a.cfgProvider.SetDevInitCfg(&m)
 	if err != nil {
-		return nil, fmt.Errorf("SetDevInitCfg(): %s", err)
+		return nil, fmt.Errorf("func SetDevInitCfg: %s", err)
 	}
 
 	return &proto.SetDevInitCfgResponse{Cfg: c.Data}, nil
@@ -71,7 +71,7 @@ func (a *api) SaveDevData(ctx context.Context, r *proto.SaveDevDataRequest) (*pr
 	}
 
 	if err := a.dataProvider.SaveDevData(&d); err != nil {
-		return nil, fmt.Errorf("SaveDevData(): %s", err)
+		return nil, fmt.Errorf("func SaveDevData: %s", err)
 	}
 
 	return &proto.SaveDevDataResponse{Status: "OK"}, nil

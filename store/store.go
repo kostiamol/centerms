@@ -43,7 +43,7 @@ func New(c *Cfg) (*store, error) { // nolint
 			Dial: func() (redis.Conn, error) {
 				c, err := redis.Dial("tcp", fmt.Sprintf("%s:%d", c.Addr.Host, c.Addr.Port))
 				if err != nil {
-					return nil, fmt.Errorf("Dial(): %s", err)
+					return nil, fmt.Errorf("func Dial: %s", err)
 				}
 				//if _, err := c.Do("AUTH", password); err != nil {
 				//	c.Close()
@@ -53,7 +53,7 @@ func New(c *Cfg) (*store, error) { // nolint
 			},
 			TestOnBorrow: func(c redis.Conn, t time.Time) error {
 				if _, err := c.Do("PING"); err != nil {
-					return fmt.Errorf("PING(): %s", err)
+					return fmt.Errorf("func PING: %s", err)
 				}
 				return nil
 			},
@@ -61,7 +61,7 @@ func New(c *Cfg) (*store, error) { // nolint
 	}
 
 	if _, err := r.ping(); err != nil {
-		return nil, fmt.Errorf("PING(): %s", err)
+		return nil, fmt.Errorf("func PING: %s", err)
 	}
 	return r, nil
 }

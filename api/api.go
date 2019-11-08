@@ -90,11 +90,11 @@ func New(c *Cfg) *api { // nolint
 // from the web client.
 func (a *api) Run() {
 	a.log.With("event", log.EventComponentStarted).
-		Infof("is running on rpc port [%d] rest port [%d]", a.portRPC, a.portREST)
+		Infof("rpc port [%d] rest port [%d]", a.portRPC, a.portREST)
 
 	var err error
 	if a.token, err = newTokenValidator(a.publicKey); err != nil {
-		a.log.Errorf("newTokenValidator(): %s", err)
+		a.log.Errorf("func newTokenValidator: %s", err)
 		a.terminate()
 	}
 
@@ -106,7 +106,7 @@ func (a *api) Run() {
 }
 
 func (a *api) terminate() {
-	a.log.With("event", log.EventComponentShutdown).Info("is down")
+	a.log.With("event", log.EventComponentShutdown)
 	_ = a.log.Flush()
 	a.ctrl.Terminate()
 }
@@ -143,7 +143,7 @@ func (a *api) serveHTTP() {
 	}
 
 	if err := s.ListenAndServe(); err != nil {
-		a.log.Errorf("ListenAndServe(): %s", err)
+		a.log.Errorf("func ListenAndServe: %s", err)
 		a.terminate()
 	}
 }

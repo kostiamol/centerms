@@ -12,7 +12,7 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: look through log events
+// todo: check termination loggin + store error logging
 // todo: look through the handlers
 // todo: add Jaeger
 // todo: check architecture
@@ -32,10 +32,10 @@ func main() {
 	config, newCfgErr := cfg.New()
 	logger := log.New(config.Service.AppID, config.Service.LogLevel)
 	if loadCfgErr != nil {
-		logger.Infof("godotenv.Load(): %s", loadCfgErr)
+		logger.Infof("func godotenv.Load: %s", loadCfgErr)
 	}
 	if newCfgErr != nil {
-		logger.Fatalf("cfg.New(): %s", newCfgErr)
+		logger.Fatalf("func cfg.New: %s", newCfgErr)
 	}
 
 	storer, err := store.New(
@@ -46,8 +46,9 @@ func main() {
 			IdleTimeout:      config.Store.IdleTimeout,
 		})
 	if err != nil {
-		logger.Fatalf("store.New(): %s", err)
+		logger.Fatalf("func store.New: %s", err)
 	}
+	logger.With("event", log.EventStoreInit)
 
 	publisher := pub.New(
 		&pub.Cfg{
@@ -108,6 +109,6 @@ func main() {
 
 	ctrl.Wait(config.Service.RoutineTerminationTimeout)
 
-	logger.With("event", log.EventMSShutdown).Info("ms is down")
+	logger.With("event", log.EventMSShutdown)
 	_ = logger.Flush()
 }

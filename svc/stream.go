@@ -65,13 +65,12 @@ func NewStreamService(c *StreamServiceCfg) *streamService { // nolint
 // Run launches the service by running goroutines for listening to the service termination, new device data,
 // closed web client connections and publishing new device data to web clients with open connections.
 func (s *streamService) Run() {
-	s.log.With("event", log.EventComponentStarted).
-		Infof("is running on websocket port [%d]", s.portWS)
+	s.log.With("event", log.EventComponentStarted).Infof("websocket port: [%d]", s.portWS)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("event", log.EventPanic).Errorf("%s", r)
+			s.log.With("event", log.EventPanic).Errorf("func Run: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
 			cancel()
 			s.terminate()
@@ -91,7 +90,7 @@ func (s *streamService) Run() {
 	}
 
 	if err := srv.ListenAndServe(); err != nil {
-		s.log.Errorf("ListenAndServe(): %s", err)
+		s.log.Errorf("func ListenAndServe: %s", err)
 		s.terminate()
 	}
 }
@@ -102,7 +101,7 @@ func (s *streamService) listenToTermination() {
 }
 
 func (s *streamService) terminate() {
-	s.log.With("event", log.EventComponentShutdown).Info("is down")
+	s.log.With("event", log.EventComponentShutdown)
 	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
@@ -124,11 +123,11 @@ func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		s.log.Errorf("addConnHandler(): Upgrade() failed %s", err)
+		s.log.Errorf("func addConnHandler: func Upgrade: %s", err)
 		return
 	}
 	s.conns.idConns[id].addConn(conn)
-	s.log.With("event", log.EventWSConnAdded).Infof("addConnHandler(): addr: %v", conn.RemoteAddr())
+	s.log.With("event", log.EventWSConnAdded, "addr", conn.RemoteAddr().String())
 }
 
 func (s *streamService) listenToDataChanges(ctx context.Context) {
@@ -145,7 +144,7 @@ func (s *streamService) listenToDataChanges(ctx context.Context) {
 func (s *streamService) stream(ctx context.Context, d *DevData) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("event", log.EventPanic).Errorf("stream(): %s", r)
+			s.log.With("event", log.EventPanic).Errorf("func stream: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
 			s.terminate()
 		}
@@ -153,7 +152,7 @@ func (s *streamService) stream(ctx context.Context, d *DevData) {
 
 	b, err := json.Marshal(d)
 	if err != nil {
-		s.log.Errorf("Marshal(): %s", err)
+		s.log.Errorf("func Marshal: %s", err)
 	}
 
 	if _, ok := s.conns.idConns[devID(d.Meta.MAC)]; ok {
@@ -166,8 +165,7 @@ func (s *streamService) stream(ctx context.Context, d *DevData) {
 				err := conn.WriteMessage(1, b)
 				s.conns.idConns[devID(d.Meta.MAC)].Unlock()
 				if err != nil {
-					s.log.With("event", log.EventWSConnRemoved).
-						Infof("stream(): addr: %v", conn.RemoteAddr())
+					s.log.With("event", log.EventWSConnRemoved, "addr", conn.RemoteAddr().String())
 					s.conns.closedConns <- conn
 					return
 				}

@@ -69,12 +69,12 @@ func NewDataService(c *DataServiceCfg) *dataService { //nolint
 
 // Run launches the service by running goroutine that listens to the service termination.
 func (s *dataService) Run() {
-	s.log.With("event", log.EventComponentStarted).Info("is running")
+	s.log.With("event", log.EventComponentStarted)
 
 	_, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if r := recover(); r != nil {
-			s.log.With("func", "Run", "event", log.EventPanic).Errorf("%s", r)
+			s.log.With("event", log.EventPanic).Errorf("func Run: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
 			cancel()
 			s.terminate()
@@ -90,7 +90,7 @@ func (s *dataService) listenToTermination() {
 }
 
 func (s *dataService) terminate() {
-	s.log.With("event", log.EventComponentShutdown).Info("is down")
+	s.log.With("event", log.EventComponentShutdown)
 	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
@@ -98,7 +98,7 @@ func (s *dataService) terminate() {
 // SaveDevData is used to save device data to the store.
 func (s *dataService) SaveDevData(d *DevData) error {
 	if err := s.storer.SaveDevData(d); err != nil {
-		s.log.Errorf("SaveDevData(): %s", err)
+		s.log.Errorf("func SaveDevData: %s", err)
 		return err
 	}
 
@@ -111,7 +111,7 @@ func (s *dataService) SaveDevData(d *DevData) error {
 func (s *dataService) GetDevData(id string) (*DevData, error) {
 	d, err := s.storer.GetDevData(id)
 	if err != nil {
-		s.log.Errorf("GetDevData(): %s", err)
+		s.log.Errorf("func GetDevData: %s", err)
 		return nil, err
 	}
 	return d, nil
@@ -121,7 +121,7 @@ func (s *dataService) GetDevData(id string) (*DevData, error) {
 func (s *dataService) GetDevsData() ([]DevData, error) {
 	d, err := s.storer.GetDevsData()
 	if err != nil {
-		s.log.Errorf("GetDevsData(): %s", err)
+		s.log.Errorf("func GetDevsData: %s", err)
 		return nil, err
 	}
 	return d, nil
