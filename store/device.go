@@ -1,11 +1,11 @@
 package store
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/kostiamol/centerms/svc"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 func (s *store) GetDevsData() ([]svc.DevData, error) {
 	devParamsKeys, err := s.smembers("devParamsKeys")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func GetDevsData: func SMEMBERS: ")
+		return nil, fmt.Errorf("store: func GetDevsData: func SMEMBERS: %v", err)
 	}
 
 	devParamsKeysTokens := make([][]string, len(devParamsKeys))
@@ -39,13 +39,13 @@ func (s *store) GetDevsData() ([]svc.DevData, error) {
 		data := make(map[string][]string)
 		params, err := s.smembers(devParamsKeys[index])
 		if err != nil {
-			return nil, errors.Wrapf(err, "store: func GetDevsData: func SMEMBERS(%s): ", devParamsKeys[index])
+			return nil, fmt.Errorf("store: func GetDevsData: func SMEMBERS: %v", err)
 		}
 
-		for i, p := range params {
+		for _, p := range params {
 			data[p], err = s.zrangebyscore(devParamsKeys[index]+":"+p, "-inf", "inf")
 			if err != nil {
-				return nil, errors.Wrapf(err, "store: func GetDevsData: func ZRANGEBYSCORE(%s): ", devParamsKeys[i])
+				return nil, fmt.Errorf("store: func GetDevsData: func ZRANGEBYSCORE: %v", err)
 			}
 		}
 		devsData = append(devsData, devData)
@@ -57,15 +57,15 @@ func (s *store) GetDevsData() ([]svc.DevData, error) {
 func (s *store) GetDevMeta(id string) (*svc.DevMeta, error) {
 	t, err := s.hget("id:"+id, "type")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func GetDevMeta: func HGET type: ")
+		return nil, fmt.Errorf("store: func GetDevMeta: func HGET type: %v", err)
 	}
 	n, err := s.hget("id:"+id, "name")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func GetDevMeta: func HGET name: ")
+		return nil, fmt.Errorf("store: func GetDevMeta: func HGET name: %v", err)
 	}
 	m, err := s.hget("id:"+id, "mac")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func GetDevMeta: func HGET mac: ")
+		return nil, fmt.Errorf("store: func GetDevMeta: func HGET mac: %v", err)
 	}
 
 	return &svc.DevMeta{
@@ -77,14 +77,14 @@ func (s *store) GetDevMeta(id string) (*svc.DevMeta, error) {
 
 // SetDevMeta sets metadata for the given device.
 func (s *store) SetDevMeta(m *svc.DevMeta) error {
-	if _, err := s.hmset("id:"+m.MAC, "type", m.Type); err != nil {
-		return errors.Wrap(err, "store: func setFridgeCfg: func HMSET type: ")
+	if _, err := s.hmset("id:"+m.Type, "type", m.Type); err != nil {
+		return fmt.Errorf("store: func setFridgeCfg: func HMSET type: %v", err)
 	}
-	if _, err := s.hmset("id:"+m.MAC, "name", m.Name); err != nil {
-		return errors.Wrap(err, "store: func setFridgeCfg: func HMSET name: ")
+	if _, err := s.hmset("id:"+m.Name, "name", m.Name); err != nil {
+		return fmt.Errorf("store: func setFridgeCfg: func HMSET name: %v", err)
 	}
 	if _, err := s.hmset("id:"+m.MAC, "mac", m.MAC); err != nil {
-		return errors.Wrap(err, "store: func setFridgeCfg: func HMSET mac: ")
+		return fmt.Errorf("store: func setFridgeCfg: func HMSET mac: %v", err)
 	}
 	return nil
 }
@@ -94,7 +94,7 @@ func (s *store) DevIsRegistered(m *svc.DevMeta) (bool, error) {
 	cfgKey := m.MAC + partialDevCfgKey
 	if ok, err := s.exists(cfgKey); ok {
 		if err != nil {
-			return false, errors.Wrap(err, "store: func DevIsRegistered: func EXISTS: ")
+			return false, fmt.Errorf("store: func DevIsRegistered: func EXISTS: %v", err)
 		}
 		return true, nil
 	}
@@ -114,7 +114,7 @@ func (s *store) GetDevData(id string) (*svc.DevData, error) {
 	case washer:
 		return s.getWasherData(m)
 	default:
-		return nil, errors.New("store: func GetDevData: dev type is unknown")
+		return nil, fmt.Errorf("store: func GetDevData: dev type is unknown")
 	}
 }
 
@@ -126,7 +126,7 @@ func (s *store) SaveDevData(d *svc.DevData) error {
 	case washer:
 		return s.saveWasherData(d)
 	default:
-		return errors.New("store: func SaveDevData: dev type is unknown")
+		return fmt.Errorf("store: func SaveDevData: dev type is unknown")
 	}
 }
 
@@ -143,7 +143,7 @@ func (s *store) GetDevCfg(id string) (*svc.DevCfg, error) {
 	case washer:
 		return s.getWasherCfg(m)
 	default:
-		return nil, errors.New("store: func GetDevCfg: dev type is unknown")
+		return nil, fmt.Errorf("store: func GetDevCfg: dev type is unknown")
 	}
 }
 
@@ -160,7 +160,7 @@ func (s *store) SetDevCfg(id string, c *svc.DevCfg) error {
 	case washer:
 		return s.setWasherCfg(c)
 	default:
-		return errors.New("store: func SetDevCfg: dev type is unknown")
+		return fmt.Errorf("store: func SetDevCfg: dev type is unknown")
 	}
 }
 
@@ -172,7 +172,7 @@ func (s *store) GetDevDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	case washer:
 		return s.getWasherDefaultCfg(m)
 	default:
-		return nil, errors.New("store: func GetDevDefaultCfg: dev type is unknown")
+		return nil, fmt.Errorf("store: func GetDevDefaultCfg: dev type is unknown")
 	}
 }
 
@@ -180,7 +180,7 @@ func (s *store) GetDevDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 func (s *store) Publish(msg interface{}, channel string) (int64, error) {
 	numberOfClients, err := redis.Int64(s.publish(msg, channel))
 	if err != nil {
-		return 0, errors.Wrap(err, "store: func PUBLISH: ")
+		return 0, fmt.Errorf("store: func PUBLISH: %v", err)
 	}
 	return numberOfClients, nil
 }
@@ -190,7 +190,7 @@ func (s *store) Subscribe(c chan []byte, channel ...string) error {
 	conn := redis.PubSubConn{Conn: s.pool.Get()}
 	for _, cn := range channel {
 		if err := conn.Subscribe(cn); err != nil {
-			return errors.Wrap(err, "store: func SUBSCRIBE: ")
+			return fmt.Errorf("store: func SUBSCRIBE: %v", err)
 		}
 	}
 	for {

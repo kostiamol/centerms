@@ -12,14 +12,15 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: check termination loggin + store error logging
+// todo: fix ctrl mechanism
 // todo: look through the handlers
 // todo: add Jaeger
-// todo: check architecture
+// todo: check architecture (redis, websocket, nats, raw json data)
 // todo: overall test coverage > 80%
 // todo: check travis + badges
 // todo: swagger
 // todo: update README.md: helm (deployment, redis, nats), schema (arrows, k8s)
+// todo: update docker-compose and test with fridgems
 // todo: start fridgems refactoring
 
 // runner is a contract for all the components (api + services).

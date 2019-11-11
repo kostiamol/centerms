@@ -6,9 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kostiamol/centerms/log"
-
 	"github.com/dgrijalva/jwt-go"
+	"github.com/kostiamol/centerms/log"
 	"golang.org/x/net/context"
 )
 

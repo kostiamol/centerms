@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/kostiamol/centerms/svc"
-
-	"github.com/pkg/errors"
 )
 
 type (
@@ -40,19 +38,19 @@ func (s *store) getFridgeData(m *svc.DevMeta) (*svc.DevData, error) {
 	data := make(map[string][]string)
 	params, err := s.smembers(paramsKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func getFridgeData: func SMEMBERS: ")
+		return nil, fmt.Errorf("store: func getFridgeData: func SMEMBERS: %v", err)
 	}
 
 	for _, p := range params {
 		data[p], err = s.zrangebyscore(paramsKey+":"+p, "-inf", "inf")
 		if err != nil {
-			return nil, errors.Wrap(err, "store: func getFridgeData: func ZRANGEBYSCORE: ")
+			return nil, fmt.Errorf("store: func getFridgeData: func ZRANGEBYSCORE: %v", err)
 		}
 	}
 
 	b, err := json.Marshal(&data)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func getFridgeData: func Marshal: ")
+		return nil, fmt.Errorf("store: func getFridgeData: func Marshal: %v", err)
 	}
 
 	return &svc.DevData{
@@ -64,7 +62,7 @@ func (s *store) getFridgeData(m *svc.DevMeta) (*svc.DevData, error) {
 func (s *store) saveFridgeData(d *svc.DevData) error {
 	var fridge fridgeData
 	if err := json.Unmarshal([]byte(d.Data), &fridge); err != nil {
-		return errors.Wrap(err, "store: func saveFridgeData: func Unmarshal: ")
+		return fmt.Errorf("store: func saveFridgeData: func Unmarshal: %v", err)
 	}
 
 	devKey := partialDevKey + d.Meta.Type + ":" + d.Meta.Name + ":" + d.Meta.MAC
@@ -72,23 +70,23 @@ func (s *store) saveFridgeData(d *svc.DevData) error {
 
 	if _, err := s.hmset("devParamsKeys", paramsKey); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func saveFridgeData: func SADD: ")
+		return fmt.Errorf("store: func saveFridgeData: func SADD: %v", err)
 	}
 	if _, err := s.hmset(devKey, "ReqTime", fmt.Sprint(d.Time)); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func saveFridgeData: func HMSET: ")
+		return fmt.Errorf("store: func saveFridgeData: func HMSET: %v", err)
 	}
 	if _, err := s.sadd(paramsKey, "TopCompart", "BotCompart"); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func saveFridgeData: func SADD: ")
+		return fmt.Errorf("store: func saveFridgeData: func SADD: %v", err)
 	}
 	if err := s.saveFridgeCompartData(fridge.TopCompart, paramsKey+":"+"TopCompart"); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func saveFridgeData: func saveFridgeCompartData: ")
+		return fmt.Errorf("store: func saveFridgeData: func saveFridgeCompartData: %v", err)
 	}
 	if err := s.saveFridgeCompartData(fridge.BotCompart, paramsKey+":"+"BotCompart"); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func saveFridgeData: func saveFridgeCompartData: ")
+		return fmt.Errorf("store: func saveFridgeData: func saveFridgeCompartData: %v", err)
 	}
 	return nil
 }
@@ -99,7 +97,7 @@ func (s *store) saveFridgeCompartData(tempCam map[int64]float32, key string) err
 			strconv.FormatInt(time, 10)+":"+
 				strconv.FormatFloat(float64(temp), 'f', -1, 32))
 		if err != nil {
-			return errors.Wrap(err, "func ZADD: ")
+			return fmt.Errorf("func ZADD: %v", err)
 		}
 	}
 	return nil
@@ -110,28 +108,28 @@ func (s *store) getFridgeCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 
 	to, err := s.hmget("HMGET", cfgKey, "TurnedOn")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func getFridgeCfg: func HMGET(TurnedOn): ")
+		return nil, fmt.Errorf("store: func getFridgeCfg: func HMGET(TurnedOn): %v", err)
 	}
 	cf, err := s.hmget(cfgKey, "CollectFreq")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func getFridgeCfg: func HMGET(CollectFreq): ")
+		return nil, fmt.Errorf("store: func getFridgeCfg: func HMGET(CollectFreq): %v", err)
 	}
 	sf, err := s.hmget(cfgKey, "SendFreq")
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func getFridgeCfg: func HMGET(SendFreq): ")
+		return nil, fmt.Errorf("store: func getFridgeCfg: func HMGET(SendFreq): %v", err)
 	}
 
 	pto, err := strconv.ParseBool(strings.Join(to, " "))
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func getFridgeCfg: func ParseBool(TurnedOn): ")
+		return nil, fmt.Errorf("store: func getFridgeCfg: func ParseBool(TurnedOn): %v", err)
 	}
 	pcf, err := strconv.ParseInt(strings.Join(cf, " "), 10, 64)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func getFridgeCfg: func ParseInt(CollectFreq): ")
+		return nil, fmt.Errorf("store: func getFridgeCfg: func ParseInt(CollectFreq): %v", err)
 	}
 	psf, err := strconv.ParseInt(strings.Join(sf, " "), 10, 64)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func getFridgeCfg: func ParseInt SendFreq: ")
+		return nil, fmt.Errorf("store: func getFridgeCfg: func ParseInt SendFreq: %v", err)
 	}
 
 	c := fridgeCfg{
@@ -142,7 +140,7 @@ func (s *store) getFridgeCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 
 	b, err := json.Marshal(&c)
 	if err != nil {
-		return nil, errors.Wrap(err, "store: func getFridgeCfg: func Marshal: ")
+		return nil, fmt.Errorf("store: func getFridgeCfg: func Marshal: %v", err)
 	}
 
 	return &svc.DevCfg{
@@ -155,50 +153,50 @@ func (s *store) setFridgeCfg(c *svc.DevCfg, m *svc.DevMeta) error {
 	var cfg *svc.DevCfg
 	if ok, err := s.DevIsRegistered(m); ok {
 		if err != nil {
-			return errors.Wrapf(err, "store: func setFridgeCfg: ")
+			return fmt.Errorf("store: func setFridgeCfg: %v", err)
 		}
 		if cfg, err = s.getFridgeCfg(m); err != nil {
 			return err
 		}
 	} else {
 		if err != nil {
-			return errors.Wrapf(err, "store: func setFridgeCfg: ")
+			return fmt.Errorf("store: func setFridgeCfg: %v", err)
 		}
 		if cfg, err = s.getFridgeDefaultCfg(m); err != nil {
-			return errors.Wrap(err, "store: func setFridgeCfg: getFridgeDefaultCfg: ")
+			return fmt.Errorf("store: func setFridgeCfg: getFridgeDefaultCfg: %v", err)
 		}
 	}
 
 	var fridge fridgeCfg
 	if err := json.Unmarshal(cfg.Data, &fridge); err != nil {
-		return errors.Wrap(err, "store: func setFridgeCfg: func Unmarshal: ")
+		return fmt.Errorf("store: func setFridgeCfg: func Unmarshal: %v", err)
 	}
 
 	if err := json.Unmarshal(c.Data, &fridge); err != nil {
-		return errors.Wrap(err, "store: func setFridgeCfg: func Unmarshal: ")
+		return fmt.Errorf("store: func setFridgeCfg: func Unmarshal: %v", err)
 	}
 
 	cfgKey := c.MAC + partialDevCfgKey
 	if _, err := s.multi(); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func setFridgeCfg: func MULTI: ")
+		return fmt.Errorf("store: func setFridgeCfg: func MULTI: %v", err)
 	}
 	if _, err := s.hmset(cfgKey, "TurnedOn", fmt.Sprint(fridge.TurnedOn)); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func setFridgeCfg: func HMSET(TurnedOn): ")
+		return fmt.Errorf("store: func setFridgeCfg: func HMSET(TurnedOn): %v", err)
 	}
 	if _, err := s.hmset(cfgKey, "CollectFreq", fmt.Sprint(fridge.CollectFreq)); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func setFridgeCfg: func HMSET(CollectFreq): ")
+		return fmt.Errorf("store: func setFridgeCfg: func HMSET(CollectFreq): %v", err)
 	}
 	if _, err := s.hmset(cfgKey, "SendFreq", fmt.Sprint(fridge.SendFreq)); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func setFridgeCfg: func HMSET(SendFreq): ")
+		return fmt.Errorf("store: func setFridgeCfg: func HMSET(SendFreq): %v", err)
 	}
 
 	if _, err := s.exec(); err != nil {
 		_, err = s.discard()
-		return errors.Wrap(err, "store: func setFridgeCfg: func EXEC: ")
+		return fmt.Errorf("store: func setFridgeCfg: func EXEC: %v", err)
 	}
 	return nil
 }
@@ -206,7 +204,7 @@ func (s *store) setFridgeCfg(c *svc.DevCfg, m *svc.DevMeta) error {
 func (s *store) getFridgeDefaultCfg(m *svc.DevMeta) (*svc.DevCfg, error) {
 	b, err := json.Marshal(defaultFridgeCfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "func Marshal: ")
+		return nil, fmt.Errorf("func Marshal: %v", err)
 	}
 
 	return &svc.DevCfg{

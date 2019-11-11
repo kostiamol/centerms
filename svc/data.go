@@ -69,7 +69,7 @@ func NewDataService(c *DataServiceCfg) *dataService { //nolint
 
 // Run launches the service by running goroutine that listens to the service termination.
 func (s *dataService) Run() {
-	s.log.With("event", log.EventComponentStarted)
+	s.log.With("event", log.EventComponentStarted).Info()
 
 	_, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -90,7 +90,7 @@ func (s *dataService) listenToTermination() {
 }
 
 func (s *dataService) terminate() {
-	s.log.With("event", log.EventComponentShutdown)
+	s.log.With("event", log.EventComponentShutdown).Info()
 	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }

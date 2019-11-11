@@ -98,6 +98,7 @@ func (a *api) Run() {
 		a.terminate()
 	}
 
+	go a.listenToTermination()
 	go a.serveRPC()
 
 	a.router = mux.NewRouter()
@@ -105,8 +106,13 @@ func (a *api) Run() {
 	a.serveHTTP()
 }
 
+func (a *api) listenToTermination() {
+	<-a.ctrl.StopChan
+	a.terminate()
+}
+
 func (a *api) terminate() {
-	a.log.With("event", log.EventComponentShutdown)
+	a.log.With("event", log.EventComponentShutdown).Info()
 	_ = a.log.Flush()
 	a.ctrl.Terminate()
 }

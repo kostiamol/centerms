@@ -65,7 +65,7 @@ func NewStreamService(c *StreamServiceCfg) *streamService { // nolint
 // Run launches the service by running goroutines for listening to the service termination, new device data,
 // closed web client connections and publishing new device data to web clients with open connections.
 func (s *streamService) Run() {
-	s.log.With("event", log.EventComponentStarted).Infof("websocket port: [%d]", s.portWS)
+	s.log.With("event", log.EventComponentStarted).Infof("websocket port [%d]", s.portWS)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -101,7 +101,7 @@ func (s *streamService) listenToTermination() {
 }
 
 func (s *streamService) terminate() {
-	s.log.With("event", log.EventComponentShutdown)
+	s.log.With("event", log.EventComponentShutdown).Info()
 	_ = s.log.Flush()
 	s.ctrl.Terminate()
 }
