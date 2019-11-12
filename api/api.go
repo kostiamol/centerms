@@ -95,7 +95,7 @@ func (a *api) Run() {
 	var err error
 	if a.token, err = newTokenValidator(a.publicKey); err != nil {
 		a.log.Errorf("func newTokenValidator: %s", err)
-		a.terminate()
+		a.ctrl.Terminate()
 	}
 
 	go a.listenToTermination()
@@ -108,13 +108,8 @@ func (a *api) Run() {
 
 func (a *api) listenToTermination() {
 	<-a.ctrl.StopChan
-	a.terminate()
-}
-
-func (a *api) terminate() {
 	a.log.With("event", log.EventComponentShutdown).Info()
 	_ = a.log.Flush()
-	a.ctrl.Terminate()
 }
 
 func (a *api) registerRoutes() {
@@ -150,6 +145,6 @@ func (a *api) serveHTTP() {
 
 	if err := s.ListenAndServe(); err != nil {
 		a.log.Errorf("func ListenAndServe: %s", err)
-		a.terminate()
+		a.ctrl.Terminate()
 	}
 }

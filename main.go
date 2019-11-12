@@ -12,7 +12,6 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: fix ctrl mechanism
 // todo: look through the handlers
 // todo: add Jaeger
 // todo: check architecture (redis, websocket, nats, raw json data)

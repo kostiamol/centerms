@@ -73,7 +73,7 @@ func (s *cfgService) Run() {
 			s.log.With("event", log.EventPanic).Errorf("func Run: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
 			cancel()
-			s.terminate()
+			s.ctrl.Terminate()
 		}
 	}()
 
@@ -83,13 +83,8 @@ func (s *cfgService) Run() {
 
 func (s *cfgService) listenToTermination() {
 	<-s.ctrl.StopChan
-	s.terminate()
-}
-
-func (s *cfgService) terminate() {
 	s.log.With("event", log.EventComponentShutdown).Info()
 	_ = s.log.Flush()
-	s.ctrl.Terminate()
 }
 
 func (s *cfgService) listenToCfgPatches(ctx context.Context) {
@@ -97,7 +92,7 @@ func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 		if r := recover(); r != nil {
 			s.log.With("event", log.EventPanic).Errorf("func listenToCfgPatches: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
-			s.terminate()
+			s.ctrl.Terminate()
 		}
 	}()
 

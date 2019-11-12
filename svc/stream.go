@@ -73,7 +73,7 @@ func (s *streamService) Run() {
 			s.log.With("event", log.EventPanic).Errorf("func Run: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
 			cancel()
-			s.terminate()
+			s.ctrl.Terminate()
 		}
 	}()
 
@@ -91,19 +91,14 @@ func (s *streamService) Run() {
 
 	if err := srv.ListenAndServe(); err != nil {
 		s.log.Errorf("func ListenAndServe: %s", err)
-		s.terminate()
+		s.ctrl.Terminate()
 	}
 }
 
 func (s *streamService) listenToTermination() {
 	<-s.ctrl.StopChan
-	s.terminate()
-}
-
-func (s *streamService) terminate() {
 	s.log.With("event", log.EventComponentShutdown).Info()
 	_ = s.log.Flush()
-	s.ctrl.Terminate()
 }
 
 func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
@@ -146,7 +141,7 @@ func (s *streamService) stream(ctx context.Context, d *DevData) {
 		if r := recover(); r != nil {
 			s.log.With("event", log.EventPanic).Errorf("func stream: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
-			s.terminate()
+			s.ctrl.Terminate()
 		}
 	}()
 

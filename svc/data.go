@@ -77,7 +77,7 @@ func (s *dataService) Run() {
 			s.log.With("event", log.EventPanic).Errorf("func Run: %s", r)
 			s.metric.ErrorCounter(log.EventPanic)
 			cancel()
-			s.terminate()
+			s.ctrl.Terminate()
 		}
 	}()
 
@@ -86,13 +86,8 @@ func (s *dataService) Run() {
 
 func (s *dataService) listenToTermination() {
 	<-s.ctrl.StopChan
-	s.terminate()
-}
-
-func (s *dataService) terminate() {
 	s.log.With("event", log.EventComponentShutdown).Info()
 	_ = s.log.Flush()
-	s.ctrl.Terminate()
 }
 
 // SaveDevData is used to save device data to the store.
