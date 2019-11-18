@@ -3,6 +3,7 @@ module github.com/kostiamol/centerms
 go 1.12
 
 require (
+	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/garyburd/redigo v1.6.0
 	github.com/gogo/protobuf v1.2.1
@@ -24,8 +25,8 @@ require (
 	github.com/rs/cors v1.6.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/stretchr/testify v1.4.0
+	go.opencensus.io v0.21.0
 	go.uber.org/zap v1.10.0
 	golang.org/x/net v0.0.0-20190923162816-aa69164e4478
-	google.golang.org/genproto v0.0.0-20180831171423-11092d34479b // indirect
 	google.golang.org/grpc v1.21.0
 )

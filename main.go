@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/kostiamol/centerms/event/pub"
 	"github.com/kostiamol/centerms/metric"
+	"github.com/kostiamol/centerms/trace"
 
 	"github.com/joho/godotenv"
 	"github.com/kostiamol/centerms/api"
@@ -12,8 +13,8 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
+// todo: proto buffer log samples
 // todo: look through the handlers
-// todo: add Jaeger
 // todo: check architecture (redis, websocket, nats, raw json data)
 // todo: overall test coverage > 80%
 // todo: check travis + badges
@@ -36,6 +37,10 @@ func main() {
 	}
 	if newCfgErr != nil {
 		logger.Fatalf("func cfg.New: %s", newCfgErr)
+	}
+
+	if err := trace.Init(config.Service.AppID, config.TraceAgent); err != nil {
+		logger.Fatalf("func trace.Init: %s", err)
 	}
 
 	storer, err := store.New(

@@ -24,6 +24,11 @@ func TestConfig(t *testing.T) {
 			PortWebSocket:             3333,
 			RoutineTerminationTimeout: 100,
 		},
+		TraceAgent: TraceAgent{
+			Addr: Addr{
+				Host: "localhost",
+				Port: 4444},
+		},
 		Publisher: Publisher{
 			Addr: Addr{
 				Host: "localhost",
@@ -80,15 +85,19 @@ func TestServiceConfig(t *testing.T) {
 	err = svc.validate()
 	assert.NotNil(t, err)
 
-	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5, RetryTimeout: time.Duration(100)}
+	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5,
+		RetryTimeout: time.Duration(100)}
 	err = svc.validate()
 	assert.NotNil(t, err)
 
-	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5, RetryTimeout: time.Duration(100), PortRPC: 1111}
+	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5,
+		RetryTimeout: time.Duration(100), PortRPC: 1111}
 	err = svc.validate()
 	assert.NotNil(t, err)
 
-	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5, RetryTimeout: time.Duration(100), PortRPC: 1111, PortREST: 2222, PortWebSocket: 3333}
+	svc = Service{AppID: "centerms", LogLevel: "debug", RetryAttempts: 5,
+		RetryTimeout: time.Duration(100), PortRPC: 1111, PortREST: 2222,
+		PortWebSocket: 3333}
 	err = svc.validate()
 	assert.NotNil(t, err)
 }

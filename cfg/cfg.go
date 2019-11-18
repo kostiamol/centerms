@@ -10,10 +10,11 @@ import (
 type (
 	// Config holds the app config.
 	Config struct {
-		Service   Service
-		Publisher Publisher
-		Store     Store
-		Token     Token
+		Service    Service
+		Publisher  Publisher
+		Store      Store
+		Token      Token
+		TraceAgent TraceAgent
 	}
 
 	// Addr holds remote server's host and port.
@@ -39,6 +40,11 @@ func New() (*Config, error) {
 			PortREST:                  uintEnv("PORT_REST"),
 			PortWebSocket:             uintEnv("PORT_WEBSOCKET"),
 			RoutineTerminationTimeout: time.Millisecond * time.Duration(uintEnv("ROUTINE_TERMINATION_TIMEOUT_MS"))},
+		TraceAgent: TraceAgent{
+			Addr: Addr{
+				Host: os.Getenv("TRACE_HOST"),
+				Port: uintEnv("TRACE_PORT")},
+		},
 		Publisher: Publisher{
 			Addr: Addr{
 				Host: os.Getenv("PUB_HOST"),
