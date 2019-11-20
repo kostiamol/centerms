@@ -13,7 +13,8 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: proto buffer log samples
+// todo: add proto validation
+// todo: add fast loger
 // todo: look through the handlers
 // todo: check architecture (redis, websocket, nats, raw json data)
 // todo: overall test coverage > 80%
