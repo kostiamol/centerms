@@ -3,16 +3,18 @@
 
 package proto
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/mwitkow/go-proto-validators"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+	io "io"
+	math "math"
+	math_bits "math/bits"
 )
-
-import io "io"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,9 +25,9 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// Event is used for NATS Publish-Subscribe
+// Event is used for NATS pub/sub.
 type Event struct {
 	AggregateId   string `protobuf:"bytes,1,opt,name=aggregate_id,json=aggregateId,proto3" json:"aggregate_id,omitempty"`
 	AggregateType string `protobuf:"bytes,2,opt,name=aggregate_type,json=aggregateType,proto3" json:"aggregate_type,omitempty"`
@@ -38,7 +40,7 @@ func (m *Event) Reset()         { *m = Event{} }
 func (m *Event) String() string { return proto.CompactTextString(m) }
 func (*Event) ProtoMessage()    {}
 func (*Event) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_5dadc88c7755695f, []int{0}
+	return fileDescriptor_9c71d6ed29467879, []int{0}
 }
 func (m *Event) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -48,15 +50,15 @@ func (m *Event) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Event.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *Event) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Event.Merge(dst, src)
+func (m *Event) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Event.Merge(m, src)
 }
 func (m *Event) XXX_Size() int {
 	return m.Size()
@@ -112,7 +114,7 @@ func (m *DevMeta) Reset()         { *m = DevMeta{} }
 func (m *DevMeta) String() string { return proto.CompactTextString(m) }
 func (*DevMeta) ProtoMessage()    {}
 func (*DevMeta) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_5dadc88c7755695f, []int{1}
+	return fileDescriptor_9c71d6ed29467879, []int{1}
 }
 func (m *DevMeta) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -122,15 +124,15 @@ func (m *DevMeta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_DevMeta.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *DevMeta) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DevMeta.Merge(dst, src)
+func (m *DevMeta) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DevMeta.Merge(m, src)
 }
 func (m *DevMeta) XXX_Size() int {
 	return m.Size()
@@ -164,14 +166,14 @@ func (m *DevMeta) GetMac() string {
 
 type SetDevInitCfgRequest struct {
 	Time int64    `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty"`
-	Meta *DevMeta `protobuf:"bytes,2,opt,name=meta" json:"meta,omitempty"`
+	Meta *DevMeta `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
 }
 
 func (m *SetDevInitCfgRequest) Reset()         { *m = SetDevInitCfgRequest{} }
 func (m *SetDevInitCfgRequest) String() string { return proto.CompactTextString(m) }
 func (*SetDevInitCfgRequest) ProtoMessage()    {}
 func (*SetDevInitCfgRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_5dadc88c7755695f, []int{2}
+	return fileDescriptor_9c71d6ed29467879, []int{2}
 }
 func (m *SetDevInitCfgRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -181,15 +183,15 @@ func (m *SetDevInitCfgRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return xxx_messageInfo_SetDevInitCfgRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *SetDevInitCfgRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SetDevInitCfgRequest.Merge(dst, src)
+func (m *SetDevInitCfgRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SetDevInitCfgRequest.Merge(m, src)
 }
 func (m *SetDevInitCfgRequest) XXX_Size() int {
 	return m.Size()
@@ -222,7 +224,7 @@ func (m *SetDevInitCfgResponse) Reset()         { *m = SetDevInitCfgResponse{} }
 func (m *SetDevInitCfgResponse) String() string { return proto.CompactTextString(m) }
 func (*SetDevInitCfgResponse) ProtoMessage()    {}
 func (*SetDevInitCfgResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_5dadc88c7755695f, []int{3}
+	return fileDescriptor_9c71d6ed29467879, []int{3}
 }
 func (m *SetDevInitCfgResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -232,15 +234,15 @@ func (m *SetDevInitCfgResponse) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return xxx_messageInfo_SetDevInitCfgResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *SetDevInitCfgResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SetDevInitCfgResponse.Merge(dst, src)
+func (m *SetDevInitCfgResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SetDevInitCfgResponse.Merge(m, src)
 }
 func (m *SetDevInitCfgResponse) XXX_Size() int {
 	return m.Size()
@@ -260,7 +262,7 @@ func (m *SetDevInitCfgResponse) GetCfg() []byte {
 
 type SaveDevDataRequest struct {
 	Time int64    `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty"`
-	Meta *DevMeta `protobuf:"bytes,2,opt,name=meta" json:"meta,omitempty"`
+	Meta *DevMeta `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
 	Data []byte   `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
 }
 
@@ -268,7 +270,7 @@ func (m *SaveDevDataRequest) Reset()         { *m = SaveDevDataRequest{} }
 func (m *SaveDevDataRequest) String() string { return proto.CompactTextString(m) }
 func (*SaveDevDataRequest) ProtoMessage()    {}
 func (*SaveDevDataRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_5dadc88c7755695f, []int{4}
+	return fileDescriptor_9c71d6ed29467879, []int{4}
 }
 func (m *SaveDevDataRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -278,15 +280,15 @@ func (m *SaveDevDataRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return xxx_messageInfo_SaveDevDataRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *SaveDevDataRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SaveDevDataRequest.Merge(dst, src)
+func (m *SaveDevDataRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SaveDevDataRequest.Merge(m, src)
 }
 func (m *SaveDevDataRequest) XXX_Size() int {
 	return m.Size()
@@ -326,7 +328,7 @@ func (m *SaveDevDataResponse) Reset()         { *m = SaveDevDataResponse{} }
 func (m *SaveDevDataResponse) String() string { return proto.CompactTextString(m) }
 func (*SaveDevDataResponse) ProtoMessage()    {}
 func (*SaveDevDataResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_centerms_5dadc88c7755695f, []int{5}
+	return fileDescriptor_9c71d6ed29467879, []int{5}
 }
 func (m *SaveDevDataResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -336,15 +338,15 @@ func (m *SaveDevDataResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return xxx_messageInfo_SaveDevDataResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *SaveDevDataResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SaveDevDataResponse.Merge(dst, src)
+func (m *SaveDevDataResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SaveDevDataResponse.Merge(m, src)
 }
 func (m *SaveDevDataResponse) XXX_Size() int {
 	return m.Size()
@@ -369,6 +371,40 @@ func init() {
 	proto.RegisterType((*SetDevInitCfgResponse)(nil), "proto.SetDevInitCfgResponse")
 	proto.RegisterType((*SaveDevDataRequest)(nil), "proto.SaveDevDataRequest")
 	proto.RegisterType((*SaveDevDataResponse)(nil), "proto.SaveDevDataResponse")
+}
+
+func init() { proto.RegisterFile("centerms.proto", fileDescriptor_9c71d6ed29467879) }
+
+var fileDescriptor_9c71d6ed29467879 = []byte{
+	// 444 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x52, 0x4d, 0x6f, 0xd3, 0x40,
+	0x10, 0xcd, 0x36, 0x1f, 0xa5, 0x93, 0x26, 0x87, 0x05, 0x24, 0x63, 0x90, 0x29, 0x96, 0x90, 0x00,
+	0x29, 0x89, 0x28, 0x82, 0x1f, 0xd0, 0x06, 0xa4, 0x48, 0x70, 0x69, 0x38, 0x20, 0x21, 0x81, 0xb6,
+	0xf6, 0xd4, 0xac, 0x60, 0xed, 0x60, 0x4f, 0x5c, 0xfa, 0x2f, 0xf8, 0x13, 0xfc, 0x17, 0x8e, 0x15,
+	0x27, 0x6e, 0xa0, 0xe4, 0x8f, 0xa0, 0x1d, 0xa7, 0x0e, 0x36, 0x3e, 0x72, 0xb2, 0xf5, 0xde, 0x9b,
+	0xf7, 0xde, 0x8c, 0x16, 0x86, 0x01, 0xc6, 0x84, 0xa9, 0xc9, 0xc6, 0x8b, 0x34, 0xa1, 0x44, 0x76,
+	0xf9, 0xe3, 0x3e, 0x8b, 0x34, 0x7d, 0x58, 0x9e, 0x8e, 0x83, 0xc4, 0x4c, 0xcc, 0xb9, 0xa6, 0x8f,
+	0xc9, 0xf9, 0x24, 0x4a, 0x46, 0x4c, 0x8e, 0x72, 0xf5, 0x49, 0x87, 0x8a, 0x92, 0x34, 0x9b, 0x94,
+	0xbf, 0xc5, 0xb8, 0xff, 0x43, 0x40, 0xf7, 0x79, 0x8e, 0x31, 0xc9, 0x87, 0xb0, 0xaf, 0xa2, 0x28,
+	0xc5, 0x48, 0x11, 0xbe, 0xd7, 0xa1, 0x23, 0x0e, 0xc4, 0x83, 0xbd, 0xa3, 0xde, 0xea, 0xd7, 0xdd,
+	0x9d, 0x37, 0xe2, 0xa4, 0x5f, 0x72, 0xb3, 0x50, 0x8e, 0x60, 0xb8, 0x95, 0xd2, 0xc5, 0x02, 0x9d,
+	0x9d, 0x8a, 0x78, 0x50, 0xb2, 0xaf, 0x2f, 0x16, 0x28, 0xef, 0xc1, 0x35, 0xb4, 0x11, 0xd6, 0xb5,
+	0x5d, 0x11, 0xee, 0x32, 0x3e, 0x0b, 0xe5, 0x7d, 0x80, 0x42, 0xc2, 0x6e, 0x9d, 0x8a, 0x68, 0x8f,
+	0x19, 0x76, 0x2a, 0x65, 0xa1, 0x22, 0xe5, 0x74, 0x1b, 0x64, 0x53, 0x45, 0xca, 0x7f, 0x0b, 0xbb,
+	0x53, 0xcc, 0x5f, 0x21, 0x29, 0xe9, 0x42, 0x87, 0x2d, 0xab, 0xdb, 0x30, 0x66, 0xb9, 0x58, 0x99,
+	0x7a, 0x79, 0xc6, 0xa4, 0x03, 0x6d, 0xa3, 0x82, 0x5a, 0x5d, 0x0b, 0xf9, 0xef, 0xe0, 0xc6, 0x1c,
+	0x69, 0x8a, 0xf9, 0x2c, 0xd6, 0x74, 0x7c, 0x16, 0x9d, 0xe0, 0xe7, 0x25, 0x66, 0xc4, 0x49, 0xda,
+	0x14, 0x49, 0xed, 0x62, 0xe4, 0xc0, 0x26, 0x69, 0x83, 0xf2, 0x11, 0x74, 0x0c, 0x92, 0xe2, 0xa4,
+	0xfe, 0xe1, 0xb0, 0xb8, 0xfd, 0x78, 0xd3, 0x71, 0xab, 0xb5, 0x1a, 0xff, 0x31, 0xdc, 0xac, 0xf9,
+	0x67, 0x8b, 0x24, 0xce, 0xb8, 0x52, 0x70, 0x16, 0xb1, 0xff, 0x7e, 0x39, 0x63, 0x21, 0xff, 0x0b,
+	0xc8, 0xb9, 0xca, 0x71, 0x8a, 0xb9, 0x5d, 0xff, 0x3f, 0x17, 0xb2, 0x3e, 0x7c, 0xee, 0x76, 0x25,
+	0x98, 0x31, 0xff, 0x29, 0x5c, 0xaf, 0x24, 0x6f, 0xaa, 0x7a, 0xd0, 0xcb, 0x48, 0xd1, 0x32, 0xab,
+	0xdd, 0x7d, 0x83, 0x1e, 0x7e, 0x13, 0x30, 0x38, 0xe6, 0x77, 0x3c, 0xc7, 0x34, 0xd7, 0x01, 0xca,
+	0x97, 0x30, 0xa8, 0x6c, 0x2d, 0x6f, 0x6f, 0x3a, 0x35, 0xdd, 0xda, 0xbd, 0xd3, 0x4c, 0x16, 0xe9,
+	0x7e, 0x4b, 0xbe, 0x80, 0xfe, 0x5f, 0xb5, 0xe4, 0xad, 0x2b, 0xf9, 0x3f, 0x47, 0x72, 0xdd, 0x26,
+	0xea, 0xca, 0xe7, 0xc8, 0xf9, 0xbe, 0xf2, 0xc4, 0xe5, 0xca, 0x13, 0xbf, 0x57, 0x9e, 0xf8, 0xba,
+	0xf6, 0x5a, 0x97, 0x6b, 0xaf, 0xf5, 0x73, 0xed, 0xb5, 0x4e, 0x7b, 0x3c, 0xf6, 0xe4, 0x4f, 0x00,
+	0x00, 0x00, 0xff, 0xff, 0xb4, 0x05, 0xac, 0x88, 0x8f, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -417,6 +453,17 @@ func (c *centerServiceClient) SaveDevData(ctx context.Context, in *SaveDevDataRe
 type CenterServiceServer interface {
 	SetDevInitCfg(context.Context, *SetDevInitCfgRequest) (*SetDevInitCfgResponse, error)
 	SaveDevData(context.Context, *SaveDevDataRequest) (*SaveDevDataResponse, error)
+}
+
+// UnimplementedCenterServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedCenterServiceServer struct {
+}
+
+func (*UnimplementedCenterServiceServer) SetDevInitCfg(ctx context.Context, req *SetDevInitCfgRequest) (*SetDevInitCfgResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetDevInitCfg not implemented")
+}
+func (*UnimplementedCenterServiceServer) SaveDevData(ctx context.Context, req *SaveDevDataRequest) (*SaveDevDataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SaveDevData not implemented")
 }
 
 func RegisterCenterServiceServer(s *grpc.Server, srv CenterServiceServer) {
@@ -479,7 +526,7 @@ var _CenterService_serviceDesc = grpc.ServiceDesc{
 func (m *Event) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -487,47 +534,57 @@ func (m *Event) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Event) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Event) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.AggregateId) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(len(m.AggregateId)))
-		i += copy(dAtA[i:], m.AggregateId)
-	}
-	if len(m.AggregateType) > 0 {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(len(m.AggregateType)))
-		i += copy(dAtA[i:], m.AggregateType)
-	}
-	if len(m.EventId) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(len(m.EventId)))
-		i += copy(dAtA[i:], m.EventId)
+	if len(m.EventData) > 0 {
+		i -= len(m.EventData)
+		copy(dAtA[i:], m.EventData)
+		i = encodeVarintCenterms(dAtA, i, uint64(len(m.EventData)))
+		i--
+		dAtA[i] = 0x2a
 	}
 	if len(m.EventType) > 0 {
-		dAtA[i] = 0x22
-		i++
+		i -= len(m.EventType)
+		copy(dAtA[i:], m.EventType)
 		i = encodeVarintCenterms(dAtA, i, uint64(len(m.EventType)))
-		i += copy(dAtA[i:], m.EventType)
+		i--
+		dAtA[i] = 0x22
 	}
-	if len(m.EventData) > 0 {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(len(m.EventData)))
-		i += copy(dAtA[i:], m.EventData)
+	if len(m.EventId) > 0 {
+		i -= len(m.EventId)
+		copy(dAtA[i:], m.EventId)
+		i = encodeVarintCenterms(dAtA, i, uint64(len(m.EventId)))
+		i--
+		dAtA[i] = 0x1a
 	}
-	return i, nil
+	if len(m.AggregateType) > 0 {
+		i -= len(m.AggregateType)
+		copy(dAtA[i:], m.AggregateType)
+		i = encodeVarintCenterms(dAtA, i, uint64(len(m.AggregateType)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.AggregateId) > 0 {
+		i -= len(m.AggregateId)
+		copy(dAtA[i:], m.AggregateId)
+		i = encodeVarintCenterms(dAtA, i, uint64(len(m.AggregateId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *DevMeta) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -535,35 +592,43 @@ func (m *DevMeta) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *DevMeta) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *DevMeta) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Type) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(len(m.Type)))
-		i += copy(dAtA[i:], m.Type)
+	if len(m.Mac) > 0 {
+		i -= len(m.Mac)
+		copy(dAtA[i:], m.Mac)
+		i = encodeVarintCenterms(dAtA, i, uint64(len(m.Mac)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.Name) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
 		i = encodeVarintCenterms(dAtA, i, uint64(len(m.Name)))
-		i += copy(dAtA[i:], m.Name)
+		i--
+		dAtA[i] = 0x12
 	}
-	if len(m.Mac) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(len(m.Mac)))
-		i += copy(dAtA[i:], m.Mac)
+	if len(m.Type) > 0 {
+		i -= len(m.Type)
+		copy(dAtA[i:], m.Type)
+		i = encodeVarintCenterms(dAtA, i, uint64(len(m.Type)))
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *SetDevInitCfgRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -571,32 +636,39 @@ func (m *SetDevInitCfgRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SetDevInitCfgRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SetDevInitCfgRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Time != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(m.Time))
-	}
 	if m.Meta != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(m.Meta.Size()))
-		n1, err := m.Meta.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintCenterms(dAtA, i, uint64(size))
 		}
-		i += n1
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.Time != 0 {
+		i = encodeVarintCenterms(dAtA, i, uint64(m.Time))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *SetDevInitCfgResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -604,23 +676,29 @@ func (m *SetDevInitCfgResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SetDevInitCfgResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SetDevInitCfgResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Cfg) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.Cfg)
+		copy(dAtA[i:], m.Cfg)
 		i = encodeVarintCenterms(dAtA, i, uint64(len(m.Cfg)))
-		i += copy(dAtA[i:], m.Cfg)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *SaveDevDataRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -628,38 +706,46 @@ func (m *SaveDevDataRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SaveDevDataRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SaveDevDataRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Time != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(m.Time))
+	if len(m.Data) > 0 {
+		i -= len(m.Data)
+		copy(dAtA[i:], m.Data)
+		i = encodeVarintCenterms(dAtA, i, uint64(len(m.Data)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if m.Meta != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(m.Meta.Size()))
-		n2, err := m.Meta.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintCenterms(dAtA, i, uint64(size))
 		}
-		i += n2
+		i--
+		dAtA[i] = 0x12
 	}
-	if len(m.Data) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintCenterms(dAtA, i, uint64(len(m.Data)))
-		i += copy(dAtA[i:], m.Data)
+	if m.Time != 0 {
+		i = encodeVarintCenterms(dAtA, i, uint64(m.Time))
+		i--
+		dAtA[i] = 0x8
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *SaveDevDataResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -667,27 +753,35 @@ func (m *SaveDevDataResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SaveDevDataResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SaveDevDataResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Status) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.Status)
+		copy(dAtA[i:], m.Status)
 		i = encodeVarintCenterms(dAtA, i, uint64(len(m.Status)))
-		i += copy(dAtA[i:], m.Status)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintCenterms(dAtA []byte, offset int, v uint64) int {
+	offset -= sovCenterms(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *Event) Size() (n int) {
 	if m == nil {
@@ -802,14 +896,7 @@ func (m *SaveDevDataResponse) Size() (n int) {
 }
 
 func sovCenterms(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozCenterms(x uint64) (n int) {
 	return sovCenterms(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -829,7 +916,7 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -857,7 +944,7 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -867,6 +954,9 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -886,7 +976,7 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -896,6 +986,9 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -915,7 +1008,7 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -925,6 +1018,9 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -944,7 +1040,7 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -954,6 +1050,9 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -973,7 +1072,7 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -983,6 +1082,9 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -995,6 +1097,9 @@ func (m *Event) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthCenterms
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthCenterms
 			}
 			if (iNdEx + skippy) > l {
@@ -1024,7 +1129,7 @@ func (m *DevMeta) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -1052,7 +1157,7 @@ func (m *DevMeta) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1062,6 +1167,9 @@ func (m *DevMeta) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1081,7 +1189,7 @@ func (m *DevMeta) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1091,6 +1199,9 @@ func (m *DevMeta) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1110,7 +1221,7 @@ func (m *DevMeta) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1120,6 +1231,9 @@ func (m *DevMeta) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1132,6 +1246,9 @@ func (m *DevMeta) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthCenterms
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthCenterms
 			}
 			if (iNdEx + skippy) > l {
@@ -1161,7 +1278,7 @@ func (m *SetDevInitCfgRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -1189,7 +1306,7 @@ func (m *SetDevInitCfgRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Time |= (int64(b) & 0x7F) << shift
+				m.Time |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1208,7 +1325,7 @@ func (m *SetDevInitCfgRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1217,6 +1334,9 @@ func (m *SetDevInitCfgRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1234,6 +1354,9 @@ func (m *SetDevInitCfgRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthCenterms
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthCenterms
 			}
 			if (iNdEx + skippy) > l {
@@ -1263,7 +1386,7 @@ func (m *SetDevInitCfgResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -1291,7 +1414,7 @@ func (m *SetDevInitCfgResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= (int(b) & 0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1300,6 +1423,9 @@ func (m *SetDevInitCfgResponse) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1315,6 +1441,9 @@ func (m *SetDevInitCfgResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthCenterms
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthCenterms
 			}
 			if (iNdEx + skippy) > l {
@@ -1344,7 +1473,7 @@ func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -1372,7 +1501,7 @@ func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Time |= (int64(b) & 0x7F) << shift
+				m.Time |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1391,7 +1520,7 @@ func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1400,6 +1529,9 @@ func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1424,7 +1556,7 @@ func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= (int(b) & 0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1433,6 +1565,9 @@ func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1448,6 +1583,9 @@ func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthCenterms
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthCenterms
 			}
 			if (iNdEx + skippy) > l {
@@ -1477,7 +1615,7 @@ func (m *SaveDevDataResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -1505,7 +1643,7 @@ func (m *SaveDevDataResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1515,6 +1653,9 @@ func (m *SaveDevDataResponse) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCenterms
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCenterms
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1527,6 +1668,9 @@ func (m *SaveDevDataResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthCenterms
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthCenterms
 			}
 			if (iNdEx + skippy) > l {
@@ -1544,6 +1688,7 @@ func (m *SaveDevDataResponse) Unmarshal(dAtA []byte) error {
 func skipCenterms(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -1575,10 +1720,8 @@ func skipCenterms(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -1595,84 +1738,34 @@ func skipCenterms(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
 				return 0, ErrInvalidLengthCenterms
 			}
-			return iNdEx, nil
+			iNdEx += length
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowCenterms
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipCenterms(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupCenterms
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthCenterms
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthCenterms = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowCenterms   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthCenterms        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowCenterms          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupCenterms = fmt.Errorf("proto: unexpected end of group")
 )
-
-func init() { proto.RegisterFile("centerms.proto", fileDescriptor_centerms_5dadc88c7755695f) }
-
-var fileDescriptor_centerms_5dadc88c7755695f = []byte{
-	// 386 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x52, 0xbb, 0x4e, 0xe3, 0x50,
-	0x10, 0xb5, 0xd7, 0x79, 0x6c, 0x26, 0x0f, 0xad, 0xee, 0xee, 0x22, 0x27, 0x80, 0x05, 0x57, 0x42,
-	0x82, 0x82, 0x14, 0xe1, 0x0f, 0x88, 0x41, 0x8a, 0x04, 0x14, 0x0e, 0x3d, 0x5c, 0xec, 0x89, 0xe5,
-	0xc2, 0x8e, 0xb1, 0x6f, 0x2c, 0xe5, 0x2f, 0xf8, 0x09, 0x1a, 0xbe, 0x84, 0x32, 0x25, 0x25, 0x4a,
-	0x7e, 0x04, 0xdd, 0xb1, 0x13, 0x12, 0x48, 0x47, 0xe5, 0x73, 0xe7, 0xcc, 0x9c, 0x73, 0x66, 0x64,
-	0x68, 0xb9, 0x18, 0x49, 0x4c, 0xc2, 0xb4, 0x1b, 0x27, 0x63, 0x39, 0x66, 0x65, 0xfa, 0xf0, 0x17,
-	0x1d, 0xca, 0x17, 0x19, 0x46, 0x92, 0x1d, 0x42, 0x43, 0xf8, 0x7e, 0x82, 0xbe, 0x90, 0x78, 0x17,
-	0x78, 0xa6, 0x7e, 0xa0, 0x1f, 0xd7, 0x9c, 0xfa, 0xaa, 0x36, 0xf0, 0xd8, 0x11, 0xb4, 0x3e, 0x5b,
-	0xe4, 0x34, 0x46, 0xf3, 0x17, 0x35, 0x35, 0x57, 0xd5, 0xdb, 0x69, 0x8c, 0xac, 0x0d, 0xbf, 0x51,
-	0x49, 0x2a, 0x15, 0x83, 0x1a, 0xaa, 0xf4, 0x1e, 0x78, 0x6c, 0x1f, 0x20, 0xa7, 0x68, 0xba, 0x44,
-	0x64, 0x8d, 0x2a, 0x34, 0xb9, 0xa2, 0x3d, 0x21, 0x85, 0x59, 0x5e, 0xa3, 0x6d, 0x21, 0x05, 0xef,
-	0x43, 0xd5, 0xc6, 0xec, 0x1a, 0xa5, 0x60, 0x0c, 0x4a, 0x24, 0x91, 0xa7, 0x24, 0xac, 0x6a, 0x91,
-	0x08, 0x97, 0xa1, 0x08, 0xb3, 0x3f, 0x60, 0x84, 0xc2, 0x2d, 0x62, 0x28, 0xc8, 0x6f, 0xe0, 0xdf,
-	0x10, 0xa5, 0x8d, 0xd9, 0x20, 0x0a, 0x64, 0x7f, 0xe4, 0x3b, 0xf8, 0x38, 0xc1, 0x54, 0x92, 0x62,
-	0x10, 0xe6, 0x8a, 0x86, 0x43, 0x98, 0x71, 0x28, 0x85, 0x28, 0x05, 0x29, 0xd6, 0x7b, 0xad, 0xfc,
-	0x74, 0xdd, 0x22, 0x83, 0x43, 0x1c, 0x3f, 0x81, 0xff, 0x5f, 0xf4, 0xd2, 0x78, 0x1c, 0xa5, 0x64,
-	0xed, 0x8e, 0x7c, 0xd2, 0x6b, 0x38, 0x0a, 0xf2, 0x7b, 0x60, 0x43, 0x91, 0xa1, 0x8d, 0x99, 0x5a,
-	0xe7, 0x87, 0xc6, 0x6a, 0x8e, 0xce, 0x64, 0x90, 0x01, 0x61, 0x7e, 0x0a, 0x7f, 0x37, 0x1c, 0x8a,
-	0x28, 0x3b, 0x50, 0x49, 0xa5, 0x90, 0x93, 0xb4, 0xb8, 0x57, 0xf1, 0xea, 0x3d, 0xeb, 0xd0, 0xec,
-	0xd3, 0x7f, 0x31, 0xc4, 0x24, 0x0b, 0x5c, 0x64, 0x57, 0xd0, 0xdc, 0xd8, 0x86, 0xed, 0x16, 0xde,
-	0xdb, 0x6e, 0xd6, 0xd9, 0xdb, 0x4e, 0xe6, 0xae, 0x5c, 0x63, 0x97, 0x50, 0x5f, 0x8b, 0xc3, 0xda,
-	0xcb, 0xf6, 0x6f, 0x47, 0xe8, 0x74, 0xb6, 0x51, 0x4b, 0x9d, 0x73, 0xf3, 0x75, 0x6e, 0xe9, 0xb3,
-	0xb9, 0xa5, 0xbf, 0xcf, 0x2d, 0xfd, 0x69, 0x61, 0x69, 0xb3, 0x85, 0xa5, 0xbd, 0x2d, 0x2c, 0xed,
-	0xa1, 0x42, 0x63, 0x67, 0x1f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x70, 0xbf, 0xcc, 0xff, 0xdf, 0x02,
-	0x00, 0x00,
-}
