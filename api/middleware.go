@@ -20,6 +20,6 @@ func requestLogger(next http.HandlerFunc, name string, l log.Logger) http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next(w, r)
-		l.With("method", r.Method, "uri", r.RequestURI, "name", name, "duration", time.Since(start)).Info()
+		l.With("method", r.Method, "uri", r.RequestURI, "name", name, "duration", time.Since(start)).Infof("")
 	}
 }

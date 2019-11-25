@@ -87,17 +87,17 @@ func respError(w http.ResponseWriter, err error, l log.Logger) {
 		resp["message"] = apiErr.Message
 		resp["validation_errors"] = map[string]interface{}{"_error": globalErr, "errors": apiErr.Errors}
 	default:
-		l.With("API", "jsonError").Error(err)
+		l.With("API", "jsonError").Error(err.Error())
 	}
 
 	b, err := json.Marshal(resp)
 	if err != nil {
-		l.Error(err)
+		l.Error(err.Error())
 	}
 
 	w.WriteHeader(code)
 
 	if _, err = w.Write(b); err != nil {
-		l.Error(err)
+		l.Error(err.Error())
 	}
 }

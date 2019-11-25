@@ -65,7 +65,7 @@ func NewCfgService(c *CfgServiceCfg) *cfgService { // nolint
 
 // Run launches the service by running goroutines for listening to the service termination and config patches.
 func (s *cfgService) Run() {
-	s.log.With("event", log.EventComponentStarted).Info()
+	s.log.With("event", log.EventComponentStarted).Infof("")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -83,7 +83,7 @@ func (s *cfgService) Run() {
 
 func (s *cfgService) listenToTermination() {
 	<-s.ctrl.StopChan
-	s.log.With("event", log.EventComponentShutdown).Info()
+	s.log.With("event", log.EventComponentShutdown).Infof("")
 	_ = s.log.Flush()
 }
 

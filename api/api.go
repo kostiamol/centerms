@@ -108,7 +108,7 @@ func (a *api) Run() {
 
 func (a *api) listenToTermination() {
 	<-a.ctrl.StopChan
-	a.log.With("event", log.EventComponentShutdown).Info()
+	a.log.With("event", log.EventComponentShutdown).Infof("")
 	_ = a.log.Flush()
 }
 

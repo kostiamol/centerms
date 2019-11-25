@@ -13,7 +13,7 @@ import (
 	"github.com/kostiamol/centerms/svc"
 )
 
-// todo: add fast logger
+// todo: fix key env vars reading
 // todo: look through the handlers
 // todo: check architecture (redis, websocket, nats, raw json data)
 // todo: overall test coverage > 80%

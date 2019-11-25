@@ -97,7 +97,7 @@ func (s *streamService) Run() {
 
 func (s *streamService) listenToTermination() {
 	<-s.ctrl.StopChan
-	s.log.With("event", log.EventComponentShutdown).Info()
+	s.log.With("event", log.EventComponentShutdown).Infof("")
 	_ = s.log.Flush()
 }
 
