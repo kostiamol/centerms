@@ -1,19 +1,17 @@
 package main
 
 import (
-	"github.com/kostiamol/centerms/event/pub"
-	"github.com/kostiamol/centerms/metric"
-	"github.com/kostiamol/centerms/trace"
-
 	"github.com/joho/godotenv"
 	"github.com/kostiamol/centerms/api"
 	"github.com/kostiamol/centerms/cfg"
+	"github.com/kostiamol/centerms/event/pub"
 	"github.com/kostiamol/centerms/log"
+	"github.com/kostiamol/centerms/metric"
 	"github.com/kostiamol/centerms/store"
 	"github.com/kostiamol/centerms/svc"
+	"github.com/kostiamol/centerms/trace"
 )
 
-// todo: fix key env vars reading
 // todo: look through the handlers
 // todo: check architecture (redis, websocket, nats, raw json data)
 // todo: overall test coverage > 80%

@@ -4,6 +4,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -58,8 +59,8 @@ func New() (*Config, error) {
 			IdleTimeout:      time.Millisecond * time.Duration(uintEnv("STORE_IDLE_TIMEOUT_MS")),
 			MaxIdlePoolConns: uintEnv("STORE_MAX_IDLE_POOL_CONNS")},
 		Token: Token{
-			PublicKey:  os.Getenv("PUBLIC_KEY"),
-			PrivateKey: os.Getenv("PRIVATE_KEY")}}
+			PublicKey:  strings.Replace(os.Getenv("PUBLIC_KEY"), `\n`, "\n", -1),
+			PrivateKey: strings.Replace(os.Getenv("PRIVATE_KEY"), `\n`, "\n", -1)}}
 
 	err := c.validate()
 
