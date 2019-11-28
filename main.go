@@ -7,11 +7,13 @@ import (
 	"github.com/kostiamol/centerms/event/pub"
 	"github.com/kostiamol/centerms/log"
 	"github.com/kostiamol/centerms/metric"
-	"github.com/kostiamol/centerms/store"
+	"github.com/kostiamol/centerms/store/dev"
 	"github.com/kostiamol/centerms/svc"
 	"github.com/kostiamol/centerms/trace"
 )
 
+// todo: use clickhouse for data
+// todo: use zookeper for cfg
 // todo: look through the handlers
 // todo: check architecture (redis, websocket, nats, raw json data)
 // todo: overall test coverage > 80%
@@ -41,17 +43,17 @@ func main() {
 		logger.Fatalf("func trace.Init: %s", err)
 	}
 
-	storer, err := store.New(
-		&store.Cfg{
-			Addr:             cfg.Addr{Host: config.Store.Addr.Host, Port: config.Store.Addr.Port},
-			Password:         config.Store.Password,
-			MaxIdlePoolConns: config.Store.MaxIdlePoolConns,
-			IdleTimeout:      config.Store.IdleTimeout,
-		})
-	if err != nil {
-		logger.Fatalf("func store.New: %s", err)
-	}
-	logger.With("event", log.EventStoreInit)
+	//storer, err := store.New(
+	//	&store.Cfg{
+	//		Addr:             cfg.Addr{Host: config.Store.Addr.Host, Port: config.Store.Addr.Port},
+	//		Password:         config.Store.Password,
+	//		MaxIdlePoolConns: config.Store.MaxIdlePoolConns,
+	//		IdleTimeout:      config.Store.IdleTimeout,
+	//	})
+	//if err != nil {
+	//	logger.Fatalf("func store.New: %s", err)
+	//}
+	//logger.With("event", log.EventStoreInit)
 
 	publisher := pub.New(
 		&pub.Cfg{
@@ -62,15 +64,15 @@ func main() {
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
 	mtrc := metric.New(config.Service.AppID)
-	dataChan := make(chan *svc.DevData)
-	confChan := make(chan *svc.DevCfg)
+	dataChan := make(chan *dev.Data)
+	confChan := make(chan *dev.Cfg)
 
 	data := svc.NewDataService(
 		&svc.DataServiceCfg{
 			Log:     logger,
 			Ctrl:    ctrl,
 			Metric:  mtrc,
-			Store:   storer,
+			Store:   nil,
 			PubChan: dataChan,
 		})
 	conf := svc.NewCfgService(
@@ -78,7 +80,7 @@ func main() {
 			Log:       logger,
 			Ctrl:      ctrl,
 			Metric:    mtrc,
-			Store:     storer,
+			Store:     nil,
 			SubChan:   confChan,
 			Publisher: publisher,
 		})

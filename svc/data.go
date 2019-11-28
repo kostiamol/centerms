@@ -1,9 +1,8 @@
 package svc
 
 import (
-	"encoding/json"
-
 	"github.com/kostiamol/centerms/metric"
+	"github.com/kostiamol/centerms/store/dev"
 
 	"github.com/kostiamol/centerms/log"
 
@@ -13,28 +12,14 @@ import (
 type (
 	// DataStorer is a contract for the data storer.
 	DataStorer interface {
-		GetDevsData() ([]DevData, error)
-		GetDevData(id string) (*DevData, error)
-		SaveDevData(*DevData) error
+		GetDevsData() ([]dev.Data, error)
+		GetDevData(id string) (*dev.Data, error)
+		SaveDevData(*dev.Data) error
 	}
 
 	// Publisher .
 	DataPublisher interface {
 		Publish(msg interface{}, channel string) (int64, error)
-	}
-
-	// DevMeta is used to subscriber device metadata: it's type, name (model) and MAC address.
-	DevMeta struct {
-		Type string `json:"type"`
-		Name string `json:"name"`
-		MAC  string `json:"mac"`
-	}
-
-	// DevData is used to subscriber time of the request, device's metadata and the data it transfers.
-	DevData struct {
-		Time int64           `json:"time"`
-		Meta DevMeta         `json:"meta"`
-		Data json.RawMessage `json:"data"`
 	}
 
 	// DataServiceCfg is used to initialize an instance of dataService.
@@ -43,7 +28,7 @@ type (
 		Ctrl    Ctrl
 		Metric  *metric.Metric
 		Store   DataStorer
-		PubChan chan<- *DevData
+		PubChan chan<- *dev.Data
 	}
 
 	// dataService is used to deal with device data.
@@ -52,7 +37,7 @@ type (
 		ctrl    Ctrl
 		metric  *metric.Metric
 		storer  DataStorer
-		pubChan chan<- *DevData
+		pubChan chan<- *dev.Data
 	}
 )
 
@@ -91,7 +76,7 @@ func (s *dataService) listenToTermination() {
 }
 
 // SaveDevData is used to save device data to the store.
-func (s *dataService) SaveDevData(d *DevData) error {
+func (s *dataService) SaveDevData(d *dev.Data) error {
 	if err := s.storer.SaveDevData(d); err != nil {
 		s.log.Errorf("func SaveDevData: %s", err)
 		return err
@@ -103,7 +88,7 @@ func (s *dataService) SaveDevData(d *DevData) error {
 }
 
 // GetDevData is used to get device data from the store.
-func (s *dataService) GetDevData(id string) (*DevData, error) {
+func (s *dataService) GetDevData(id string) (*dev.Data, error) {
 	d, err := s.storer.GetDevData(id)
 	if err != nil {
 		s.log.Errorf("func GetDevData: %s", err)
@@ -113,7 +98,7 @@ func (s *dataService) GetDevData(id string) (*DevData, error) {
 }
 
 // GetDevsData is used to get all the devices data from the store.
-func (s *dataService) GetDevsData() ([]DevData, error) {
+func (s *dataService) GetDevsData() ([]dev.Data, error) {
 	d, err := s.storer.GetDevsData()
 	if err != nil {
 		s.log.Errorf("func GetDevsData: %s", err)

@@ -6,7 +6,7 @@ package mock_api
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	svc "github.com/kostiamol/centerms/svc"
+	dev "github.com/kostiamol/centerms/store/dev"
 	reflect "reflect"
 )
 
@@ -34,10 +34,10 @@ func (m *MockCfgProvider) EXPECT() *MockCfgProviderMockRecorder {
 }
 
 // GetDevCfg mocks base method
-func (m *MockCfgProvider) GetDevCfg(arg0 string) (*svc.DevCfg, error) {
+func (m *MockCfgProvider) GetDevCfg(arg0 string) (*dev.Cfg, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDevCfg", arg0)
-	ret0, _ := ret[0].(*svc.DevCfg)
+	ret0, _ := ret[0].(*dev.Cfg)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -49,7 +49,7 @@ func (mr *MockCfgProviderMockRecorder) GetDevCfg(arg0 interface{}) *gomock.Call 
 }
 
 // SetDevCfg mocks base method
-func (m *MockCfgProvider) SetDevCfg(arg0 string, arg1 *svc.DevCfg) error {
+func (m *MockCfgProvider) SetDevCfg(arg0 string, arg1 *dev.Cfg) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetDevCfg", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -63,10 +63,10 @@ func (mr *MockCfgProviderMockRecorder) SetDevCfg(arg0, arg1 interface{}) *gomock
 }
 
 // SetDevInitCfg mocks base method
-func (m *MockCfgProvider) SetDevInitCfg(arg0 *svc.DevMeta) (*svc.DevCfg, error) {
+func (m *MockCfgProvider) SetDevInitCfg(arg0 *dev.Meta) (*dev.Cfg, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetDevInitCfg", arg0)
-	ret0, _ := ret[0].(*svc.DevCfg)
+	ret0, _ := ret[0].(*dev.Cfg)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -101,10 +101,10 @@ func (m *MockDataProvider) EXPECT() *MockDataProviderMockRecorder {
 }
 
 // GetDevData mocks base method
-func (m *MockDataProvider) GetDevData(arg0 string) (*svc.DevData, error) {
+func (m *MockDataProvider) GetDevData(arg0 string) (*dev.Data, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDevData", arg0)
-	ret0, _ := ret[0].(*svc.DevData)
+	ret0, _ := ret[0].(*dev.Data)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -116,10 +116,10 @@ func (mr *MockDataProviderMockRecorder) GetDevData(arg0 interface{}) *gomock.Cal
 }
 
 // GetDevsData mocks base method
-func (m *MockDataProvider) GetDevsData() ([]svc.DevData, error) {
+func (m *MockDataProvider) GetDevsData() ([]dev.Data, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDevsData")
-	ret0, _ := ret[0].([]svc.DevData)
+	ret0, _ := ret[0].([]dev.Data)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -131,7 +131,7 @@ func (mr *MockDataProviderMockRecorder) GetDevsData() *gomock.Call {
 }
 
 // SaveDevData mocks base method
-func (m *MockDataProvider) SaveDevData(arg0 *svc.DevData) error {
+func (m *MockDataProvider) SaveDevData(arg0 *dev.Data) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveDevData", arg0)
 	ret0, _ := ret[0].(error)

@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/kostiamol/centerms/svc"
-
 	"github.com/gorilla/mux"
+	"github.com/kostiamol/centerms/store/dev"
 )
 
 var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +59,7 @@ func (a *api) getDevCfgHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) patchDevCfgHandler(w http.ResponseWriter, r *http.Request) {
-	var c svc.DevCfg
+	var c dev.Cfg
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
 		a.log.Errorf("func patchDevCfgHandler: func Decode: %s", err)
 		return

@@ -1,10 +1,9 @@
 package api
 
 import (
-	"github.com/kostiamol/centerms/log"
-	"github.com/kostiamol/centerms/svc"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	"github.com/kostiamol/centerms/log"
+	"github.com/kostiamol/centerms/store/dev"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/kostiamol/centerms/proto"
@@ -44,7 +43,7 @@ func (a *api) serveRPC() {
 // SetDevInitCfg sets device's initial configuration when it connects to the center for the first
 // time using CfgProvider and returns that configuration to the device.
 func (a *api) SetDevInitCfg(ctx context.Context, r *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse, error) {
-	m := svc.DevMeta{
+	m := dev.Meta{
 		Type: r.Meta.Type,
 		Name: r.Meta.Name,
 		MAC:  r.Meta.Mac,
@@ -60,9 +59,9 @@ func (a *api) SetDevInitCfg(ctx context.Context, r *proto.SetDevInitCfgRequest) 
 
 // SaveDevData saves data from device using DataProvider.
 func (a *api) SaveDevData(ctx context.Context, r *proto.SaveDevDataRequest) (*proto.SaveDevDataResponse, error) {
-	d := svc.DevData{
+	d := dev.Data{
 		Time: r.Time,
-		Meta: svc.DevMeta{
+		Meta: dev.Meta{
 			Type: r.Meta.Type,
 			Name: r.Meta.Name,
 			MAC:  r.Meta.Mac,
