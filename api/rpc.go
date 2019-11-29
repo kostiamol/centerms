@@ -43,13 +43,13 @@ func (a *api) serveRPC() {
 // SetDevInitCfg sets device's initial configuration when it connects to the center for the first
 // time using CfgProvider and returns that configuration to the device.
 func (a *api) SetDevInitCfg(ctx context.Context, r *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse, error) {
-	m := dev.Meta{
+	m := &dev.Meta{
 		Type: r.Meta.Type,
 		Name: r.Meta.Name,
 		MAC:  r.Meta.Mac,
 	}
 
-	c, err := a.cfgProvider.SetDevInitCfg(&m)
+	c, err := a.cfgProvider.SetDevInitCfg(m)
 	if err != nil {
 		return nil, fmt.Errorf("func SetDevInitCfg: %s", err)
 	}

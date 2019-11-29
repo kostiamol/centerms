@@ -1,5 +1,10 @@
 package dev
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 type (
 	// washerData is used to store amount of turnovers and water temperature.
 	washerData struct {
@@ -81,4 +86,21 @@ func (w *washer) SetDevMeta(*Meta) error {
 
 func (w *washer) IsRegistered() (bool, error) {
 	return false, nil
+}
+
+func parseWasher(c *Cfg, d *Data) (Devicer, error) {
+	var cfg washerCfg
+	if err := json.Unmarshal(c.Data, &cfg); err != nil {
+		return nil, fmt.Errorf("func Unmarshal: %v", err)
+	}
+
+	var data washerData
+	if err := json.Unmarshal(d.Data, &data); err != nil {
+		return nil, fmt.Errorf("func Unmarshal: %v", err)
+	}
+
+	return &washer{
+		cfg:  cfg,
+		data: data,
+	}, nil
 }

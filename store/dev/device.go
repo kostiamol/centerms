@@ -2,14 +2,15 @@ package dev
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 type (
-	Device interface {
-		GetData(*Meta) error
+	Devicer interface {
+		GetData() (*Data, error)
 		SaveData(*Data) error
-		GetCfg() error
-		GetDefaultCfg() error
+		GetCfg() (*Cfg, error)
+		GetDefaultCfg() (*Cfg, error)
 		SetCfg(*Cfg) error
 		GetMeta() (*Meta, error)
 		SetDevMeta(*Meta) error
@@ -35,4 +36,22 @@ type (
 		MAC  string          `json:"mac"`
 		Data json.RawMessage `json:"data"`
 	}
+
+	Type string
 )
+
+const (
+	Fridge Type = "fridge"
+	Washer Type = "washer"
+)
+
+func New(c *Cfg, d *Data) (Devicer, error) {
+	switch d.Meta.Type {
+	case Fridge:
+		return parseFridge(c, d)
+	case Washer:
+		return parseWasher(c, d)
+	default:
+		return nil, fmt.Errorf("unknown device with type: %s", d.Meta.Type)
+	}
+}

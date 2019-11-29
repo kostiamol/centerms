@@ -1,5 +1,10 @@
 package dev
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 type (
 	// fridgeData is used to store temperature with timestamps for each compartment of the fridge.
 	fridgeData struct {
@@ -57,4 +62,21 @@ func (f *fridge) SetDevMeta(*Meta) error {
 
 func (f *fridge) IsRegistered() (bool, error) {
 	return false, nil
+}
+
+func parseFridge(c *Cfg, d *Data) (Devicer, error) {
+	var cfg fridgeCfg
+	if err := json.Unmarshal(c.Data, &cfg); err != nil {
+		return nil, fmt.Errorf("func parseFridgeCfg: func Unmarshal: %v", err)
+	}
+
+	var data fridgeData
+	if err := json.Unmarshal(d.Data, &data); err != nil {
+		return nil, fmt.Errorf("func parseFridgeData: func Unmarshal: %v", err)
+	}
+
+	return &fridge{
+		cfg:  cfg,
+		data: data,
+	}, nil
 }
