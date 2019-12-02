@@ -46,7 +46,7 @@ func (this *DevMeta) Validate() error {
 	}
 	return nil
 }
-func (this *SetDevInitCfgRequest) Validate() error {
+func (this *InitCfgRequest) Validate() error {
 	if nil == this.Meta {
 		return github_com_mwitkow_go_proto_validators.FieldError("Meta", fmt.Errorf("message must exist"))
 	}
@@ -57,10 +57,10 @@ func (this *SetDevInitCfgRequest) Validate() error {
 	}
 	return nil
 }
-func (this *SetDevInitCfgResponse) Validate() error {
+func (this *InitCfgResponse) Validate() error {
 	return nil
 }
-func (this *SaveDevDataRequest) Validate() error {
+func (this *SaveDataRequest) Validate() error {
 	if nil == this.Meta {
 		return github_com_mwitkow_go_proto_validators.FieldError("Meta", fmt.Errorf("message must exist"))
 	}
@@ -71,7 +71,7 @@ func (this *SaveDevDataRequest) Validate() error {
 	}
 	return nil
 }
-func (this *SaveDevDataResponse) Validate() error {
+func (this *SaveDataResponse) Validate() error {
 	if this.Status == "" {
 		return github_com_mwitkow_go_proto_validators.FieldError("Status", fmt.Errorf(`value '%v' must not be an empty string`, this.Status))
 	}

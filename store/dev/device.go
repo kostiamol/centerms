@@ -9,11 +9,13 @@ type (
 	Devicer interface {
 		GetData() (*Data, error)
 		SaveData(*Data) error
-		GetCfg() (*Cfg, error)
-		GetDefaultCfg() (*Cfg, error)
+
+		GetCfg(id string) (*Cfg, error)
 		SetCfg(*Cfg) error
+
 		GetMeta() (*Meta, error)
-		SetDevMeta(*Meta) error
+		SetMeta(*Meta) error
+
 		IsRegistered() (bool, error)
 	}
 
@@ -45,13 +47,13 @@ const (
 	Washer Type = "washer"
 )
 
-func New(c *Cfg, d *Data) (Devicer, error) {
-	switch d.Meta.Type {
+func defineDevice(t Type) (Devicer, error) {
+	switch t {
 	case Fridge:
-		return parseFridge(c, d)
+		return &fridge{}, nil
 	case Washer:
-		return parseWasher(c, d)
+		return &washer{}, nil
 	default:
-		return nil, fmt.Errorf("unknown device with type: %s", d.Meta.Type)
+		return nil, fmt.Errorf("unknown device with type: %s", t)
 	}
 }

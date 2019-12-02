@@ -4,6 +4,8 @@ package store
 import (
 	"time"
 
+	"github.com/kostiamol/centerms/store/dev"
+
 	"github.com/kostiamol/centerms/cfg"
 )
 
@@ -25,4 +27,40 @@ type (
 // New creates a new instance of store.
 func New(c *Cfg) (*store, error) { // nolint
 	return nil, nil
+}
+
+func (s *store) InitCfg(m *dev.Meta) (*dev.Cfg, error) {
+	return nil, nil
+}
+
+func (s *store) GetCfg(id string) (*dev.Cfg, error) {
+	return nil, nil
+}
+
+func (s *store) SetCfg(id string, c *dev.Cfg) error {
+	return nil
+}
+
+func (s *store) GetDefaultCfg(*dev.Meta) (*dev.Cfg, error) {
+	return nil, nil
+}
+
+func (s *store) SetMeta(*dev.Meta) error {
+	return nil
+}
+
+func (s *store) IsRegistered(*dev.Meta) (bool, error) {
+	return false, nil
+}
+
+func (s *store) GetDevsData() ([]dev.Data, error) {
+	return nil, nil
+}
+
+func (s *store) GetDevData(id string) (*dev.Data, error) {
+	return nil, nil
+}
+
+func (s *store) SaveData(*dev.Data) error {
+	return nil
 }

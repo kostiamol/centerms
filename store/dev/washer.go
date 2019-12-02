@@ -64,11 +64,7 @@ func (w *washer) SaveData(d *Data) error {
 	return nil
 }
 
-func (w *washer) GetCfg() (*Cfg, error) {
-	return nil, nil
-}
-
-func (w *washer) GetDefaultCfg() (*Cfg, error) {
+func (w *washer) GetCfg(id string) (*Cfg, error) {
 	return nil, nil
 }
 
@@ -76,11 +72,19 @@ func (w *washer) SetCfg(c *Cfg) error {
 	return nil
 }
 
+func (w *washer) GetDefaultCfg() (*Cfg, error) {
+	return nil, nil
+}
+
+func (w *washer) InitCfg() error {
+	return nil
+}
+
 func (w *washer) GetMeta() (*Meta, error) {
 	return nil, nil
 }
 
-func (w *washer) SetDevMeta(*Meta) error {
+func (w *washer) SetMeta(*Meta) error {
 	return nil
 }
 

@@ -7,11 +7,13 @@ import (
 	"github.com/kostiamol/centerms/event/pub"
 	"github.com/kostiamol/centerms/log"
 	"github.com/kostiamol/centerms/metric"
+	"github.com/kostiamol/centerms/store"
 	"github.com/kostiamol/centerms/store/dev"
 	"github.com/kostiamol/centerms/svc"
 	"github.com/kostiamol/centerms/trace"
 )
 
+// todo: cover with tests
 // todo: use clickhouse for data
 // todo: use zookeper for cfg
 // todo: look through the handlers
@@ -43,17 +45,17 @@ func main() {
 		logger.Fatalf("func trace.Init: %s", err)
 	}
 
-	//storer, err := store.New(
-	//	&store.Cfg{
-	//		Addr:             cfg.Addr{Host: config.Store.Addr.Host, Port: config.Store.Addr.Port},
-	//		Password:         config.Store.Password,
-	//		MaxIdlePoolConns: config.Store.MaxIdlePoolConns,
-	//		IdleTimeout:      config.Store.IdleTimeout,
-	//	})
-	//if err != nil {
-	//	logger.Fatalf("func store.New: %s", err)
-	//}
-	//logger.With("event", log.EventStoreInit)
+	storer, err := store.New(
+		&store.Cfg{
+			Addr:             cfg.Addr{Host: config.Store.Addr.Host, Port: config.Store.Addr.Port},
+			Password:         config.Store.Password,
+			MaxIdlePoolConns: config.Store.MaxIdlePoolConns,
+			IdleTimeout:      config.Store.IdleTimeout,
+		})
+	if err != nil {
+		logger.Fatalf("func store.New: %s", err)
+	}
+	logger.With("event", log.EventStoreInit)
 
 	publisher := pub.New(
 		&pub.Cfg{
@@ -72,7 +74,7 @@ func main() {
 			Log:     logger,
 			Ctrl:    ctrl,
 			Metric:  mtrc,
-			Store:   nil,
+			Store:   storer,
 			PubChan: dataChan,
 		})
 	conf := svc.NewCfgService(
@@ -80,7 +82,7 @@ func main() {
 			Log:       logger,
 			Ctrl:      ctrl,
 			Metric:    mtrc,
-			Store:     nil,
+			Store:     storer,
 			SubChan:   confChan,
 			Publisher: publisher,
 		})
@@ -92,7 +94,7 @@ func main() {
 			SubChan: dataChan,
 			PortWS:  config.Service.PortWebSocket,
 		})
-	a := api.New(
+	api := api.New(
 		&api.Cfg{
 			Log:          logger,
 			Ctrl:         ctrl,
@@ -107,7 +109,7 @@ func main() {
 			PrivateKey:   config.Token.PrivateKey,
 		})
 
-	components := []runner{data, conf, stream, a}
+	components := []runner{data, conf, stream, api}
 	for _, c := range components {
 		go c.Run()
 	}

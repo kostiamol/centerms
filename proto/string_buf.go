@@ -6,7 +6,7 @@ import (
 )
 
 // SetDevInitCfgRequestToStringBuf .
-func SetDevInitCfgRequestToStringBuf(r *SetDevInitCfgRequest) string {
+func SetDevInitCfgRequestToStringBuf(r *InitCfgRequest) string {
 	if r == nil {
 		return ""
 	}
@@ -47,7 +47,7 @@ func devMetaToStringBuf(m *DevMeta) string {
 }
 
 // SaveDevDataRequestToStringBuf .
-func SaveDevDataRequestToStringBuf(r *SaveDevDataRequest) string {
+func SaveDevDataRequestToStringBuf(r *SaveDataRequest) string {
 	if r == nil {
 		return ""
 	}

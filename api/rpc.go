@@ -40,25 +40,25 @@ func (a *api) serveRPC() {
 	}
 }
 
-// SetDevInitCfg sets device's initial configuration when it connects to the center for the first
-// time using CfgProvider and returns that configuration to the device.
-func (a *api) SetDevInitCfg(ctx context.Context, r *proto.SetDevInitCfgRequest) (*proto.SetDevInitCfgResponse, error) {
+// Init returns device configuration. If the device hasn't been registered before, Init initializes
+// configuration with default values that depend on the devices' type.
+func (a *api) InitCfg(ctx context.Context, r *proto.InitCfgRequest) (*proto.InitCfgResponse, error) {
 	m := &dev.Meta{
 		Type: r.Meta.Type,
 		Name: r.Meta.Name,
 		MAC:  r.Meta.Mac,
 	}
 
-	c, err := a.cfgProvider.SetDevInitCfg(m)
+	c, err := a.cfgProvider.InitCfg(m)
 	if err != nil {
-		return nil, fmt.Errorf("func SetDevInitCfg: %s", err)
+		return nil, fmt.Errorf("func InitCfg: %s", err)
 	}
 
-	return &proto.SetDevInitCfgResponse{Cfg: c.Data}, nil
+	return &proto.InitCfgResponse{Cfg: c.Data}, nil
 }
 
-// SaveDevData saves data from device using DataProvider.
-func (a *api) SaveDevData(ctx context.Context, r *proto.SaveDevDataRequest) (*proto.SaveDevDataResponse, error) {
+// SaveDevData saves device data.
+func (a *api) SaveData(ctx context.Context, r *proto.SaveDataRequest) (*proto.SaveDataResponse, error) {
 	d := dev.Data{
 		Time: r.Time,
 		Meta: dev.Meta{
@@ -69,9 +69,9 @@ func (a *api) SaveDevData(ctx context.Context, r *proto.SaveDevDataRequest) (*pr
 		Data: r.Data,
 	}
 
-	if err := a.dataProvider.SaveDevData(&d); err != nil {
+	if err := a.dataProvider.SaveData(&d); err != nil {
 		return nil, fmt.Errorf("func SaveDevData: %s", err)
 	}
 
-	return &proto.SaveDevDataResponse{Status: "OK"}, nil
+	return &proto.SaveDataResponse{Status: "OK"}, nil
 }

@@ -5,9 +5,10 @@
 package mock_api
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	dev "github.com/kostiamol/centerms/store/dev"
-	reflect "reflect"
 )
 
 // MockCfgProvider is a mock of CfgProvider interface
@@ -33,33 +34,33 @@ func (m *MockCfgProvider) EXPECT() *MockCfgProviderMockRecorder {
 	return m.recorder
 }
 
-// GetDevCfg mocks base method
+// GetCfg mocks base method
 func (m *MockCfgProvider) GetDevCfg(arg0 string) (*dev.Cfg, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDevCfg", arg0)
+	ret := m.ctrl.Call(m, "GetCfg", arg0)
 	ret0, _ := ret[0].(*dev.Cfg)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDevCfg indicates an expected call of GetDevCfg
+// GetCfg indicates an expected call of GetCfg
 func (mr *MockCfgProviderMockRecorder) GetDevCfg(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDevCfg", reflect.TypeOf((*MockCfgProvider)(nil).GetDevCfg), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCfg", reflect.TypeOf((*MockCfgProvider)(nil).GetDevCfg), arg0)
 }
 
-// SetDevCfg mocks base method
+// SetCfg mocks base method
 func (m *MockCfgProvider) SetDevCfg(arg0 string, arg1 *dev.Cfg) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetDevCfg", arg0, arg1)
+	ret := m.ctrl.Call(m, "SetCfg", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SetDevCfg indicates an expected call of SetDevCfg
+// SetCfg indicates an expected call of SetCfg
 func (mr *MockCfgProviderMockRecorder) SetDevCfg(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDevCfg", reflect.TypeOf((*MockCfgProvider)(nil).SetDevCfg), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCfg", reflect.TypeOf((*MockCfgProvider)(nil).SetDevCfg), arg0, arg1)
 }
 
 // SetDevInitCfg mocks base method

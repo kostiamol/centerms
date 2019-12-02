@@ -5,9 +5,10 @@
 package mock_svc
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	dev "github.com/kostiamol/centerms/store/dev"
-	reflect "reflect"
 )
 
 // MockCfgStorer is a mock of CfgStorer interface
@@ -33,77 +34,77 @@ func (m *MockCfgStorer) EXPECT() *MockCfgStorerMockRecorder {
 	return m.recorder
 }
 
-// DevIsRegistered mocks base method
+// IsRegistered mocks base method
 func (m *MockCfgStorer) DevIsRegistered(arg0 *dev.Meta) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DevIsRegistered", arg0)
+	ret := m.ctrl.Call(m, "IsRegistered", arg0)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DevIsRegistered indicates an expected call of DevIsRegistered
+// IsRegistered indicates an expected call of IsRegistered
 func (mr *MockCfgStorerMockRecorder) DevIsRegistered(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DevIsRegistered", reflect.TypeOf((*MockCfgStorer)(nil).DevIsRegistered), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRegistered", reflect.TypeOf((*MockCfgStorer)(nil).DevIsRegistered), arg0)
 }
 
-// GetDevCfg mocks base method
+// GetCfg mocks base method
 func (m *MockCfgStorer) GetDevCfg(arg0 string) (*dev.Cfg, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDevCfg", arg0)
+	ret := m.ctrl.Call(m, "GetCfg", arg0)
 	ret0, _ := ret[0].(*dev.Cfg)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDevCfg indicates an expected call of GetDevCfg
+// GetCfg indicates an expected call of GetCfg
 func (mr *MockCfgStorerMockRecorder) GetDevCfg(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDevCfg", reflect.TypeOf((*MockCfgStorer)(nil).GetDevCfg), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCfg", reflect.TypeOf((*MockCfgStorer)(nil).GetDevCfg), arg0)
 }
 
-// GetDevDefaultCfg mocks base method
+// GetDefaultCfg mocks base method
 func (m *MockCfgStorer) GetDevDefaultCfg(arg0 *dev.Meta) (*dev.Cfg, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDevDefaultCfg", arg0)
+	ret := m.ctrl.Call(m, "GetDefaultCfg", arg0)
 	ret0, _ := ret[0].(*dev.Cfg)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDevDefaultCfg indicates an expected call of GetDevDefaultCfg
+// GetDefaultCfg indicates an expected call of GetDefaultCfg
 func (mr *MockCfgStorerMockRecorder) GetDevDefaultCfg(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDevDefaultCfg", reflect.TypeOf((*MockCfgStorer)(nil).GetDevDefaultCfg), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultCfg", reflect.TypeOf((*MockCfgStorer)(nil).GetDevDefaultCfg), arg0)
 }
 
-// SetDevCfg mocks base method
+// SetCfg mocks base method
 func (m *MockCfgStorer) SetDevCfg(arg0 string, arg1 *dev.Cfg) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetDevCfg", arg0, arg1)
+	ret := m.ctrl.Call(m, "SetCfg", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SetDevCfg indicates an expected call of SetDevCfg
+// SetCfg indicates an expected call of SetCfg
 func (mr *MockCfgStorerMockRecorder) SetDevCfg(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDevCfg", reflect.TypeOf((*MockCfgStorer)(nil).SetDevCfg), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCfg", reflect.TypeOf((*MockCfgStorer)(nil).SetDevCfg), arg0, arg1)
 }
 
-// SetDevMeta mocks base method
+// SetMeta mocks base method
 func (m *MockCfgStorer) SetDevMeta(arg0 *dev.Meta) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetDevMeta", arg0)
+	ret := m.ctrl.Call(m, "SetMeta", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SetDevMeta indicates an expected call of SetDevMeta
+// SetMeta indicates an expected call of SetMeta
 func (mr *MockCfgStorerMockRecorder) SetDevMeta(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDevMeta", reflect.TypeOf((*MockCfgStorer)(nil).SetDevMeta), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMeta", reflect.TypeOf((*MockCfgStorer)(nil).SetDevMeta), arg0)
 }
 
 // MockDataStorer is a mock of DataStorer interface

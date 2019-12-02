@@ -164,23 +164,23 @@ func (m *DevMeta) GetMac() string {
 	return ""
 }
 
-type SetDevInitCfgRequest struct {
+type InitCfgRequest struct {
 	Time int64    `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty"`
 	Meta *DevMeta `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
 }
 
-func (m *SetDevInitCfgRequest) Reset()         { *m = SetDevInitCfgRequest{} }
-func (m *SetDevInitCfgRequest) String() string { return proto.CompactTextString(m) }
-func (*SetDevInitCfgRequest) ProtoMessage()    {}
-func (*SetDevInitCfgRequest) Descriptor() ([]byte, []int) {
+func (m *InitCfgRequest) Reset()         { *m = InitCfgRequest{} }
+func (m *InitCfgRequest) String() string { return proto.CompactTextString(m) }
+func (*InitCfgRequest) ProtoMessage()    {}
+func (*InitCfgRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9c71d6ed29467879, []int{2}
 }
-func (m *SetDevInitCfgRequest) XXX_Unmarshal(b []byte) error {
+func (m *InitCfgRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SetDevInitCfgRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *InitCfgRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SetDevInitCfgRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_InitCfgRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -190,48 +190,48 @@ func (m *SetDevInitCfgRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return b[:n], nil
 	}
 }
-func (m *SetDevInitCfgRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SetDevInitCfgRequest.Merge(m, src)
+func (m *InitCfgRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InitCfgRequest.Merge(m, src)
 }
-func (m *SetDevInitCfgRequest) XXX_Size() int {
+func (m *InitCfgRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *SetDevInitCfgRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_SetDevInitCfgRequest.DiscardUnknown(m)
+func (m *InitCfgRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_InitCfgRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SetDevInitCfgRequest proto.InternalMessageInfo
+var xxx_messageInfo_InitCfgRequest proto.InternalMessageInfo
 
-func (m *SetDevInitCfgRequest) GetTime() int64 {
+func (m *InitCfgRequest) GetTime() int64 {
 	if m != nil {
 		return m.Time
 	}
 	return 0
 }
 
-func (m *SetDevInitCfgRequest) GetMeta() *DevMeta {
+func (m *InitCfgRequest) GetMeta() *DevMeta {
 	if m != nil {
 		return m.Meta
 	}
 	return nil
 }
 
-type SetDevInitCfgResponse struct {
+type InitCfgResponse struct {
 	Cfg []byte `protobuf:"bytes,1,opt,name=cfg,proto3" json:"cfg,omitempty"`
 }
 
-func (m *SetDevInitCfgResponse) Reset()         { *m = SetDevInitCfgResponse{} }
-func (m *SetDevInitCfgResponse) String() string { return proto.CompactTextString(m) }
-func (*SetDevInitCfgResponse) ProtoMessage()    {}
-func (*SetDevInitCfgResponse) Descriptor() ([]byte, []int) {
+func (m *InitCfgResponse) Reset()         { *m = InitCfgResponse{} }
+func (m *InitCfgResponse) String() string { return proto.CompactTextString(m) }
+func (*InitCfgResponse) ProtoMessage()    {}
+func (*InitCfgResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9c71d6ed29467879, []int{3}
 }
-func (m *SetDevInitCfgResponse) XXX_Unmarshal(b []byte) error {
+func (m *InitCfgResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SetDevInitCfgResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *InitCfgResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SetDevInitCfgResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_InitCfgResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -241,43 +241,43 @@ func (m *SetDevInitCfgResponse) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return b[:n], nil
 	}
 }
-func (m *SetDevInitCfgResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SetDevInitCfgResponse.Merge(m, src)
+func (m *InitCfgResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InitCfgResponse.Merge(m, src)
 }
-func (m *SetDevInitCfgResponse) XXX_Size() int {
+func (m *InitCfgResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *SetDevInitCfgResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_SetDevInitCfgResponse.DiscardUnknown(m)
+func (m *InitCfgResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_InitCfgResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SetDevInitCfgResponse proto.InternalMessageInfo
+var xxx_messageInfo_InitCfgResponse proto.InternalMessageInfo
 
-func (m *SetDevInitCfgResponse) GetCfg() []byte {
+func (m *InitCfgResponse) GetCfg() []byte {
 	if m != nil {
 		return m.Cfg
 	}
 	return nil
 }
 
-type SaveDevDataRequest struct {
+type SaveDataRequest struct {
 	Time int64    `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty"`
 	Meta *DevMeta `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
 	Data []byte   `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
 }
 
-func (m *SaveDevDataRequest) Reset()         { *m = SaveDevDataRequest{} }
-func (m *SaveDevDataRequest) String() string { return proto.CompactTextString(m) }
-func (*SaveDevDataRequest) ProtoMessage()    {}
-func (*SaveDevDataRequest) Descriptor() ([]byte, []int) {
+func (m *SaveDataRequest) Reset()         { *m = SaveDataRequest{} }
+func (m *SaveDataRequest) String() string { return proto.CompactTextString(m) }
+func (*SaveDataRequest) ProtoMessage()    {}
+func (*SaveDataRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9c71d6ed29467879, []int{4}
 }
-func (m *SaveDevDataRequest) XXX_Unmarshal(b []byte) error {
+func (m *SaveDataRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SaveDevDataRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SaveDataRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SaveDevDataRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SaveDataRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -287,55 +287,55 @@ func (m *SaveDevDataRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (m *SaveDevDataRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SaveDevDataRequest.Merge(m, src)
+func (m *SaveDataRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SaveDataRequest.Merge(m, src)
 }
-func (m *SaveDevDataRequest) XXX_Size() int {
+func (m *SaveDataRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *SaveDevDataRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_SaveDevDataRequest.DiscardUnknown(m)
+func (m *SaveDataRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SaveDataRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SaveDevDataRequest proto.InternalMessageInfo
+var xxx_messageInfo_SaveDataRequest proto.InternalMessageInfo
 
-func (m *SaveDevDataRequest) GetTime() int64 {
+func (m *SaveDataRequest) GetTime() int64 {
 	if m != nil {
 		return m.Time
 	}
 	return 0
 }
 
-func (m *SaveDevDataRequest) GetMeta() *DevMeta {
+func (m *SaveDataRequest) GetMeta() *DevMeta {
 	if m != nil {
 		return m.Meta
 	}
 	return nil
 }
 
-func (m *SaveDevDataRequest) GetData() []byte {
+func (m *SaveDataRequest) GetData() []byte {
 	if m != nil {
 		return m.Data
 	}
 	return nil
 }
 
-type SaveDevDataResponse struct {
+type SaveDataResponse struct {
 	Status string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
 }
 
-func (m *SaveDevDataResponse) Reset()         { *m = SaveDevDataResponse{} }
-func (m *SaveDevDataResponse) String() string { return proto.CompactTextString(m) }
-func (*SaveDevDataResponse) ProtoMessage()    {}
-func (*SaveDevDataResponse) Descriptor() ([]byte, []int) {
+func (m *SaveDataResponse) Reset()         { *m = SaveDataResponse{} }
+func (m *SaveDataResponse) String() string { return proto.CompactTextString(m) }
+func (*SaveDataResponse) ProtoMessage()    {}
+func (*SaveDataResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9c71d6ed29467879, []int{5}
 }
-func (m *SaveDevDataResponse) XXX_Unmarshal(b []byte) error {
+func (m *SaveDataResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SaveDevDataResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SaveDataResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SaveDevDataResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SaveDataResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -345,19 +345,19 @@ func (m *SaveDevDataResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return b[:n], nil
 	}
 }
-func (m *SaveDevDataResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SaveDevDataResponse.Merge(m, src)
+func (m *SaveDataResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SaveDataResponse.Merge(m, src)
 }
-func (m *SaveDevDataResponse) XXX_Size() int {
+func (m *SaveDataResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *SaveDevDataResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_SaveDevDataResponse.DiscardUnknown(m)
+func (m *SaveDataResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SaveDataResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SaveDevDataResponse proto.InternalMessageInfo
+var xxx_messageInfo_SaveDataResponse proto.InternalMessageInfo
 
-func (m *SaveDevDataResponse) GetStatus() string {
+func (m *SaveDataResponse) GetStatus() string {
 	if m != nil {
 		return m.Status
 	}
@@ -367,44 +367,44 @@ func (m *SaveDevDataResponse) GetStatus() string {
 func init() {
 	proto.RegisterType((*Event)(nil), "proto.Event")
 	proto.RegisterType((*DevMeta)(nil), "proto.DevMeta")
-	proto.RegisterType((*SetDevInitCfgRequest)(nil), "proto.SetDevInitCfgRequest")
-	proto.RegisterType((*SetDevInitCfgResponse)(nil), "proto.SetDevInitCfgResponse")
-	proto.RegisterType((*SaveDevDataRequest)(nil), "proto.SaveDevDataRequest")
-	proto.RegisterType((*SaveDevDataResponse)(nil), "proto.SaveDevDataResponse")
+	proto.RegisterType((*InitCfgRequest)(nil), "proto.InitCfgRequest")
+	proto.RegisterType((*InitCfgResponse)(nil), "proto.InitCfgResponse")
+	proto.RegisterType((*SaveDataRequest)(nil), "proto.SaveDataRequest")
+	proto.RegisterType((*SaveDataResponse)(nil), "proto.SaveDataResponse")
 }
 
 func init() { proto.RegisterFile("centerms.proto", fileDescriptor_9c71d6ed29467879) }
 
 var fileDescriptor_9c71d6ed29467879 = []byte{
-	// 444 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x52, 0x4d, 0x6f, 0xd3, 0x40,
-	0x10, 0xcd, 0x36, 0x1f, 0xa5, 0x93, 0x26, 0x87, 0x05, 0x24, 0x63, 0x90, 0x29, 0x96, 0x90, 0x00,
-	0x29, 0x89, 0x28, 0x82, 0x1f, 0xd0, 0x06, 0xa4, 0x48, 0x70, 0x69, 0x38, 0x20, 0x21, 0x81, 0xb6,
-	0xf6, 0xd4, 0xac, 0x60, 0xed, 0x60, 0x4f, 0x5c, 0xfa, 0x2f, 0xf8, 0x13, 0xfc, 0x17, 0x8e, 0x15,
-	0x27, 0x6e, 0xa0, 0xe4, 0x8f, 0xa0, 0x1d, 0xa7, 0x0e, 0x36, 0x3e, 0x72, 0xb2, 0xf5, 0xde, 0x9b,
-	0xf7, 0xde, 0x8c, 0x16, 0x86, 0x01, 0xc6, 0x84, 0xa9, 0xc9, 0xc6, 0x8b, 0x34, 0xa1, 0x44, 0x76,
-	0xf9, 0xe3, 0x3e, 0x8b, 0x34, 0x7d, 0x58, 0x9e, 0x8e, 0x83, 0xc4, 0x4c, 0xcc, 0xb9, 0xa6, 0x8f,
-	0xc9, 0xf9, 0x24, 0x4a, 0x46, 0x4c, 0x8e, 0x72, 0xf5, 0x49, 0x87, 0x8a, 0x92, 0x34, 0x9b, 0x94,
-	0xbf, 0xc5, 0xb8, 0xff, 0x43, 0x40, 0xf7, 0x79, 0x8e, 0x31, 0xc9, 0x87, 0xb0, 0xaf, 0xa2, 0x28,
-	0xc5, 0x48, 0x11, 0xbe, 0xd7, 0xa1, 0x23, 0x0e, 0xc4, 0x83, 0xbd, 0xa3, 0xde, 0xea, 0xd7, 0xdd,
-	0x9d, 0x37, 0xe2, 0xa4, 0x5f, 0x72, 0xb3, 0x50, 0x8e, 0x60, 0xb8, 0x95, 0xd2, 0xc5, 0x02, 0x9d,
-	0x9d, 0x8a, 0x78, 0x50, 0xb2, 0xaf, 0x2f, 0x16, 0x28, 0xef, 0xc1, 0x35, 0xb4, 0x11, 0xd6, 0xb5,
-	0x5d, 0x11, 0xee, 0x32, 0x3e, 0x0b, 0xe5, 0x7d, 0x80, 0x42, 0xc2, 0x6e, 0x9d, 0x8a, 0x68, 0x8f,
-	0x19, 0x76, 0x2a, 0x65, 0xa1, 0x22, 0xe5, 0x74, 0x1b, 0x64, 0x53, 0x45, 0xca, 0x7f, 0x0b, 0xbb,
-	0x53, 0xcc, 0x5f, 0x21, 0x29, 0xe9, 0x42, 0x87, 0x2d, 0xab, 0xdb, 0x30, 0x66, 0xb9, 0x58, 0x99,
-	0x7a, 0x79, 0xc6, 0xa4, 0x03, 0x6d, 0xa3, 0x82, 0x5a, 0x5d, 0x0b, 0xf9, 0xef, 0xe0, 0xc6, 0x1c,
-	0x69, 0x8a, 0xf9, 0x2c, 0xd6, 0x74, 0x7c, 0x16, 0x9d, 0xe0, 0xe7, 0x25, 0x66, 0xc4, 0x49, 0xda,
-	0x14, 0x49, 0xed, 0x62, 0xe4, 0xc0, 0x26, 0x69, 0x83, 0xf2, 0x11, 0x74, 0x0c, 0x92, 0xe2, 0xa4,
-	0xfe, 0xe1, 0xb0, 0xb8, 0xfd, 0x78, 0xd3, 0x71, 0xab, 0xb5, 0x1a, 0xff, 0x31, 0xdc, 0xac, 0xf9,
-	0x67, 0x8b, 0x24, 0xce, 0xb8, 0x52, 0x70, 0x16, 0xb1, 0xff, 0x7e, 0x39, 0x63, 0x21, 0xff, 0x0b,
-	0xc8, 0xb9, 0xca, 0x71, 0x8a, 0xb9, 0x5d, 0xff, 0x3f, 0x17, 0xb2, 0x3e, 0x7c, 0xee, 0x76, 0x25,
-	0x98, 0x31, 0xff, 0x29, 0x5c, 0xaf, 0x24, 0x6f, 0xaa, 0x7a, 0xd0, 0xcb, 0x48, 0xd1, 0x32, 0xab,
-	0xdd, 0x7d, 0x83, 0x1e, 0x7e, 0x13, 0x30, 0x38, 0xe6, 0x77, 0x3c, 0xc7, 0x34, 0xd7, 0x01, 0xca,
-	0x97, 0x30, 0xa8, 0x6c, 0x2d, 0x6f, 0x6f, 0x3a, 0x35, 0xdd, 0xda, 0xbd, 0xd3, 0x4c, 0x16, 0xe9,
-	0x7e, 0x4b, 0xbe, 0x80, 0xfe, 0x5f, 0xb5, 0xe4, 0xad, 0x2b, 0xf9, 0x3f, 0x47, 0x72, 0xdd, 0x26,
-	0xea, 0xca, 0xe7, 0xc8, 0xf9, 0xbe, 0xf2, 0xc4, 0xe5, 0xca, 0x13, 0xbf, 0x57, 0x9e, 0xf8, 0xba,
-	0xf6, 0x5a, 0x97, 0x6b, 0xaf, 0xf5, 0x73, 0xed, 0xb5, 0x4e, 0x7b, 0x3c, 0xf6, 0xe4, 0x4f, 0x00,
-	0x00, 0x00, 0xff, 0xff, 0xb4, 0x05, 0xac, 0x88, 0x8f, 0x03, 0x00, 0x00,
+	// 436 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x92, 0x3f, 0x6f, 0xd3, 0x50,
+	0x14, 0xc5, 0xf3, 0x9a, 0x7f, 0xed, 0x6d, 0x9b, 0xa2, 0x27, 0x01, 0x56, 0x06, 0x53, 0x2c, 0x21,
+	0xf1, 0x47, 0x49, 0xa4, 0x20, 0x31, 0x20, 0xb1, 0xb4, 0x65, 0xc8, 0xc0, 0xd2, 0x32, 0x54, 0x62,
+	0x40, 0xaf, 0xf6, 0xad, 0x79, 0x82, 0x67, 0x07, 0xfb, 0xda, 0x55, 0xbf, 0x02, 0x13, 0x1f, 0x8b,
+	0x31, 0x62, 0x62, 0x03, 0x39, 0x5f, 0x04, 0xbd, 0x6b, 0xc7, 0x91, 0x0d, 0x63, 0xa7, 0x44, 0xe7,
+	0xfe, 0xde, 0x39, 0xe7, 0x5e, 0x19, 0x46, 0x3e, 0x46, 0x84, 0x89, 0x49, 0xa7, 0xcb, 0x24, 0xa6,
+	0x58, 0xf6, 0xf9, 0x67, 0xfc, 0x2a, 0xd4, 0xf4, 0x29, 0xbb, 0x9a, 0xfa, 0xb1, 0x99, 0x99, 0x1b,
+	0x4d, 0x9f, 0xe3, 0x9b, 0x59, 0x18, 0x4f, 0x78, 0x38, 0xc9, 0xd5, 0x17, 0x1d, 0x28, 0x8a, 0x93,
+	0x74, 0x56, 0xff, 0x2d, 0x9f, 0x7b, 0x3f, 0x05, 0xf4, 0xdf, 0xe6, 0x18, 0x91, 0x7c, 0x06, 0x07,
+	0x2a, 0x0c, 0x13, 0x0c, 0x15, 0xe1, 0x47, 0x1d, 0x38, 0xe2, 0x58, 0x3c, 0xdd, 0x3b, 0x19, 0x14,
+	0xbf, 0x1f, 0xed, 0x5c, 0x8a, 0xf3, 0xfd, 0x7a, 0xb6, 0x08, 0xe4, 0x04, 0x46, 0x5b, 0x94, 0x6e,
+	0x97, 0xe8, 0xec, 0x34, 0xe0, 0xc3, 0x7a, 0xfa, 0xfe, 0x76, 0x89, 0xf2, 0x31, 0xec, 0xa2, 0x8d,
+	0xb0, 0xae, 0xdd, 0x06, 0x38, 0x64, 0x7d, 0x11, 0xc8, 0x27, 0x00, 0x25, 0xc2, 0x6e, 0xbd, 0x06,
+	0xb4, 0xc7, 0x13, 0x76, 0xaa, 0xb1, 0x40, 0x91, 0x72, 0xfa, 0xff, 0xc1, 0xce, 0x14, 0x29, 0xef,
+	0x03, 0x0c, 0xcf, 0x30, 0x7f, 0x87, 0xa4, 0xe4, 0x18, 0x7a, 0x6c, 0xd9, 0xdc, 0x86, 0x35, 0x3b,
+	0x8b, 0x94, 0x69, 0x97, 0x67, 0x4d, 0x3a, 0xd0, 0x35, 0xca, 0x6f, 0xd5, 0xb5, 0x92, 0x77, 0x09,
+	0xa3, 0x45, 0xa4, 0xe9, 0xf4, 0x3a, 0x3c, 0xc7, 0xaf, 0x19, 0xa6, 0xc4, 0x19, 0xda, 0x94, 0x19,
+	0xdd, 0x12, 0x3e, 0xb6, 0x19, 0xda, 0xa0, 0x7c, 0x0e, 0x3d, 0x83, 0xa4, 0x38, 0x63, 0x7f, 0x3e,
+	0x2a, 0xaf, 0x3e, 0xad, 0xda, 0x6d, 0x59, 0xcb, 0x78, 0x2f, 0xe0, 0xa8, 0x76, 0x4e, 0x97, 0x71,
+	0x94, 0x72, 0x0d, 0xff, 0x3a, 0x64, 0xe7, 0x83, 0x9a, 0xb6, 0x92, 0x97, 0xc1, 0xd1, 0x85, 0xca,
+	0xd1, 0xee, 0x7b, 0xc7, 0x3d, 0xac, 0x0f, 0xdf, 0xb7, 0xdb, 0x48, 0x65, 0xcd, 0x9b, 0xc3, 0xbd,
+	0x6d, 0x6c, 0x55, 0xd2, 0x85, 0x41, 0x4a, 0x8a, 0xb2, 0xb4, 0x75, 0xe5, 0x4a, 0x9d, 0x7f, 0x13,
+	0x70, 0x78, 0xca, 0x5f, 0xed, 0x05, 0x26, 0xb9, 0xf6, 0x51, 0xbe, 0x86, 0x61, 0xb5, 0xa9, 0xbc,
+	0x5f, 0x55, 0x69, 0xde, 0x74, 0xfc, 0xa0, 0x2d, 0x97, 0x59, 0x5e, 0x47, 0xbe, 0x81, 0xdd, 0x4d,
+	0x03, 0xb9, 0xa1, 0x5a, 0x97, 0x18, 0x3f, 0xfc, 0x47, 0xdf, 0x3c, 0x3f, 0x71, 0x7e, 0x14, 0xae,
+	0x58, 0x15, 0xae, 0xf8, 0x53, 0xb8, 0xe2, 0xfb, 0xda, 0xed, 0xac, 0xd6, 0x6e, 0xe7, 0xd7, 0xda,
+	0xed, 0x5c, 0x0d, 0xf8, 0xcd, 0xcb, 0xbf, 0x01, 0x00, 0x00, 0xff, 0xff, 0xf1, 0x5a, 0x13, 0x0a,
+	0x62, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -419,8 +419,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type CenterServiceClient interface {
-	SetDevInitCfg(ctx context.Context, in *SetDevInitCfgRequest, opts ...grpc.CallOption) (*SetDevInitCfgResponse, error)
-	SaveDevData(ctx context.Context, in *SaveDevDataRequest, opts ...grpc.CallOption) (*SaveDevDataResponse, error)
+	InitCfg(ctx context.Context, in *InitCfgRequest, opts ...grpc.CallOption) (*InitCfgResponse, error)
+	SaveData(ctx context.Context, in *SaveDataRequest, opts ...grpc.CallOption) (*SaveDataResponse, error)
 }
 
 type centerServiceClient struct {
@@ -431,18 +431,18 @@ func NewCenterServiceClient(cc *grpc.ClientConn) CenterServiceClient {
 	return &centerServiceClient{cc}
 }
 
-func (c *centerServiceClient) SetDevInitCfg(ctx context.Context, in *SetDevInitCfgRequest, opts ...grpc.CallOption) (*SetDevInitCfgResponse, error) {
-	out := new(SetDevInitCfgResponse)
-	err := c.cc.Invoke(ctx, "/proto.CenterService/SetDevInitCfg", in, out, opts...)
+func (c *centerServiceClient) InitCfg(ctx context.Context, in *InitCfgRequest, opts ...grpc.CallOption) (*InitCfgResponse, error) {
+	out := new(InitCfgResponse)
+	err := c.cc.Invoke(ctx, "/proto.CenterService/InitCfg", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *centerServiceClient) SaveDevData(ctx context.Context, in *SaveDevDataRequest, opts ...grpc.CallOption) (*SaveDevDataResponse, error) {
-	out := new(SaveDevDataResponse)
-	err := c.cc.Invoke(ctx, "/proto.CenterService/SaveDevData", in, out, opts...)
+func (c *centerServiceClient) SaveData(ctx context.Context, in *SaveDataRequest, opts ...grpc.CallOption) (*SaveDataResponse, error) {
+	out := new(SaveDataResponse)
+	err := c.cc.Invoke(ctx, "/proto.CenterService/SaveData", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -451,57 +451,57 @@ func (c *centerServiceClient) SaveDevData(ctx context.Context, in *SaveDevDataRe
 
 // CenterServiceServer is the server API for CenterService service.
 type CenterServiceServer interface {
-	SetDevInitCfg(context.Context, *SetDevInitCfgRequest) (*SetDevInitCfgResponse, error)
-	SaveDevData(context.Context, *SaveDevDataRequest) (*SaveDevDataResponse, error)
+	InitCfg(context.Context, *InitCfgRequest) (*InitCfgResponse, error)
+	SaveData(context.Context, *SaveDataRequest) (*SaveDataResponse, error)
 }
 
 // UnimplementedCenterServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedCenterServiceServer struct {
 }
 
-func (*UnimplementedCenterServiceServer) SetDevInitCfg(ctx context.Context, req *SetDevInitCfgRequest) (*SetDevInitCfgResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetDevInitCfg not implemented")
+func (*UnimplementedCenterServiceServer) InitCfg(ctx context.Context, req *InitCfgRequest) (*InitCfgResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitCfg not implemented")
 }
-func (*UnimplementedCenterServiceServer) SaveDevData(ctx context.Context, req *SaveDevDataRequest) (*SaveDevDataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SaveDevData not implemented")
+func (*UnimplementedCenterServiceServer) SaveData(ctx context.Context, req *SaveDataRequest) (*SaveDataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SaveData not implemented")
 }
 
 func RegisterCenterServiceServer(s *grpc.Server, srv CenterServiceServer) {
 	s.RegisterService(&_CenterService_serviceDesc, srv)
 }
 
-func _CenterService_SetDevInitCfg_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetDevInitCfgRequest)
+func _CenterService_InitCfg_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitCfgRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CenterServiceServer).SetDevInitCfg(ctx, in)
+		return srv.(CenterServiceServer).InitCfg(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.CenterService/SetDevInitCfg",
+		FullMethod: "/proto.CenterService/InitCfg",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CenterServiceServer).SetDevInitCfg(ctx, req.(*SetDevInitCfgRequest))
+		return srv.(CenterServiceServer).InitCfg(ctx, req.(*InitCfgRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CenterService_SaveDevData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SaveDevDataRequest)
+func _CenterService_SaveData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SaveDataRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CenterServiceServer).SaveDevData(ctx, in)
+		return srv.(CenterServiceServer).SaveData(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.CenterService/SaveDevData",
+		FullMethod: "/proto.CenterService/SaveData",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CenterServiceServer).SaveDevData(ctx, req.(*SaveDevDataRequest))
+		return srv.(CenterServiceServer).SaveData(ctx, req.(*SaveDataRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -511,12 +511,12 @@ var _CenterService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*CenterServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SetDevInitCfg",
-			Handler:    _CenterService_SetDevInitCfg_Handler,
+			MethodName: "InitCfg",
+			Handler:    _CenterService_InitCfg_Handler,
 		},
 		{
-			MethodName: "SaveDevData",
-			Handler:    _CenterService_SaveDevData_Handler,
+			MethodName: "SaveData",
+			Handler:    _CenterService_SaveData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -625,7 +625,7 @@ func (m *DevMeta) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *SetDevInitCfgRequest) Marshal() (dAtA []byte, err error) {
+func (m *InitCfgRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -635,12 +635,12 @@ func (m *SetDevInitCfgRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SetDevInitCfgRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *InitCfgRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SetDevInitCfgRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *InitCfgRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -665,7 +665,7 @@ func (m *SetDevInitCfgRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *SetDevInitCfgResponse) Marshal() (dAtA []byte, err error) {
+func (m *InitCfgResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -675,12 +675,12 @@ func (m *SetDevInitCfgResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SetDevInitCfgResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *InitCfgResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SetDevInitCfgResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *InitCfgResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -695,7 +695,7 @@ func (m *SetDevInitCfgResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *SaveDevDataRequest) Marshal() (dAtA []byte, err error) {
+func (m *SaveDataRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -705,12 +705,12 @@ func (m *SaveDevDataRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SaveDevDataRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *SaveDataRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SaveDevDataRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SaveDataRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -742,7 +742,7 @@ func (m *SaveDevDataRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *SaveDevDataResponse) Marshal() (dAtA []byte, err error) {
+func (m *SaveDataResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -752,12 +752,12 @@ func (m *SaveDevDataResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SaveDevDataResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *SaveDataResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SaveDevDataResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SaveDataResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -833,7 +833,7 @@ func (m *DevMeta) Size() (n int) {
 	return n
 }
 
-func (m *SetDevInitCfgRequest) Size() (n int) {
+func (m *InitCfgRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -849,7 +849,7 @@ func (m *SetDevInitCfgRequest) Size() (n int) {
 	return n
 }
 
-func (m *SetDevInitCfgResponse) Size() (n int) {
+func (m *InitCfgResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -862,7 +862,7 @@ func (m *SetDevInitCfgResponse) Size() (n int) {
 	return n
 }
 
-func (m *SaveDevDataRequest) Size() (n int) {
+func (m *SaveDataRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -882,7 +882,7 @@ func (m *SaveDevDataRequest) Size() (n int) {
 	return n
 }
 
-func (m *SaveDevDataResponse) Size() (n int) {
+func (m *SaveDataResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1263,7 +1263,7 @@ func (m *DevMeta) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SetDevInitCfgRequest) Unmarshal(dAtA []byte) error {
+func (m *InitCfgRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1286,10 +1286,10 @@ func (m *SetDevInitCfgRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SetDevInitCfgRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: InitCfgRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SetDevInitCfgRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: InitCfgRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1371,7 +1371,7 @@ func (m *SetDevInitCfgRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SetDevInitCfgResponse) Unmarshal(dAtA []byte) error {
+func (m *InitCfgResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1394,10 +1394,10 @@ func (m *SetDevInitCfgResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SetDevInitCfgResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: InitCfgResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SetDevInitCfgResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: InitCfgResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1458,7 +1458,7 @@ func (m *SetDevInitCfgResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
+func (m *SaveDataRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1481,10 +1481,10 @@ func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SaveDevDataRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: SaveDataRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SaveDevDataRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SaveDataRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1600,7 +1600,7 @@ func (m *SaveDevDataRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SaveDevDataResponse) Unmarshal(dAtA []byte) error {
+func (m *SaveDataResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1623,10 +1623,10 @@ func (m *SaveDevDataResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SaveDevDataResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: SaveDataResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SaveDevDataResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SaveDataResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

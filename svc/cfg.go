@@ -11,11 +11,12 @@ import (
 type (
 	// CfgStorer is a contract for the configuration storer.
 	CfgStorer interface {
-		SetDevCfg(id string, c *dev.Cfg) error
-		GetDevCfg(id string) (*dev.Cfg, error)
-		GetDevDefaultCfg(*dev.Meta) (*dev.Cfg, error)
-		SetDevMeta(*dev.Meta) error
-		DevIsRegistered(*dev.Meta) (bool, error)
+		InitCfg(*dev.Meta) (*dev.Cfg, error)
+		SetCfg(id string, c *dev.Cfg) error
+		GetCfg(id string) (*dev.Cfg, error)
+		GetDefaultCfg(*dev.Meta) (*dev.Cfg, error)
+		SetMeta(*dev.Meta) error
+		IsRegistered(*dev.Meta) (bool, error)
 	}
 
 	// Publisher .
@@ -102,10 +103,10 @@ func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 	}
 }
 
-// SetDevInitCfg check's whether device is already registered in the system. If it's already registered,
+// SetDevInitCfg checks whether device is already registered in the system. If it's already registered,
 // the func returns actual configuration. Otherwise it returns default config for that type of device.
-func (s *cfgService) SetDevInitCfg(meta *dev.Meta) (*dev.Cfg, error) {
-	if err := s.storer.SetDevMeta(meta); err != nil {
+func (s *cfgService) InitCfg(meta *dev.Meta) (*dev.Cfg, error) {
+	if err := s.storer.SetMeta(meta); err != nil {
 		s.log.Errorf("func SetDevInitCfg: %s", err)
 		return nil, err
 	}
@@ -113,13 +114,13 @@ func (s *cfgService) SetDevInitCfg(meta *dev.Meta) (*dev.Cfg, error) {
 	var cfg *dev.Cfg
 	id := meta.MAC
 
-	if ok, err := s.storer.DevIsRegistered(meta); ok {
+	if ok, err := s.storer.IsRegistered(meta); ok {
 		if err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 
-		cfg, err = s.storer.GetDevCfg(id)
+		cfg, err = s.storer.GetCfg(id)
 		if err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
@@ -130,13 +131,13 @@ func (s *cfgService) SetDevInitCfg(meta *dev.Meta) (*dev.Cfg, error) {
 			return nil, err
 		}
 
-		cfg, err = s.storer.GetDevDefaultCfg(meta)
+		cfg, err = s.storer.GetDefaultCfg(meta)
 		if err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 
-		if err = s.storer.SetDevCfg(id, cfg); err != nil {
+		if err = s.storer.SetCfg(id, cfg); err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
@@ -145,20 +146,20 @@ func (s *cfgService) SetDevInitCfg(meta *dev.Meta) (*dev.Cfg, error) {
 	return cfg, nil
 }
 
-// GetDevCfg returns configuration for the given device.
-func (s *cfgService) GetDevCfg(id string) (*dev.Cfg, error) {
-	c, err := s.storer.GetDevCfg(id)
+// GetCfg returns configuration for the given device.
+func (s *cfgService) GetCfg(id string) (*dev.Cfg, error) {
+	c, err := s.storer.GetCfg(id)
 	if err != nil {
-		s.log.Errorf("func GetDevCfg: %s", err)
+		s.log.Errorf("func GetCfg: %s", err)
 		return nil, err
 	}
 	return c, nil
 }
 
-// SetDevCfg sets configuration for the given device.
-func (s *cfgService) SetDevCfg(id string, c *dev.Cfg) error {
-	if err := s.storer.SetDevCfg(id, c); err != nil {
-		s.log.Errorf("func SetDevCfg: %s", err)
+// SetCfg sets configuration for the given device.
+func (s *cfgService) SetCfg(id string, c *dev.Cfg) error {
+	if err := s.storer.SetCfg(id, c); err != nil {
+		s.log.Errorf("func SetCfg: %s", err)
 		return err
 	}
 	return nil

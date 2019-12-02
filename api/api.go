@@ -21,16 +21,16 @@ import (
 type (
 	// CfgProvider is a contract for the configuration provider.
 	CfgProvider interface {
-		GetDevCfg(id string) (*dev.Cfg, error)
-		SetDevInitCfg(*dev.Meta) (*dev.Cfg, error)
-		SetDevCfg(id string, c *dev.Cfg) error
+		InitCfg(*dev.Meta) (*dev.Cfg, error)
+		GetCfg(id string) (*dev.Cfg, error)
+		SetCfg(id string, c *dev.Cfg) error
 	}
 
 	// DataProvider is a contract for the data provider.
 	DataProvider interface {
 		GetDevsData() ([]dev.Data, error)
 		GetDevData(id string) (*dev.Data, error)
-		SaveDevData(*dev.Data) error
+		SaveData(*dev.Data) error
 	}
 
 	// Publisher .
@@ -128,8 +128,8 @@ func (a *api) registerRoutes() {
 
 	a.registerRoute(http.MethodGet, "/v1/device", a.getDevsDataHandler, middleware...)
 	a.registerRoute(http.MethodGet, "/v1/device/{id}/data", a.getDevDataHandler, middleware...)
-	a.registerRoute(http.MethodGet, "/v1/device/{id}/config", a.getDevCfgHandler, middleware...)
-	a.registerRoute(http.MethodPatch, "/v1/device/{id}/config", a.patchDevCfgHandler, middleware...)
+	a.registerRoute(http.MethodGet, "/v1/device/{id}/cfg", a.getDevCfgHandler, middleware...)
+	a.registerRoute(http.MethodPatch, "/v1/device/{id}/cfg", a.patchDevCfgHandler, middleware...)
 }
 
 func (a *api) serveHTTP() {

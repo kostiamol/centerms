@@ -40,11 +40,7 @@ func (f *fridge) SaveData(d *Data) error {
 	return nil
 }
 
-func (f *fridge) GetCfg() (*Cfg, error) {
-	return nil, nil
-}
-
-func (f *fridge) GetDefaultCfg() (*Cfg, error) {
+func (f *fridge) GetCfg(id string) (*Cfg, error) {
 	return nil, nil
 }
 
@@ -52,11 +48,19 @@ func (f *fridge) SetCfg(c *Cfg) error {
 	return nil
 }
 
+func (f *fridge) GetDefaultCfg() (*Cfg, error) {
+	return nil, nil
+}
+
+func (f *fridge) SetInitCfg() error {
+	return nil
+}
+
 func (f *fridge) GetMeta() (*Meta, error) {
 	return nil, nil
 }
 
-func (f *fridge) SetDevMeta(*Meta) error {
+func (f *fridge) SetMeta(*Meta) error {
 	return nil
 }
 
