@@ -5,7 +5,6 @@ go 1.12
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/garyburd/redigo v1.6.0
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.2

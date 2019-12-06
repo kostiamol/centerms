@@ -2,7 +2,7 @@ package svc
 
 import (
 	"github.com/kostiamol/centerms/metric"
-	"github.com/kostiamol/centerms/store/dev"
+	"github.com/kostiamol/centerms/store/model"
 
 	"github.com/kostiamol/centerms/log"
 
@@ -12,9 +12,9 @@ import (
 type (
 	// DataStorer is a contract for the data storer.
 	DataStorer interface {
-		GetDevsData() ([]dev.Data, error)
-		GetDevData(id string) (*dev.Data, error)
-		SaveData(*dev.Data) error
+		GetDevsData() ([]model.Data, error)
+		GetDevData(id string) (*model.Data, error)
+		SaveData(*model.Data) error
 	}
 
 	// Publisher .
@@ -28,7 +28,7 @@ type (
 		Ctrl    Ctrl
 		Metric  *metric.Metric
 		Store   DataStorer
-		PubChan chan<- *dev.Data
+		PubChan chan<- *model.Data
 	}
 
 	// dataService is used to deal with device data.
@@ -37,7 +37,7 @@ type (
 		ctrl    Ctrl
 		metric  *metric.Metric
 		storer  DataStorer
-		pubChan chan<- *dev.Data
+		pubChan chan<- *model.Data
 	}
 )
 
@@ -76,7 +76,7 @@ func (s *dataService) listenToTermination() {
 }
 
 // SaveData is used to save device data to the store.
-func (s *dataService) SaveData(d *dev.Data) error {
+func (s *dataService) SaveData(d *model.Data) error {
 	if err := s.storer.SaveData(d); err != nil {
 		s.log.Errorf("func SaveDevData: %s", err)
 		return err
@@ -88,7 +88,7 @@ func (s *dataService) SaveData(d *dev.Data) error {
 }
 
 // GetDevData is used to get device data from the store.
-func (s *dataService) GetDevData(id string) (*dev.Data, error) {
+func (s *dataService) GetDevData(id string) (*model.Data, error) {
 	d, err := s.storer.GetDevData(id)
 	if err != nil {
 		s.log.Errorf("func GetDevData: %s", err)
@@ -98,7 +98,7 @@ func (s *dataService) GetDevData(id string) (*dev.Data, error) {
 }
 
 // GetDevsData is used to get all the devices data from the store.
-func (s *dataService) GetDevsData() ([]dev.Data, error) {
+func (s *dataService) GetDevsData() ([]model.Data, error) {
 	d, err := s.storer.GetDevsData()
 	if err != nil {
 		s.log.Errorf("func GetDevsData: %s", err)

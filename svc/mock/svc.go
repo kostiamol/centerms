@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	dev "github.com/kostiamol/centerms/store/dev"
+	dev "github.com/kostiamol/centerms/store/model"
 )
 
 // MockCfgStorer is a mock of CfgStorer interface

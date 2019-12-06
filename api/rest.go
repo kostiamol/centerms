@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/kostiamol/centerms/store/dev"
+	"github.com/kostiamol/centerms/store/model"
 )
 
 var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +59,7 @@ func (a *api) getDevCfgHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) patchDevCfgHandler(w http.ResponseWriter, r *http.Request) {
-	var c dev.Cfg
+	var c model.Cfg
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
 		a.log.Errorf("func patchCfgHandler: func Decode: %s", err)
 		return

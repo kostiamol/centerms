@@ -8,11 +8,12 @@ import (
 	"github.com/kostiamol/centerms/log"
 	"github.com/kostiamol/centerms/metric"
 	"github.com/kostiamol/centerms/store"
-	"github.com/kostiamol/centerms/store/dev"
+	"github.com/kostiamol/centerms/store/model"
 	"github.com/kostiamol/centerms/svc"
 	"github.com/kostiamol/centerms/trace"
 )
 
+// todo: error %w
 // todo: cover with tests
 // todo: use clickhouse for data
 // todo: use zookeper for cfg
@@ -66,8 +67,8 @@ func main() {
 
 	ctrl := svc.Ctrl{StopChan: make(chan struct{})}
 	mtrc := metric.New(config.Service.AppID)
-	dataChan := make(chan *dev.Data)
-	confChan := make(chan *dev.Cfg)
+	dataChan := make(chan *model.Data)
+	confChan := make(chan *model.Cfg)
 
 	data := svc.NewDataService(
 		&svc.DataServiceCfg{

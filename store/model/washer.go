@@ -1,4 +1,4 @@
-package dev
+package model
 
 import (
 	"encoding/json"
@@ -64,16 +64,16 @@ func (w *washer) SaveData(d *Data) error {
 	return nil
 }
 
-func (w *washer) GetCfg(id string) (*Cfg, error) {
+func (w *washer) GetDefaultCfg() (*Cfg, error) {
+	return nil, nil
+}
+
+func (w *washer) GetCfg() (*Cfg, error) {
 	return nil, nil
 }
 
 func (w *washer) SetCfg(c *Cfg) error {
 	return nil
-}
-
-func (w *washer) GetDefaultCfg() (*Cfg, error) {
-	return nil, nil
 }
 
 func (w *washer) InitCfg() error {
@@ -84,7 +84,7 @@ func (w *washer) GetMeta() (*Meta, error) {
 	return nil, nil
 }
 
-func (w *washer) SetMeta(*Meta) error {
+func (w *washer) SetMeta(m *Meta) error {
 	return nil
 }
 
@@ -92,7 +92,7 @@ func (w *washer) IsRegistered() (bool, error) {
 	return false, nil
 }
 
-func parseWasher(c *Cfg, d *Data) (Devicer, error) {
+func parseWasher(c *Cfg, d *Data) (devicer, error) {
 	var cfg washerCfg
 	if err := json.Unmarshal(c.Data, &cfg); err != nil {
 		return nil, fmt.Errorf("func Unmarshal: %v", err)

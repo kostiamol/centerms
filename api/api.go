@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kostiamol/centerms/store/dev"
+	"github.com/kostiamol/centerms/store/model"
 
 	"github.com/kostiamol/centerms/metric"
 
@@ -21,16 +21,16 @@ import (
 type (
 	// CfgProvider is a contract for the configuration provider.
 	CfgProvider interface {
-		InitCfg(*dev.Meta) (*dev.Cfg, error)
-		GetCfg(id string) (*dev.Cfg, error)
-		SetCfg(id string, c *dev.Cfg) error
+		InitCfg(*model.Meta) (*model.Cfg, error)
+		GetCfg(id string) (*model.Cfg, error)
+		SetCfg(id string, c *model.Cfg) error
 	}
 
 	// DataProvider is a contract for the data provider.
 	DataProvider interface {
-		GetDevsData() ([]dev.Data, error)
-		GetDevData(id string) (*dev.Data, error)
-		SaveData(*dev.Data) error
+		GetDevsData() ([]model.Data, error)
+		GetDevData(id string) (*model.Data, error)
+		SaveData(*model.Data) error
 	}
 
 	// Publisher .
@@ -43,7 +43,7 @@ type (
 		Log          log.Logger
 		Ctrl         svc.Ctrl
 		Metric       *metric.Metric
-		PubChan      chan<- *dev.Cfg
+		PubChan      chan<- *model.Cfg
 		PortRPC      uint32
 		PortREST     uint32
 		CfgProvider  CfgProvider
@@ -58,7 +58,7 @@ type (
 		log          log.Logger
 		ctrl         svc.Ctrl
 		metric       *metric.Metric
-		pubChan      chan<- *dev.Cfg
+		pubChan      chan<- *model.Cfg
 		portRPC      uint32
 		portREST     uint32
 		cfgProvider  CfgProvider

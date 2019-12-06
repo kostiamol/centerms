@@ -1,4 +1,4 @@
-package dev
+package model
 
 import (
 	"encoding/json"
@@ -6,11 +6,12 @@ import (
 )
 
 type (
-	Devicer interface {
+	devicer interface {
 		GetData() (*Data, error)
 		SaveData(*Data) error
 
-		GetCfg(id string) (*Cfg, error)
+		GetCfg() (*Cfg, error)
+		GetDefaultCfg() (*Cfg, error)
 		SetCfg(*Cfg) error
 
 		GetMeta() (*Meta, error)
@@ -19,9 +20,13 @@ type (
 		IsRegistered() (bool, error)
 	}
 
+	UserID string
+	DevID string
+	DevType string
+
 	// Meta is used to subscriber device metadata: it's type, name (model) and MAC address.
 	Meta struct {
-		Type string `json:"type"`
+		Type DevType `json:"type"`
 		Name string `json:"name"`
 		MAC  string `json:"mac"`
 	}
@@ -38,16 +43,14 @@ type (
 		MAC  string          `json:"mac"`
 		Data json.RawMessage `json:"data"`
 	}
-
-	Type string
 )
 
 const (
-	Fridge Type = "fridge"
-	Washer Type = "washer"
+	Fridge DevType = "fridge"
+	Washer DevType = "washer"
 )
 
-func defineDevice(t Type) (Devicer, error) {
+func DefineDevice(t DevType) (devicer, error) {
 	switch t {
 	case Fridge:
 		return &fridge{}, nil

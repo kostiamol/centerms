@@ -1,4 +1,4 @@
-package dev
+package model
 
 import (
 	"encoding/json"
@@ -40,16 +40,16 @@ func (f *fridge) SaveData(d *Data) error {
 	return nil
 }
 
-func (f *fridge) GetCfg(id string) (*Cfg, error) {
+func (f *fridge) GetDefaultCfg() (*Cfg, error) {
+	return nil, nil
+}
+
+func (f *fridge) GetCfg() (*Cfg, error) {
 	return nil, nil
 }
 
 func (f *fridge) SetCfg(c *Cfg) error {
 	return nil
-}
-
-func (f *fridge) GetDefaultCfg() (*Cfg, error) {
-	return nil, nil
 }
 
 func (f *fridge) SetInitCfg() error {
@@ -68,7 +68,7 @@ func (f *fridge) IsRegistered() (bool, error) {
 	return false, nil
 }
 
-func parseFridge(c *Cfg, d *Data) (Devicer, error) {
+func parseFridge(c *Cfg, d *Data) (devicer, error) {
 	var cfg fridgeCfg
 	if err := json.Unmarshal(c.Data, &cfg); err != nil {
 		return nil, fmt.Errorf("func parseFridgeCfg: func Unmarshal: %v", err)

@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/kostiamol/centerms/log"
-	"github.com/kostiamol/centerms/store/dev"
+	"github.com/kostiamol/centerms/store/model"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/kostiamol/centerms/proto"
@@ -43,7 +43,7 @@ func (a *api) serveRPC() {
 // Init returns device configuration. If the device hasn't been registered before, Init initializes
 // configuration with default values that depend on the devices' type.
 func (a *api) InitCfg(ctx context.Context, r *proto.InitCfgRequest) (*proto.InitCfgResponse, error) {
-	m := &dev.Meta{
+	m := &model.Meta{
 		Type: r.Meta.Type,
 		Name: r.Meta.Name,
 		MAC:  r.Meta.Mac,
@@ -59,9 +59,9 @@ func (a *api) InitCfg(ctx context.Context, r *proto.InitCfgRequest) (*proto.Init
 
 // SaveDevData saves device data.
 func (a *api) SaveData(ctx context.Context, r *proto.SaveDataRequest) (*proto.SaveDataResponse, error) {
-	d := dev.Data{
+	d := model.Data{
 		Time: r.Time,
-		Meta: dev.Meta{
+		Meta: model.Meta{
 			Type: r.Meta.Type,
 			Name: r.Meta.Name,
 			MAC:  r.Meta.Mac,

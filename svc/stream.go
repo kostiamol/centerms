@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kostiamol/centerms/store/dev"
+	"github.com/kostiamol/centerms/store/model"
 
 	"github.com/kostiamol/centerms/metric"
 
@@ -27,7 +27,7 @@ type (
 		Log     log.Logger
 		Ctrl    Ctrl
 		Metric  *metric.Metric
-		SubChan <-chan *dev.Data
+		SubChan <-chan *model.Data
 		PortWS  uint32
 	}
 
@@ -36,7 +36,7 @@ type (
 		log      log.Logger
 		ctrl     Ctrl
 		metric   *metric.Metric
-		subChan  <-chan *dev.Data
+		subChan  <-chan *model.Data
 		portWS   uint32
 		conns    *streamConns
 		upgrader websocket.Upgrader
@@ -138,7 +138,7 @@ func (s *streamService) listenToDataChanges(ctx context.Context) {
 	}
 }
 
-func (s *streamService) stream(ctx context.Context, d *dev.Data) {
+func (s *streamService) stream(ctx context.Context, d *model.Data) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log.With("event", log.EventPanic).Errorf("func stream: %s", r)
