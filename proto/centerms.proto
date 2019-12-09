@@ -13,30 +13,33 @@ message Event {
     string event_data = 5 [(validator.field) = {string_not_empty: true}];
 }
 
+enum Status {
+    UNDEFINED = 0;
+    OK = 1;
+    FAILED = 2;
+}
+
 service CenterService {
-    rpc InitCfg(InitCfgRequest) returns (InitCfgResponse) {}
+    rpc GetInitCfg(GetInitCfgRequest) returns (GetInitCfgResponse) {}
     rpc SaveData(SaveDataRequest) returns (SaveDataResponse) {}
 }
 
-message DevMeta {
-    string type = 1 [(validator.field) = {string_not_empty: true}];
-    string name = 2 [(validator.field) = {string_not_empty: true}];
-    string mac = 3 [(validator.field) = {string_not_empty: true}];
-}
-
-message InitCfgRequest {
+message GetInitCfgRequest {
     int64 time = 1 [(validator.field) = {msg_exists : true}];
-    DevMeta meta = 2 [(validator.field) = {msg_exists : true}];
+    string mac = 2 [(validator.field) = {string_not_empty: true}];
+    string type = 3 [(validator.field) = {string_not_empty: true}];
 }
-message InitCfgResponse {
+message GetInitCfgResponse {
     bytes cfg = 1 [(validator.field) = {msg_exists : true}];
 }
 
 message SaveDataRequest {
     int64 time = 1 [(validator.field) = {msg_exists : true}];
-    DevMeta meta = 2 [(validator.field) = {msg_exists : true}];
-    bytes data = 3 [(validator.field) = {msg_exists : true}];
+    string mac = 2 [(validator.field) = {string_not_empty: true}];
+    string type = 3 [(validator.field) = {string_not_empty: true}];
+    bytes data = 4 [(validator.field) = {msg_exists : true}];
 }
+
 message SaveDataResponse {
-    string status = 1 [(validator.field) = {string_not_empty: true}];
+    Status status = 1 [(validator.field) = {is_in_enum : true}];
 }

@@ -3,8 +3,9 @@ package store
 
 import (
 	"fmt"
-	"github.com/kostiamol/centerms/store/model"
 	"time"
+
+	"github.com/kostiamol/centerms/store/model"
 
 	"github.com/kostiamol/centerms/cfg"
 )
@@ -33,40 +34,40 @@ func (s *store) InitCfg(m *model.Meta) (*model.Cfg, error) {
 	return nil, nil
 }
 
-func (s *store) GetCfg(id string) (*model.Cfg, error) {
-	dev, err := model.DefineDevice(m.Type)
+func (s *store) GetCfg(id model.DevID, t model.Type) (*model.Cfg, error) {
+	dev, err := model.DefineDevice(t, id)
 	if err != nil {
 		return nil, fmt.Errorf("func DefineDevice: %s", err)
 	}
 	return dev.GetCfg()
 }
 
-func (s *store) SetCfg(id string, c *model.Cfg) error {
-	dev, err := model.DefineDevice()
+func (s *store) SetCfg(id model.DevID, t model.Type, c *model.Cfg) error {
+	dev, err := model.DefineDevice(t, id)
 	if err != nil {
 		return fmt.Errorf("func DefineDevice: %s", err)
 	}
 	return dev.SetCfg(c)
 }
 
-func (s *store) GetDefaultCfg(m *model.Meta) (*model.Cfg, error) {
-	dev, err := model.DefineDevice(m.Type)
+func (s *store) GetDefaultCfg(id model.DevID, t model.Type) (*model.Cfg, error) {
+	dev, err := model.DefineDevice(t, id)
 	if err != nil {
 		return nil, fmt.Errorf("func DefineDevice: %s", err)
 	}
 	return dev.GetDefaultCfg()
 }
 
-func (s *store) SetMeta(m *model.Meta) error {
-	dev, err := model.DefineDevice(m.Type)
+func (s *store) SetMeta(id model.DevID, t model.Type, m *model.Meta) error {
+	dev, err := model.DefineDevice(t, id)
 	if err != nil {
 		return fmt.Errorf("func DefineDevice: %s", err)
 	}
 	return dev.SetMeta(m)
 }
 
-func (s *store) IsRegistered(m *model.Meta) (bool, error) {
-	dev, err := model.DefineDevice(m.Type)
+func (s *store) IsRegistered(id model.DevID, t model.Type) (bool, error) {
+	dev, err := model.DefineDevice(t, id)
 	if err != nil {
 		return false, fmt.Errorf("func DefineDevice: %s", err)
 	}
@@ -83,8 +84,8 @@ func (s *store) GetDevData(id string) (*model.Data, error) {
 	return nil, nil
 }
 
-func (s *store) SaveData(d *model.Data) error {
-	dev, err := model.DefineDevice(d.Meta.Type)
+func (s *store) SaveData(id model.DevID, t model.Type, d *model.Data) error {
+	dev, err := model.DefineDevice(t, id)
 	if err != nil {
 		return fmt.Errorf("func DefineDevice: %s", err)
 	}

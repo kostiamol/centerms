@@ -21,7 +21,7 @@ import (
 type (
 	// CfgProvider is a contract for the configuration provider.
 	CfgProvider interface {
-		InitCfg(*model.Meta) (*model.Cfg, error)
+		GetInitCfg(*model.Meta) (*model.Cfg, error)
 		GetCfg(id string) (*model.Cfg, error)
 		SetCfg(id string, c *model.Cfg) error
 	}

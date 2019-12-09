@@ -20,6 +20,7 @@ type (
 	}
 
 	fridge struct {
+		id   DevID
 		cfg  fridgeCfg
 		data fridgeData
 	}
@@ -68,15 +69,15 @@ func (f *fridge) IsRegistered() (bool, error) {
 	return false, nil
 }
 
-func parseFridge(c *Cfg, d *Data) (devicer, error) {
+func parseFridge(c *Cfg, d *Data) (Devicer, error) {
 	var cfg fridgeCfg
 	if err := json.Unmarshal(c.Data, &cfg); err != nil {
-		return nil, fmt.Errorf("func parseFridgeCfg: func Unmarshal: %v", err)
+		return nil, fmt.Errorf("func Unmarshal: %v", err)
 	}
 
 	var data fridgeData
 	if err := json.Unmarshal(d.Data, &data); err != nil {
-		return nil, fmt.Errorf("func parseFridgeData: func Unmarshal: %v", err)
+		return nil, fmt.Errorf("func Unmarshal: %v", err)
 	}
 
 	return &fridge{

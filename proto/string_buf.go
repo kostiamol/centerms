@@ -5,10 +5,10 @@ import (
 	"strconv"
 )
 
-// SetDevInitCfgRequestToStringBuf .
-func SetDevInitCfgRequestToStringBuf(r *InitCfgRequest) string {
+// GetDevInitCfgRequestToStringBuf .
+func GetDevInitCfgRequestToStringBuf(r *GetInitCfgRequest) string {
 	if r == nil {
-		return ""
+		return "{}"
 	}
 
 	var buffer bytes.Buffer
@@ -17,30 +17,12 @@ func SetDevInitCfgRequestToStringBuf(r *InitCfgRequest) string {
 	buffer.WriteString(strconv.FormatInt(r.Time, 10))
 	buffer.WriteString(`",`)
 
-	buffer.WriteString(`"dev_meta" : "`)
-	buffer.WriteString(devMetaToStringBuf(r.Meta))
-	buffer.WriteString(`"}`)
-
-	return buffer.String()
-}
-
-func devMetaToStringBuf(m *DevMeta) string {
-	if m == nil {
-		return "{}"
-	}
-
-	var buffer bytes.Buffer
-
-	buffer.WriteString(`{"type" : "`)
-	buffer.WriteString(m.Type)
+	buffer.WriteString(`"dev_mac" : "`)
+	buffer.WriteString(r.Mac)
 	buffer.WriteString(`",`)
 
-	buffer.WriteString(`"name" : "`)
-	buffer.WriteString(m.Name)
-	buffer.WriteString(`",`)
-
-	buffer.WriteString(`"mac" : "`)
-	buffer.WriteString(m.Mac)
+	buffer.WriteString(`"dev_type" : "`)
+	buffer.WriteString(r.Type)
 	buffer.WriteString(`"}`)
 
 	return buffer.String()
@@ -59,7 +41,11 @@ func SaveDevDataRequestToStringBuf(r *SaveDataRequest) string {
 	buffer.WriteString(`",`)
 
 	buffer.WriteString(`"dev_meta" : "`)
-	buffer.WriteString(devMetaToStringBuf(r.Meta))
+	buffer.WriteString(r.Mac)
+	buffer.WriteString(`",`)
+
+	buffer.WriteString(`"dev_type" : "`)
+	buffer.WriteString(r.Type)
 	buffer.WriteString(`"}`)
 
 	return buffer.String()

@@ -42,19 +42,18 @@ func (a *api) serveRPC() {
 
 // Init returns device configuration. If the device hasn't been registered before, Init initializes
 // configuration with default values that depend on the devices' type.
-func (a *api) InitCfg(ctx context.Context, r *proto.InitCfgRequest) (*proto.InitCfgResponse, error) {
+func (a *api) GetInitCfg(ctx context.Context, r *proto.GetInitCfgRequest) (*proto.GetInitCfgResponse, error) {
 	m := &model.Meta{
-		Type: r.Meta.Type,
-		Name: r.Meta.Name,
-		MAC:  r.Meta.Mac,
+		Type: model.Type(r.Type),
+		MAC:  r.Mac,
 	}
 
-	c, err := a.cfgProvider.InitCfg(m)
+	c, err := a.cfgProvider.GetInitCfg(m)
 	if err != nil {
-		return nil, fmt.Errorf("func InitCfg: %s", err)
+		return nil, fmt.Errorf("func GetInitCfg: %s", err)
 	}
 
-	return &proto.InitCfgResponse{Cfg: c.Data}, nil
+	return &proto.GetInitCfgResponse{Cfg: c.Data}, nil
 }
 
 // SaveDevData saves device data.
@@ -62,16 +61,15 @@ func (a *api) SaveData(ctx context.Context, r *proto.SaveDataRequest) (*proto.Sa
 	d := model.Data{
 		Time: r.Time,
 		Meta: model.Meta{
-			Type: r.Meta.Type,
-			Name: r.Meta.Name,
-			MAC:  r.Meta.Mac,
+			Type: model.Type(r.Type),
+			MAC:  r.Mac,
 		},
 		Data: r.Data,
 	}
 
 	if err := a.dataProvider.SaveData(&d); err != nil {
-		return nil, fmt.Errorf("func SaveDevData: %s", err)
+		return nil, fmt.Errorf("func SaveData: %s", err)
 	}
 
-	return &proto.SaveDataResponse{Status: "OK"}, nil
+	return &proto.SaveDataResponse{Status: proto.Status_OK}, nil
 }

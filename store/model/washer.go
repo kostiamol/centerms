@@ -25,6 +25,7 @@ type (
 	}
 
 	washer struct {
+		id   DevID
 		cfg  washerCfg
 		data washerData
 	}
@@ -92,7 +93,7 @@ func (w *washer) IsRegistered() (bool, error) {
 	return false, nil
 }
 
-func parseWasher(c *Cfg, d *Data) (devicer, error) {
+func parseWasher(c *Cfg, d *Data) (Devicer, error) {
 	var cfg washerCfg
 	if err := json.Unmarshal(c.Data, &cfg); err != nil {
 		return nil, fmt.Errorf("func Unmarshal: %v", err)

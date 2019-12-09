@@ -34,46 +34,30 @@ func (this *Event) Validate() error {
 	}
 	return nil
 }
-func (this *DevMeta) Validate() error {
-	if this.Type == "" {
-		return github_com_mwitkow_go_proto_validators.FieldError("Type", fmt.Errorf(`value '%v' must not be an empty string`, this.Type))
-	}
-	if this.Name == "" {
-		return github_com_mwitkow_go_proto_validators.FieldError("Name", fmt.Errorf(`value '%v' must not be an empty string`, this.Name))
-	}
+func (this *GetInitCfgRequest) Validate() error {
 	if this.Mac == "" {
 		return github_com_mwitkow_go_proto_validators.FieldError("Mac", fmt.Errorf(`value '%v' must not be an empty string`, this.Mac))
 	}
-	return nil
-}
-func (this *InitCfgRequest) Validate() error {
-	if nil == this.Meta {
-		return github_com_mwitkow_go_proto_validators.FieldError("Meta", fmt.Errorf("message must exist"))
-	}
-	if this.Meta != nil {
-		if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(this.Meta); err != nil {
-			return github_com_mwitkow_go_proto_validators.FieldError("Meta", err)
-		}
+	if this.Type == "" {
+		return github_com_mwitkow_go_proto_validators.FieldError("Type", fmt.Errorf(`value '%v' must not be an empty string`, this.Type))
 	}
 	return nil
 }
-func (this *InitCfgResponse) Validate() error {
+func (this *GetInitCfgResponse) Validate() error {
 	return nil
 }
 func (this *SaveDataRequest) Validate() error {
-	if nil == this.Meta {
-		return github_com_mwitkow_go_proto_validators.FieldError("Meta", fmt.Errorf("message must exist"))
+	if this.Mac == "" {
+		return github_com_mwitkow_go_proto_validators.FieldError("Mac", fmt.Errorf(`value '%v' must not be an empty string`, this.Mac))
 	}
-	if this.Meta != nil {
-		if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(this.Meta); err != nil {
-			return github_com_mwitkow_go_proto_validators.FieldError("Meta", err)
-		}
+	if this.Type == "" {
+		return github_com_mwitkow_go_proto_validators.FieldError("Type", fmt.Errorf(`value '%v' must not be an empty string`, this.Type))
 	}
 	return nil
 }
 func (this *SaveDataResponse) Validate() error {
-	if this.Status == "" {
-		return github_com_mwitkow_go_proto_validators.FieldError("Status", fmt.Errorf(`value '%v' must not be an empty string`, this.Status))
+	if _, ok := Status_name[int32(this.Status)]; !ok {
+		return github_com_mwitkow_go_proto_validators.FieldError("Status", fmt.Errorf(`value '%v' must be a valid Status field`, this.Status))
 	}
 	return nil
 }

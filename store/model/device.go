@@ -6,7 +6,7 @@ import (
 )
 
 type (
-	devicer interface {
+	Devicer interface {
 		GetData() (*Data, error)
 		SaveData(*Data) error
 
@@ -20,13 +20,12 @@ type (
 		IsRegistered() (bool, error)
 	}
 
-	UserID string
 	DevID string
-	DevType string
+	Type  string
 
 	// Meta is used to subscriber device metadata: it's type, name (model) and MAC address.
 	Meta struct {
-		Type DevType `json:"type"`
+		Type Type   `json:"type"`
 		Name string `json:"name"`
 		MAC  string `json:"mac"`
 	}
@@ -46,16 +45,16 @@ type (
 )
 
 const (
-	Fridge DevType = "fridge"
-	Washer DevType = "washer"
+	Fridge Type = "fridge"
+	Washer Type = "washer"
 )
 
-func DefineDevice(t DevType) (devicer, error) {
+func DefineDevice(t Type, id DevID) (Devicer, error) {
 	switch t {
 	case Fridge:
-		return &fridge{}, nil
+		return &fridge{id: id}, nil
 	case Washer:
-		return &washer{}, nil
+		return &washer{id: id}, nil
 	default:
 		return nil, fmt.Errorf("unknown device with type: %s", t)
 	}
