@@ -14,7 +14,7 @@ type (
 	DataStorer interface {
 		GetDevsData() ([]model.Data, error)
 		GetDevData(id string) (*model.Data, error)
-		SaveData(*model.Data) error
+		SaveData(id string, t model.Type, d *model.Data) error
 	}
 
 	// Publisher .
@@ -76,8 +76,8 @@ func (s *dataService) listenToTermination() {
 }
 
 // SaveData is used to save device data to the store.
-func (s *dataService) SaveData(d *model.Data) error {
-	if err := s.storer.SaveData(d); err != nil {
+func (s *dataService) SaveData(id string, t model.Type, d *model.Data) error {
+	if err := s.storer.SaveData(id, t, d); err != nil {
 		s.log.Errorf("func SaveDevData: %s", err)
 		return err
 	}

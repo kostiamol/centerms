@@ -12,11 +12,11 @@ type (
 	// CfgStorer is a contract for the configuration storer.
 	CfgStorer interface {
 		InitCfg(*model.Meta) (*model.Cfg, error)
-		SetCfg(id string, c *model.Cfg) error
-		GetCfg(id string) (*model.Cfg, error)
-		GetDefaultCfg(*model.Meta) (*model.Cfg, error)
-		SetMeta(*model.Meta) error
-		IsRegistered(*model.Meta) (bool, error)
+		SetCfg(id string, t model.Type, c *model.Cfg) error
+		GetCfg(id string, t model.Type) (*model.Cfg, error)
+		GetDefaultCfg(id string, t model.Type) (*model.Cfg, error)
+		SetMeta(id string, m *model.Meta) error
+		IsRegistered(id string, t model.Type) (bool, error)
 	}
 
 	// Publisher .
@@ -114,13 +114,13 @@ func (s *cfgService) InitCfg(meta *model.Meta) (*model.Cfg, error) {
 	var cfg *model.Cfg
 	id := meta.MAC
 
-	if ok, err := s.storer.IsRegistered(meta); ok {
+	if ok, err := s.storer.IsRegistered(id, meta.Type); ok {
 		if err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 
-		cfg, err = s.storer.GetCfg(id)
+		cfg, err = s.storer.GetCfg(id, meta.Type)
 		if err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
@@ -131,13 +131,13 @@ func (s *cfgService) InitCfg(meta *model.Meta) (*model.Cfg, error) {
 			return nil, err
 		}
 
-		cfg, err = s.storer.GetDefaultCfg(meta)
+		cfg, err = s.storer.GetDefaultCfg(id, meta.Type)
 		if err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 
-		if err = s.storer.SetCfg(id, cfg); err != nil {
+		if err = s.storer.SetCfg(id, meta.Type, cfg); err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
@@ -147,8 +147,8 @@ func (s *cfgService) InitCfg(meta *model.Meta) (*model.Cfg, error) {
 }
 
 // GetCfg returns configuration for the given device.
-func (s *cfgService) GetCfg(id string) (*model.Cfg, error) {
-	c, err := s.storer.GetCfg(id)
+func (s *cfgService) GetCfg(id string, t model.Type) (*model.Cfg, error) {
+	c, err := s.storer.GetCfg(id, t)
 	if err != nil {
 		s.log.Errorf("func GetCfg: %s", err)
 		return nil, err
@@ -157,8 +157,8 @@ func (s *cfgService) GetCfg(id string) (*model.Cfg, error) {
 }
 
 // SetCfg sets configuration for the given device.
-func (s *cfgService) SetCfg(id string, c *model.Cfg) error {
-	if err := s.storer.SetCfg(id, c); err != nil {
+func (s *cfgService) SetCfg(id string, t model.Type, c *model.Cfg) error {
+	if err := s.storer.SetCfg(id, t, c); err != nil {
 		s.log.Errorf("func SetCfg: %s", err)
 		return err
 	}

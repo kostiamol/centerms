@@ -25,7 +25,7 @@ type (
 	}
 
 	washer struct {
-		id   DevID
+		id   string
 		cfg  washerCfg
 		data washerData
 	}

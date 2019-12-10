@@ -20,8 +20,7 @@ type (
 		IsRegistered() (bool, error)
 	}
 
-	DevID string
-	Type  string
+	Type string
 
 	// Meta is used to subscriber device metadata: it's type, name (model) and MAC address.
 	Meta struct {
@@ -49,7 +48,7 @@ const (
 	Washer Type = "washer"
 )
 
-func DefineDevice(t Type, id DevID) (Devicer, error) {
+func NewDevice(id string, t Type) (Devicer, error) {
 	switch t {
 	case Fridge:
 		return &fridge{id: id}, nil
