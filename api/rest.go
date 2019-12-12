@@ -47,7 +47,8 @@ func (a *api) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 
 func (a *api) getDevCfgHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	c, err := a.cfgProvider.GetCfg(id)
+	t := mux.Vars(r)["type"]
+	c, err := a.cfgProvider.GetCfg(id, model.Type(t))
 	if err != nil {
 		a.log.Errorf("func getCfgHandler: func GetCfg: %s", err)
 		return
@@ -64,8 +65,9 @@ func (a *api) patchDevCfgHandler(w http.ResponseWriter, r *http.Request) {
 		a.log.Errorf("func patchCfgHandler: func Decode: %s", err)
 		return
 	}
-	id := mux.Vars(r)["id"]
-	if err := a.cfgProvider.SetCfg(id, &c); err != nil {
+
+	vars := mux.Vars(r)
+	if err := a.cfgProvider.SetCfg(vars["id"], model.Type(vars["type"]), &c); err != nil {
 		a.log.Errorf("func patchCfgHandler: func SetCfg: %s", err)
 		return
 	}

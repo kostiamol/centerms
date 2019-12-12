@@ -15,7 +15,7 @@ type (
 		SetCfg(id string, t model.Type, c *model.Cfg) error
 		GetCfg(id string, t model.Type) (*model.Cfg, error)
 		GetDefaultCfg(id string, t model.Type) (*model.Cfg, error)
-		SetMeta(id string, m *model.Meta) error
+		SetMeta(m *model.Meta) error
 		IsRegistered(id string, t model.Type) (bool, error)
 	}
 
@@ -105,7 +105,7 @@ func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 
 // SetDevInitCfg checks whether device is already registered in the system. If it's already registered,
 // the func returns actual configuration. Otherwise it returns default config for that type of device.
-func (s *cfgService) InitCfg(meta *model.Meta) (*model.Cfg, error) {
+func (s *cfgService) GetInitCfg(meta *model.Meta) (*model.Cfg, error) {
 	if err := s.storer.SetMeta(meta); err != nil {
 		s.log.Errorf("func SetDevInitCfg: %s", err)
 		return nil, err

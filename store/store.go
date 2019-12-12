@@ -58,8 +58,8 @@ func (s *store) GetDefaultCfg(id string, t model.Type) (*model.Cfg, error) {
 	return dev.GetDefaultCfg()
 }
 
-func (s *store) SetMeta(id string, m *model.Meta) error {
-	dev, err := model.NewDevice(id, m.Type)
+func (s *store) SetMeta(m *model.Meta) error {
+	dev, err := model.NewDevice(m.MAC, m.Type)
 	if err != nil {
 		return fmt.Errorf("func NewDevice: %s", err)
 	}
@@ -84,8 +84,8 @@ func (s *store) GetDevData(id string) (*model.Data, error) {
 	return nil, nil
 }
 
-func (s *store) SaveData(id string, t model.Type, d *model.Data) error {
-	dev, err := model.NewDevice(id, t)
+func (s *store) SaveData(d *model.Data) error {
+	dev, err := model.NewDevice(d.Meta.MAC, d.Meta.Type)
 	if err != nil {
 		return fmt.Errorf("func NewDevice: %s", err)
 	}

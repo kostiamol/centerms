@@ -14,6 +14,7 @@ import (
 )
 
 // todo: error %w
+// todo: regen mocks
 // todo: cover with tests
 // todo: use clickhouse for data
 // todo: use zookeper for cfg

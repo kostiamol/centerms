@@ -6,6 +6,7 @@ import (
 )
 
 type (
+	//Devicer represents an interface to an abstract device.
 	Devicer interface {
 		GetData() (*Data, error)
 		SaveData(*Data) error
@@ -22,21 +23,21 @@ type (
 
 	Type string
 
-	// Meta is used to subscriber device metadata: it's type, name (model) and MAC address.
+	// Meta .
 	Meta struct {
 		Type Type   `json:"type"`
 		Name string `json:"name"`
 		MAC  string `json:"mac"`
 	}
 
-	// Data is used to subscriber time of the request, device's metadata and the data it transfers.
+	// Data .
 	Data struct {
 		Time int64           `json:"time"`
 		Meta Meta            `json:"meta"`
 		Data json.RawMessage `json:"data"`
 	}
 
-	// Cfg holds device's MAC address and config.
+	// Cfg .
 	Cfg struct {
 		MAC  string          `json:"mac"`
 		Data json.RawMessage `json:"data"`
