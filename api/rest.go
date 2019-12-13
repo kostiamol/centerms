@@ -33,8 +33,8 @@ func (a *api) getDevsDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	d, err := a.dataProvider.GetDevData(id)
+	devID := mux.Vars(r)["dev_id"]
+	d, err := a.dataProvider.GetDevData(devID)
 	if err != nil {
 		a.log.Errorf("func getDevDataHandler: func GetDevData: %s", err)
 		return
@@ -46,9 +46,9 @@ func (a *api) getDevDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) getDevCfgHandler(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	devID := mux.Vars(r)["dev_id"]
 	t := mux.Vars(r)["type"]
-	c, err := a.cfgProvider.GetCfg(id, model.Type(t))
+	c, err := a.cfgProvider.GetCfg(devID, model.Type(t))
 	if err != nil {
 		a.log.Errorf("func getCfgHandler: func GetCfg: %s", err)
 		return
@@ -67,7 +67,7 @@ func (a *api) patchDevCfgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vars := mux.Vars(r)
-	if err := a.cfgProvider.SetCfg(vars["id"], model.Type(vars["type"]), &c); err != nil {
+	if err := a.cfgProvider.SetCfg(vars["dev_id"], model.Type(vars["type"]), &c); err != nil {
 		a.log.Errorf("func patchCfgHandler: func SetCfg: %s", err)
 		return
 	}

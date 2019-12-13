@@ -34,24 +34,24 @@ func (s *store) InitCfg(m *model.Meta) (*model.Cfg, error) {
 	return nil, nil
 }
 
-func (s *store) GetCfg(id string, t model.Type) (*model.Cfg, error) {
-	dev, err := model.NewDevice(id, t)
+func (s *store) GetCfg(devID string, t model.Type) (*model.Cfg, error) {
+	dev, err := model.NewDevice(devID, t)
 	if err != nil {
 		return nil, fmt.Errorf("func NewDevice: %s", err)
 	}
 	return dev.GetCfg()
 }
 
-func (s *store) SetCfg(id string, t model.Type, c *model.Cfg) error {
-	dev, err := model.NewDevice(id, t)
+func (s *store) SetCfg(devID string, t model.Type, c *model.Cfg) error {
+	dev, err := model.NewDevice(devID, t)
 	if err != nil {
 		return fmt.Errorf("func NewDevice: %s", err)
 	}
 	return dev.SetCfg(c)
 }
 
-func (s *store) GetDefaultCfg(id string, t model.Type) (*model.Cfg, error) {
-	dev, err := model.NewDevice(id, t)
+func (s *store) GetDefaultCfg(devID string, t model.Type) (*model.Cfg, error) {
+	dev, err := model.NewDevice(devID, t)
 	if err != nil {
 		return nil, fmt.Errorf("func NewDevice: %s", err)
 	}
@@ -59,15 +59,15 @@ func (s *store) GetDefaultCfg(id string, t model.Type) (*model.Cfg, error) {
 }
 
 func (s *store) SetMeta(m *model.Meta) error {
-	dev, err := model.NewDevice(m.MAC, m.Type)
+	dev, err := model.NewDevice(m.DevID, m.Type)
 	if err != nil {
 		return fmt.Errorf("func NewDevice: %s", err)
 	}
 	return dev.SetMeta(m)
 }
 
-func (s *store) IsRegistered(id string, t model.Type) (bool, error) {
-	dev, err := model.NewDevice(id, t)
+func (s *store) IsRegistered(devID string, t model.Type) (bool, error) {
+	dev, err := model.NewDevice(devID, t)
 	if err != nil {
 		return false, fmt.Errorf("func NewDevice: %s", err)
 	}
@@ -85,7 +85,7 @@ func (s *store) GetDevData(id string) (*model.Data, error) {
 }
 
 func (s *store) SaveData(d *model.Data) error {
-	dev, err := model.NewDevice(d.Meta.MAC, d.Meta.Type)
+	dev, err := model.NewDevice(d.Meta.DevID, d.Meta.Type)
 	if err != nil {
 		return fmt.Errorf("func NewDevice: %s", err)
 	}

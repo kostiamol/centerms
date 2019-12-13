@@ -44,8 +44,8 @@ func (a *api) serveRPC() {
 // configuration with default values that depend on the devices' type.
 func (a *api) GetInitCfg(ctx context.Context, r *proto.GetInitCfgRequest) (*proto.GetInitCfgResponse, error) {
 	m := &model.Meta{
-		Type: model.Type(r.Type),
-		MAC:  r.Mac,
+		Type:  model.Type(r.Type),
+		DevID: r.DevId,
 	}
 
 	c, err := a.cfgProvider.GetInitCfg(m)
@@ -61,8 +61,8 @@ func (a *api) SaveData(ctx context.Context, r *proto.SaveDataRequest) (*proto.Sa
 	d := model.Data{
 		Time: r.Time,
 		Meta: model.Meta{
-			Type: model.Type(r.Type),
-			MAC:  r.Mac,
+			Type:  model.Type(r.Type),
+			DevID: r.DevId,
 		},
 		Data: r.Data,
 	}

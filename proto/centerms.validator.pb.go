@@ -35,8 +35,8 @@ func (this *Event) Validate() error {
 	return nil
 }
 func (this *GetInitCfgRequest) Validate() error {
-	if this.Mac == "" {
-		return github_com_mwitkow_go_proto_validators.FieldError("Mac", fmt.Errorf(`value '%v' must not be an empty string`, this.Mac))
+	if this.DevId == "" {
+		return github_com_mwitkow_go_proto_validators.FieldError("DevId", fmt.Errorf(`value '%v' must not be an empty string`, this.DevId))
 	}
 	if this.Type == "" {
 		return github_com_mwitkow_go_proto_validators.FieldError("Type", fmt.Errorf(`value '%v' must not be an empty string`, this.Type))
@@ -47,8 +47,8 @@ func (this *GetInitCfgResponse) Validate() error {
 	return nil
 }
 func (this *SaveDataRequest) Validate() error {
-	if this.Mac == "" {
-		return github_com_mwitkow_go_proto_validators.FieldError("Mac", fmt.Errorf(`value '%v' must not be an empty string`, this.Mac))
+	if this.DevId == "" {
+		return github_com_mwitkow_go_proto_validators.FieldError("DevId", fmt.Errorf(`value '%v' must not be an empty string`, this.DevId))
 	}
 	if this.Type == "" {
 		return github_com_mwitkow_go_proto_validators.FieldError("Type", fmt.Errorf(`value '%v' must not be an empty string`, this.Type))

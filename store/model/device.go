@@ -25,9 +25,9 @@ type (
 
 	// Meta .
 	Meta struct {
-		Type Type   `json:"type"`
-		Name string `json:"name"`
-		MAC  string `json:"mac"`
+		Type  Type   `json:"type"`
+		Name  string `json:"name"`
+		DevID string `json:"dev_id"`
 	}
 
 	// Data .
@@ -39,8 +39,8 @@ type (
 
 	// Cfg .
 	Cfg struct {
-		MAC  string          `json:"mac"`
-		Data json.RawMessage `json:"data"`
+		DevID string          `json:"dev_id"`
+		Data  json.RawMessage `json:"data"`
 	}
 )
 
@@ -49,12 +49,12 @@ const (
 	Washer Type = "washer"
 )
 
-func NewDevice(id string, t Type) (Devicer, error) {
+func NewDevice(devID string, t Type) (Devicer, error) {
 	switch t {
 	case Fridge:
-		return &fridge{id: id}, nil
+		return &fridge{devID: devID}, nil
 	case Washer:
-		return &washer{id: id}, nil
+		return &washer{devID: devID}, nil
 	default:
 		return nil, fmt.Errorf("unknown device with type: %s", t)
 	}

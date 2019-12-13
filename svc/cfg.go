@@ -12,16 +12,16 @@ type (
 	// CfgStorer is a contract for the configuration storer.
 	CfgStorer interface {
 		InitCfg(*model.Meta) (*model.Cfg, error)
-		SetCfg(id string, t model.Type, c *model.Cfg) error
-		GetCfg(id string, t model.Type) (*model.Cfg, error)
-		GetDefaultCfg(id string, t model.Type) (*model.Cfg, error)
+		SetCfg(devID string, t model.Type, c *model.Cfg) error
+		GetCfg(devID string, t model.Type) (*model.Cfg, error)
+		GetDefaultCfg(devID string, t model.Type) (*model.Cfg, error)
 		SetMeta(m *model.Meta) error
-		IsRegistered(id string, t model.Type) (bool, error)
+		IsRegistered(devID string, t model.Type) (bool, error)
 	}
 
 	// Publisher .
 	Publisher interface {
-		Publish(mac, data string) error
+		Publish(devID, data string) error
 	}
 
 	// CfgServiceCfg is used to initialize an instance of cfgService.
@@ -93,7 +93,7 @@ func (s *cfgService) listenToCfgPatches(ctx context.Context) {
 	for {
 		select {
 		case msg := <-s.subChan:
-			if err := s.publisher.Publish(msg.MAC, string(msg.Data)); err != nil {
+			if err := s.publisher.Publish(msg.DevID, string(msg.Data)); err != nil {
 				s.log.Errorf("func Publish: %s", err)
 			}
 
@@ -112,15 +112,15 @@ func (s *cfgService) GetInitCfg(meta *model.Meta) (*model.Cfg, error) {
 	}
 
 	var cfg *model.Cfg
-	id := meta.MAC
+	devID := meta.DevID
 
-	if ok, err := s.storer.IsRegistered(id, meta.Type); ok {
+	if ok, err := s.storer.IsRegistered(devID, meta.Type); ok {
 		if err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 
-		cfg, err = s.storer.GetCfg(id, meta.Type)
+		cfg, err = s.storer.GetCfg(devID, meta.Type)
 		if err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
@@ -131,13 +131,13 @@ func (s *cfgService) GetInitCfg(meta *model.Meta) (*model.Cfg, error) {
 			return nil, err
 		}
 
-		cfg, err = s.storer.GetDefaultCfg(id, meta.Type)
+		cfg, err = s.storer.GetDefaultCfg(devID, meta.Type)
 		if err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
 
-		if err = s.storer.SetCfg(id, meta.Type, cfg); err != nil {
+		if err = s.storer.SetCfg(devID, meta.Type, cfg); err != nil {
 			s.log.Errorf("func SetDevInitCfg: %s", err)
 			return nil, err
 		}
@@ -147,8 +147,8 @@ func (s *cfgService) GetInitCfg(meta *model.Meta) (*model.Cfg, error) {
 }
 
 // GetCfg returns configuration for the given device.
-func (s *cfgService) GetCfg(id string, t model.Type) (*model.Cfg, error) {
-	c, err := s.storer.GetCfg(id, t)
+func (s *cfgService) GetCfg(devID string, t model.Type) (*model.Cfg, error) {
+	c, err := s.storer.GetCfg(devID, t)
 	if err != nil {
 		s.log.Errorf("func GetCfg: %s", err)
 		return nil, err
@@ -157,8 +157,8 @@ func (s *cfgService) GetCfg(id string, t model.Type) (*model.Cfg, error) {
 }
 
 // SetCfg sets configuration for the given device.
-func (s *cfgService) SetCfg(id string, t model.Type, c *model.Cfg) error {
-	if err := s.storer.SetCfg(id, t, c); err != nil {
+func (s *cfgService) SetCfg(devID string, t model.Type, c *model.Cfg) error {
+	if err := s.storer.SetCfg(devID, t, c); err != nil {
 		s.log.Errorf("func SetCfg: %s", err)
 		return err
 	}

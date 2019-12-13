@@ -43,7 +43,7 @@ func New(c *Cfg) *publisher { // nolint
 	}
 }
 
-func (p *publisher) Publish(mac, data string) error {
+func (p *publisher) Publish(id, data string) error {
 	var (
 		err          error
 		conn         *nats.Conn
@@ -64,7 +64,7 @@ func (p *publisher) Publish(mac, data string) error {
 	defer conn.Close()
 
 	e := &proto.Event{
-		AggregateId:   mac,
+		AggregateId:   id,
 		AggregateType: "cfg_svc",
 		EventId:       uuid.NewV4().String(),
 		EventType:     "cfg_patched",
@@ -76,12 +76,12 @@ func (p *publisher) Publish(mac, data string) error {
 		return fmt.Errorf("func Marshall: %s", err)
 	}
 
-	topic := fmt.Sprintf("%s.%s", p.cfgPatchTopic, mac)
+	topic := fmt.Sprintf("%s.%s", p.cfgPatchTopic, id)
 	if err := conn.Publish(topic, b); err != nil {
 		return err
 	}
 
-	p.log.With("event", log.EventCfgPatchCreated, "patch", data, "devID", mac)
+	p.log.With("event", log.EventCfgPatchCreated, "patch", data, "devID", id)
 
 	return nil
 }

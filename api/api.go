@@ -22,14 +22,14 @@ type (
 	// CfgProvider is a contract for the configuration provider.
 	CfgProvider interface {
 		GetInitCfg(m *model.Meta) (*model.Cfg, error)
-		GetCfg(id string, t model.Type) (*model.Cfg, error)
-		SetCfg(id string, t model.Type, c *model.Cfg) error
+		GetCfg(devID string, t model.Type) (*model.Cfg, error)
+		SetCfg(devID string, t model.Type, c *model.Cfg) error
 	}
 
 	// DataProvider is a contract for the data provider.
 	DataProvider interface {
 		GetDevsData() ([]model.Data, error)
-		GetDevData(id string) (*model.Data, error)
+		GetDevData(devID string) (*model.Data, error)
 		SaveData(*model.Data) error
 	}
 
@@ -127,9 +127,9 @@ func (a *api) registerRoutes() {
 	a.registerRoute(http.MethodGet, "/v1/token", getTokenHandler)
 
 	a.registerRoute(http.MethodGet, "/v1/device", a.getDevsDataHandler, middleware...)
-	a.registerRoute(http.MethodGet, "/v1/device/{id}/data", a.getDevDataHandler, middleware...)
-	a.registerRoute(http.MethodGet, "/v1/device/{id}/cfg", a.getDevCfgHandler, middleware...)
-	a.registerRoute(http.MethodPatch, "/v1/device/{id}/cfg", a.patchDevCfgHandler, middleware...)
+	a.registerRoute(http.MethodGet, "/v1/device/{dev_id}/data", a.getDevDataHandler, middleware...)
+	a.registerRoute(http.MethodGet, "/v1/device/{dev_id}/cfg", a.getDevCfgHandler, middleware...)
+	a.registerRoute(http.MethodPatch, "/v1/device/{dev_id}/cfg", a.patchDevCfgHandler, middleware...)
 }
 
 func (a *api) serveHTTP() {

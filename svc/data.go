@@ -13,7 +13,7 @@ type (
 	// DataStorer is a contract for the data storer.
 	DataStorer interface {
 		GetDevsData() ([]model.Data, error)
-		GetDevData(id string) (*model.Data, error)
+		GetDevData(devID string) (*model.Data, error)
 		SaveData(*model.Data) error
 	}
 
@@ -88,8 +88,8 @@ func (s *dataService) SaveData(d *model.Data) error {
 }
 
 // GetDevData is used to get device data from the store.
-func (s *dataService) GetDevData(id string) (*model.Data, error) {
-	d, err := s.storer.GetDevData(id)
+func (s *dataService) GetDevData(devID string) (*model.Data, error) {
+	d, err := s.storer.GetDevData(devID)
 	if err != nil {
 		s.log.Errorf("func GetDevData: %s", err)
 		return nil, err

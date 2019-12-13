@@ -84,7 +84,7 @@ func (s *streamService) Run() {
 	go s.listenToClosedConns(ctx)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/devices/{id}", s.addConnHandler)
+	r.HandleFunc("/devices/{devID}", s.addConnHandler)
 
 	srv := &http.Server{
 		Handler: r,
@@ -152,15 +152,15 @@ func (s *streamService) stream(ctx context.Context, d *model.Data) {
 		s.log.Errorf("func Marshal: %s", err)
 	}
 
-	if _, ok := s.conns.idConns[devID(d.Meta.MAC)]; ok {
-		for _, conn := range s.conns.idConns[devID(d.Meta.MAC)].Conns {
+	if _, ok := s.conns.idConns[devID(d.Meta.DevID)]; ok {
+		for _, conn := range s.conns.idConns[devID(d.Meta.DevID)].Conns {
 			select {
 			case <-ctx.Done():
 				return
 			default:
-				s.conns.idConns[devID(d.Meta.MAC)].Lock()
+				s.conns.idConns[devID(d.Meta.DevID)].Lock()
 				err := conn.WriteMessage(1, b)
-				s.conns.idConns[devID(d.Meta.MAC)].Unlock()
+				s.conns.idConns[devID(d.Meta.DevID)].Unlock()
 				if err != nil {
 					s.log.With("event", log.EventWSConnRemoved, "addr", conn.RemoteAddr().String())
 					s.conns.closedConns <- conn
@@ -176,9 +176,9 @@ func (s *streamService) listenToClosedConns(ctx context.Context) {
 	for {
 		select {
 		case conn := <-s.conns.closedConns:
-			for mac, connList := range s.conns.idConns {
+			for devID, connList := range s.conns.idConns {
 				if ok := connList.removeConn(conn); ok {
-					s.conns.checkIDConns(mac)
+					s.conns.checkIDConns(devID)
 					break
 				}
 			}

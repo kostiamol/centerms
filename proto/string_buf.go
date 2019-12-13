@@ -17,8 +17,8 @@ func GetDevInitCfgRequestToStringBuf(r *GetInitCfgRequest) string {
 	buffer.WriteString(strconv.FormatInt(r.Time, 10))
 	buffer.WriteString(`",`)
 
-	buffer.WriteString(`"dev_mac" : "`)
-	buffer.WriteString(r.Mac)
+	buffer.WriteString(`"dev_id" : "`)
+	buffer.WriteString(r.DevId)
 	buffer.WriteString(`",`)
 
 	buffer.WriteString(`"dev_type" : "`)
@@ -40,8 +40,8 @@ func SaveDevDataRequestToStringBuf(r *SaveDataRequest) string {
 	buffer.WriteString(strconv.FormatInt(r.Time, 10))
 	buffer.WriteString(`",`)
 
-	buffer.WriteString(`"dev_meta" : "`)
-	buffer.WriteString(r.Mac)
+	buffer.WriteString(`"dev_id" : "`)
+	buffer.WriteString(r.DevId)
 	buffer.WriteString(`",`)
 
 	buffer.WriteString(`"dev_type" : "`)

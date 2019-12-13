@@ -20,9 +20,9 @@ type (
 	}
 
 	fridge struct {
-		id   string
-		cfg  fridgeCfg
-		data fridgeData
+		devID string
+		cfg   fridgeCfg
+		data  fridgeData
 	}
 )
 
