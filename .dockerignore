@@ -1,0 +1,5 @@
+.*
+helm/
+Dockerfile
+Jenkinsfile
+*.md
