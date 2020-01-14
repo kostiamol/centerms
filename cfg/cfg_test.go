@@ -15,14 +15,14 @@ func TestNewConfig(t *testing.T) {
 func TestConfig(t *testing.T) {
 	c := &Config{
 		Service: Service{
-			AppID:                     "centerms",
-			LogLevel:                  "debug",
-			RetryAttempts:             5,
-			RetryTimeout:              time.Duration(100),
-			PortRPC:                   1111,
-			PortREST:                  2222,
-			PortWebSocket:             3333,
-			RoutineTerminationTimeout: 100,
+			AppID:              "centerms",
+			LogLevel:           "debug",
+			RetryAttempts:      5,
+			RetryTimeout:       time.Duration(100),
+			PortRPC:            1111,
+			PortREST:           2222,
+			PortWebSocket:      3333,
+			TerminationTimeout: 100,
 		},
 		TraceAgent: TraceAgent{
 			Addr: Addr{
@@ -57,14 +57,14 @@ func TestConfig(t *testing.T) {
 
 func TestServiceConfig(t *testing.T) {
 	svc := Service{
-		AppID:                     "centerms",
-		LogLevel:                  "debug",
-		RetryAttempts:             5,
-		RetryTimeout:              time.Duration(100),
-		PortRPC:                   1111,
-		PortREST:                  2222,
-		PortWebSocket:             3333,
-		RoutineTerminationTimeout: 3,
+		AppID:              "centerms",
+		LogLevel:           "debug",
+		RetryAttempts:      5,
+		RetryTimeout:       time.Duration(100),
+		PortRPC:            1111,
+		PortREST:           2222,
+		PortWebSocket:      3333,
+		TerminationTimeout: 3,
 	}
 	err := svc.validate()
 	assert.Nil(t, err)

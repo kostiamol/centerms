@@ -7,14 +7,14 @@ import (
 
 // Service holds basic service configuration.
 type Service struct {
-	AppID                     string
-	LogLevel                  string
-	RetryTimeout              time.Duration
-	RetryAttempts             uint32
-	PortRPC                   uint32
-	PortREST                  uint32
-	PortWebSocket             uint32
-	RoutineTerminationTimeout time.Duration
+	AppID              string
+	LogLevel           string
+	RetryTimeout       time.Duration
+	RetryAttempts      uint32
+	PortRPC            uint32
+	PortREST           uint32
+	PortWebSocket      uint32
+	TerminationTimeout time.Duration
 }
 
 func (s Service) validate() error {
@@ -39,8 +39,8 @@ func (s Service) validate() error {
 	if s.PortWebSocket == 0 {
 		return fmt.Errorf("websocket port env var is missing")
 	}
-	if s.RoutineTerminationTimeout == 0 {
-		return fmt.Errorf("routine termination timeout env var is missing")
+	if s.TerminationTimeout == 0 {
+		return fmt.Errorf("termination timeout env var is missing")
 	}
 	return nil
 }

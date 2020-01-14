@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -40,51 +41,55 @@ type (
 
 	// Cfg is used to initialize an instance of api.
 	Cfg struct {
-		Log          log.Logger
-		Ctrl         svc.Ctrl
-		Metric       *metric.Metric
-		PubChan      chan<- *model.Cfg
-		PortRPC      uint32
-		PortREST     uint32
-		CfgProvider  CfgProvider
-		DataProvider DataProvider
-		Retry        time.Duration
-		PublicKey    string
-		PrivateKey   string
+		Log                log.Logger
+		Ctrl               svc.Ctrl
+		Metric             *metric.Metric
+		PubChan            chan<- *model.Cfg
+		PortRPC            uint32
+		PortREST           uint32
+		CfgProvider        CfgProvider
+		DataProvider       DataProvider
+		Retry              time.Duration
+		PublicKey          string
+		PrivateKey         string
+		TerminationTimeout time.Duration
 	}
 
 	// api includes both rest and grpc.
 	api struct {
-		log          log.Logger
-		ctrl         svc.Ctrl
-		metric       *metric.Metric
-		pubChan      chan<- *model.Cfg
-		portRPC      uint32
-		portREST     uint32
-		cfgProvider  CfgProvider
-		dataProvider DataProvider
-		retry        time.Duration
-		router       *mux.Router
-		token        *tokenValidator
-		publicKey    string
-		privateKey   string
+		log                log.Logger
+		ctrl               svc.Ctrl
+		metric             *metric.Metric
+		pubChan            chan<- *model.Cfg
+		portRPC            uint32
+		portREST           uint32
+		cfgProvider        CfgProvider
+		dataProvider       DataProvider
+		retry              time.Duration
+		router             *mux.Router
+		token              *tokenValidator
+		publicKey          string
+		privateKey         string
+		httpServer         *http.Server
+		terminationTimeout time.Duration
 	}
 )
 
 // New creates and initializes a new instance of api.
 func New(c *Cfg) *api { // nolint
 	return &api{
-		log:          c.Log.With("component", "api"),
-		ctrl:         c.Ctrl,
-		metric:       c.Metric,
-		pubChan:      c.PubChan,
-		portRPC:      c.PortRPC,
-		portREST:     c.PortREST,
-		cfgProvider:  c.CfgProvider,
-		dataProvider: c.DataProvider,
-		retry:        c.Retry,
-		publicKey:    c.PublicKey,
-		privateKey:   c.PrivateKey,
+		log:                c.Log.With("component", "api"),
+		ctrl:               c.Ctrl,
+		metric:             c.Metric,
+		pubChan:            c.PubChan,
+		portRPC:            c.PortRPC,
+		portREST:           c.PortREST,
+		cfgProvider:        c.CfgProvider,
+		dataProvider:       c.DataProvider,
+		retry:              c.Retry,
+		publicKey:          c.PublicKey,
+		privateKey:         c.PrivateKey,
+		terminationTimeout: c.TerminationTimeout,
 	}
 }
 
@@ -101,8 +106,19 @@ func (a *api) Run() {
 	}
 
 	go a.listenToTermination()
+
 	go a.serveRPC()
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: true,
+		AllowedMethods:   []string{"GET", "HEAD", "PATCH", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+	})
+	a.httpServer = &http.Server{
+		Handler: c.Handler(a.router),
+		Addr:    fmt.Sprintf(":%d", a.portREST),
+	}
 	a.router = mux.NewRouter()
 	a.registerRoutes()
 	a.serveHTTP()
@@ -110,8 +126,18 @@ func (a *api) Run() {
 
 func (a *api) listenToTermination() {
 	<-a.ctrl.StopChan
-	a.log.With("event", log.EventComponentShutdown).Infof("")
 	_ = a.log.Flush()
+
+	ctx, cancel := context.WithTimeout(context.Background(), a.terminationTimeout)
+	defer cancel()
+
+	a.httpServer.SetKeepAlivesEnabled(false)
+
+	if err := a.httpServer.Shutdown(ctx); err != nil {
+		a.log.Errorf("httpServer shutdown: %s", err)
+	}
+
+	a.log.With("event", log.EventComponentShutdown).Infof("")
 }
 
 func (a *api) registerRoutes() {
@@ -133,19 +159,7 @@ func (a *api) registerRoutes() {
 }
 
 func (a *api) serveHTTP() {
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowCredentials: true,
-		AllowedMethods:   []string{"GET", "HEAD", "PATCH", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
-	})
-
-	s := &http.Server{
-		Handler: c.Handler(a.router),
-		Addr:    fmt.Sprintf(":%d", a.portREST),
-	}
-
-	if err := s.ListenAndServe(); err != nil {
+	if err := a.httpServer.ListenAndServe(); err != nil {
 		a.log.Errorf("func ListenAndServe: %s", err)
 		a.ctrl.Terminate()
 	}

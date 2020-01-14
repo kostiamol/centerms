@@ -33,14 +33,14 @@ type (
 func New() (*Config, error) {
 	c := &Config{
 		Service: Service{
-			AppID:                     os.Getenv("APP_ID"),
-			LogLevel:                  os.Getenv("LOG_LEVEL"),
-			RetryAttempts:             uintEnv("RETRY_ATTEMPTS"),
-			RetryTimeout:              time.Millisecond * time.Duration(uintEnv("RETRY_TIMEOUT_MS")),
-			PortRPC:                   uintEnv("PORT_RPC"),
-			PortREST:                  uintEnv("PORT_REST"),
-			PortWebSocket:             uintEnv("PORT_WEBSOCKET"),
-			RoutineTerminationTimeout: time.Millisecond * time.Duration(uintEnv("ROUTINE_TERMINATION_TIMEOUT_MS"))},
+			AppID:              os.Getenv("APP_ID"),
+			LogLevel:           os.Getenv("LOG_LEVEL"),
+			RetryAttempts:      uintEnv("RETRY_ATTEMPTS"),
+			RetryTimeout:       time.Millisecond * time.Duration(uintEnv("RETRY_TIMEOUT_MS")),
+			PortRPC:            uintEnv("PORT_RPC"),
+			PortREST:           uintEnv("PORT_REST"),
+			PortWebSocket:      uintEnv("PORT_WEBSOCKET"),
+			TerminationTimeout: time.Millisecond * time.Duration(uintEnv("TERMINATION_TIMEOUT_MS"))},
 		TraceAgent: TraceAgent{
 			Addr: Addr{
 				Host: os.Getenv("TRACE_HOST"),

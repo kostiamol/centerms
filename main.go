@@ -13,6 +13,7 @@ import (
 	"github.com/kostiamol/centerms/trace"
 )
 
+// todo: httpServer.Shutdown() for streamer
 // todo: error %w
 // todo: regen mocks
 // todo: cover with tests
@@ -98,17 +99,18 @@ func main() {
 		})
 	api := api.New(
 		&api.Cfg{
-			Log:          logger,
-			Ctrl:         ctrl,
-			Metric:       mtrc,
-			PubChan:      confChan,
-			PortRPC:      config.Service.PortRPC,
-			PortREST:     config.Service.PortREST,
-			CfgProvider:  conf,
-			DataProvider: data,
-			Retry:        config.Service.RetryTimeout,
-			PublicKey:    config.Token.PublicKey,
-			PrivateKey:   config.Token.PrivateKey,
+			Log:                logger,
+			Ctrl:               ctrl,
+			Metric:             mtrc,
+			PubChan:            confChan,
+			PortRPC:            config.Service.PortRPC,
+			PortREST:           config.Service.PortREST,
+			CfgProvider:        conf,
+			DataProvider:       data,
+			Retry:              config.Service.RetryTimeout,
+			PublicKey:          config.Token.PublicKey,
+			PrivateKey:         config.Token.PrivateKey,
+			TerminationTimeout: config.Service.TerminationTimeout,
 		})
 
 	components := []runner{data, conf, stream, api}
@@ -116,7 +118,7 @@ func main() {
 		go c.Run()
 	}
 
-	ctrl.Wait(config.Service.RoutineTerminationTimeout)
+	ctrl.Wait(config.Service.TerminationTimeout)
 
 	logger.With("event", log.EventMSShutdown)
 	_ = logger.Flush()
