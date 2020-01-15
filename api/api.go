@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kostiamol/centerms/store/model"
+	"google.golang.org/grpc"
 
 	"github.com/kostiamol/centerms/metric"
 
@@ -71,6 +72,7 @@ type (
 		publicKey          string
 		privateKey         string
 		httpServer         *http.Server
+		grpcServer         *grpc.Server
 		terminationTimeout time.Duration
 	}
 )
@@ -126,13 +128,14 @@ func (a *api) Run() {
 
 func (a *api) listenToTermination() {
 	<-a.ctrl.StopChan
+
 	_ = a.log.Flush()
+
+	a.grpcServer.GracefulStop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), a.terminationTimeout)
 	defer cancel()
-
 	a.httpServer.SetKeepAlivesEnabled(false)
-
 	if err := a.httpServer.Shutdown(ctx); err != nil {
 		a.log.Errorf("httpServer shutdown: %s", err)
 	}

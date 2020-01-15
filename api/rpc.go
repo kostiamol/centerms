@@ -22,7 +22,7 @@ func (a *api) serveRPC() {
 		}
 	}()
 
-	s := grpc.NewServer(
+	a.grpcServer = grpc.NewServer(
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_recovery.UnaryServerInterceptor(),
 		)),
@@ -33,9 +33,9 @@ func (a *api) serveRPC() {
 		a.log.Fatalf("func Listen: %s", err)
 	}
 
-	proto.RegisterCenterServiceServer(s, a)
+	proto.RegisterCenterServiceServer(a.grpcServer, a)
 
-	if err := s.Serve(l); err != nil {
+	if err := a.grpcServer.Serve(l); err != nil {
 		a.log.Fatalf("func Serve: %s", err)
 	}
 }

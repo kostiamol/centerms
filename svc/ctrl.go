@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Ctrl contains StopChan that allows to terminate all the services that listen the channel.
+// Ctrl contains StopChan that allows to terminate all the services that listen to the channel.
 type Ctrl struct {
 	StopChan chan struct{}
 }
