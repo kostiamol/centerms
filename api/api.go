@@ -71,9 +71,9 @@ type (
 		token              *tokenValidator
 		publicKey          string
 		privateKey         string
+		terminationTimeout time.Duration
 		httpServer         *http.Server
 		grpcServer         *grpc.Server
-		terminationTimeout time.Duration
 	}
 )
 

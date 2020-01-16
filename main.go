@@ -13,7 +13,7 @@ import (
 	"github.com/kostiamol/centerms/trace"
 )
 
-// todo: httpServer.Shutdown() for streamer
+// todo: move ctrl to main
 // todo: error %w
 // todo: regen mocks
 // todo: cover with tests
@@ -91,11 +91,12 @@ func main() {
 		})
 	stream := svc.NewStreamService(
 		&svc.StreamServiceCfg{
-			Log:     logger,
-			Ctrl:    ctrl,
-			Metric:  mtrc,
-			SubChan: dataChan,
-			PortWS:  config.Service.PortWebSocket,
+			Log:                logger,
+			Ctrl:               ctrl,
+			Metric:             mtrc,
+			SubChan:            dataChan,
+			PortWS:             config.Service.PortWebSocket,
+			TerminationTimeout: config.Service.TerminationTimeout,
 		})
 	api := api.New(
 		&api.Cfg{

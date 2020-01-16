@@ -1,9 +1,13 @@
 package svc
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/kostiamol/centerms/store/model"
 
@@ -11,35 +15,32 @@ import (
 
 	"github.com/kostiamol/centerms/log"
 
-	"sync"
-
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-
-	"context"
-
-	"fmt"
 )
 
 type (
 	// StreamServiceCfg is used to initialize an instance of streamService.
 	StreamServiceCfg struct {
-		Log     log.Logger
-		Ctrl    Ctrl
-		Metric  *metric.Metric
-		SubChan <-chan *model.Data
-		PortWS  uint32
+		Log                log.Logger
+		Ctrl               Ctrl
+		Metric             *metric.Metric
+		SubChan            <-chan *model.Data
+		PortWS             uint32
+		TerminationTimeout time.Duration
 	}
 
 	// streamService is used to deal with streaming of data from the device to web client (dashboard).
 	streamService struct {
-		log      log.Logger
-		ctrl     Ctrl
-		metric   *metric.Metric
-		subChan  <-chan *model.Data
-		portWS   uint32
-		conns    *streamConns
-		upgrader websocket.Upgrader
+		log                log.Logger
+		ctrl               Ctrl
+		metric             *metric.Metric
+		subChan            <-chan *model.Data
+		portWS             uint32
+		terminationTimeout time.Duration
+		conns              *streamConns
+		upgrader           websocket.Upgrader
+		server             *http.Server
 	}
 
 	devID string
@@ -86,12 +87,12 @@ func (s *streamService) Run() {
 	r := mux.NewRouter()
 	r.HandleFunc("/devices/{devID}", s.addConnHandler)
 
-	srv := &http.Server{
+	s.server = &http.Server{
 		Handler: r,
 		Addr:    fmt.Sprintf(":%d", s.portWS),
 	}
 
-	if err := srv.ListenAndServe(); err != nil {
+	if err := s.server.ListenAndServe(); err != nil {
 		s.log.Errorf("func ListenAndServe: %s", err)
 		s.ctrl.Terminate()
 	}
@@ -99,8 +100,17 @@ func (s *streamService) Run() {
 
 func (s *streamService) listenToTermination() {
 	<-s.ctrl.StopChan
-	s.log.With("event", log.EventComponentShutdown).Infof("")
+
 	_ = s.log.Flush()
+
+	ctx, cancel := context.WithTimeout(context.Background(), s.terminationTimeout)
+	defer cancel()
+	s.server.SetKeepAlivesEnabled(false)
+	if err := s.server.Shutdown(ctx); err != nil {
+		s.log.Errorf("server shutdown: %s", err)
+	}
+
+	s.log.With("event", log.EventComponentShutdown).Infof("")
 }
 
 func (s *streamService) addConnHandler(w http.ResponseWriter, r *http.Request) {
