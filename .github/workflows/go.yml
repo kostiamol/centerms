@@ -18,16 +18,19 @@ jobs:
       with:
         go-version: 1.16
 
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v2.5.0
+
     - name: Build
       run: go build -v ./...
 
     - name: Test
-      run: go test -v ./...
-      
-    - name: Docker build
-      run: docker build -t kostiamol/centerms:latest .
-      
-    - name: Docker push
       run: |
-        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-        docker push kostiamol/centerms:latest
+        - go install github.com/golangci/golangci-lint/cmd/golangci-lint
+        - go install github.com/mattn/goveralls 
+        - go test -v ./...
+      
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v2.5.0
+      with:
+        tags: kostiamol/centerms:latest
