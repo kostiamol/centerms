@@ -31,3 +31,5 @@ jobs:
       uses: docker/build-push-action@v2.5.0
       with:
         tags: kostiamol/centerms:latest
+        pull: true
+        push: true
