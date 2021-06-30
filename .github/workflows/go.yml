@@ -25,12 +25,8 @@ jobs:
       run: | 
         go test -v ./...
         go test -v -race ./...
-        # uncomment when project becomes stable
-        # go install github.com/golangci/golangci-lint/cmd/golangci-lint
-        # golangci-lint run --no-config --issues-exit-code=0 --deadline=30m
-        #  --enable=deadcode  --enable=gocyclo --enable=golint --enable=varcheck --enable=structcheck
-        #  --enable=maligned --enable=errcheck --enable=dupl --enable=ineffassign --enable=interfacer
-        #  --enable=unconvert --enable=goconst --enable=gosec --enable=megacheck
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint
+        golangci-lint run
       
     - name: Log in to Docker Hub
       uses: docker/login-action@v1.10.0
