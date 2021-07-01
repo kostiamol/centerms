@@ -2,12 +2,9 @@
 proto_gen:
 	@echo "generating protobufs..."
 	@protoc \
-    	--proto_path=${GOPATH}/src \
-    	--proto_path=${GOPATH}/src/github.com/gogo/protobuf/protobuf \
-    	    --gogofaster_out=plugins=grpc,Mgoogle/protobuf/timestamp.proto=github.com/golang/protobuf/ptypes/timestamp,Mgoogle/api/annotations.proto=github.com/gogo/googleapis/google/api:./proto \
-    	    --govalidators_out=gogoimport=true,Mgoogle/protobuf/timestamp.proto=github.com/golang/protobuf/ptypes/timestamp,Mgoogle/api/annotations.proto=github.com/gogo/googleapis/google/api:./proto \
-    	--proto_path=./proto \
-    	./proto/*.proto
+        --go_out=. --go_opt=paths=source_relative \
+        --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+        ./proto/*.proto
 
 # go get github.com/golang/mock/gomock
 # go get github.com/golang/mock/mockgen
@@ -26,11 +23,7 @@ test:
 
 lint:
 	@echo "running linters..."
-	@golangci-lint run --no-config --issues-exit-code=0 --deadline=30m \
-        --disable-all --enable=deadcode  --enable=gocyclo --enable=golint --enable=varcheck \
-        --enable=structcheck --enable=maligned --enable=errcheck --enable=dupl --enable=ineffassign \
-        --enable=interfacer --enable=unconvert --enable=goconst --enable=gosec --enable=megacheck
-
+	@golangci-lint run
 run:
 	@./centerms
 

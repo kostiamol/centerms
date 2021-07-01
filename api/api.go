@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/kostiamol/centerms/proto"
 	"net/http"
 	"time"
 
@@ -58,6 +59,7 @@ type (
 
 	// api includes both rest and grpc.
 	api struct {
+		proto.UnimplementedCenterServiceServer
 		log                log.Logger
 		ctrl               svc.Ctrl
 		metric             *metric.Metric

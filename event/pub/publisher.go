@@ -10,9 +10,9 @@ import (
 
 	"github.com/kostiamol/centerms/log"
 
-	gproto "github.com/golang/protobuf/proto"
 	"github.com/kostiamol/centerms/proto"
 	"github.com/nats-io/go-nats"
+	gproto "google.golang.org/protobuf/proto"
 )
 
 type (
