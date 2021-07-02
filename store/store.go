@@ -27,7 +27,9 @@ type (
 
 // New creates a new instance of store.
 func New(c *Cfg) (*store, error) { // nolint
-	return nil, nil
+	return &store{
+		addr: c.Addr,
+	}, nil
 }
 
 func (s *store) InitCfg(m *model.Meta) (*model.Cfg, error) {

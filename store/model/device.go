@@ -46,15 +46,12 @@ type (
 
 const (
 	Fridge Type = "fridge"
-	Washer Type = "washer"
 )
 
 func NewDevice(devID string, t Type) (Devicer, error) {
 	switch t {
 	case Fridge:
 		return &fridge{devID: devID}, nil
-	case Washer:
-		return &washer{devID: devID}, nil
 	default:
 		return nil, fmt.Errorf("unknown device with type: %s", t)
 	}
